@@ -1,0 +1,91 @@
+.plataforma {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 2rem;
+  border-radius: 8px;
+  background: var(--chapa);
+}
+
+h1,
+h2 {
+  margin: 0;
+}
+
+.tabla {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+th,
+td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--gm-border);
+  text-align: left;
+  vertical-align: top;
+}
+
+tr.inactivo td:first-child {
+  font-weight: 600;
+}
+
+.marca,
+.error {
+  color: var(--color-danger);
+}
+
+.error {
+  flex-basis: 100%;
+  margin: 0;
+}
+
+.edicion {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.btn {
+  padding: 4px 10px;
+  border: 1px solid var(--gm-input-border);
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.btn--principal {
+  border-color: var(--gm-brand);
+  background: var(--gm-brand);
+  color: #fff;
+}
+
+.valores {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  max-width: 420px;
+
+  label {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    width: 100%;
+  }
+
+  input {
+    padding: 6px 8px;
+    border: 1px solid var(--gm-input-border);
+    border-radius: 6px;
+  }
+
+  small {
+    opacity: 0.75;
+  }
+}

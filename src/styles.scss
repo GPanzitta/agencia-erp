@@ -1,0 +1,955 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   FG autos — sistema de gestión para agencias de autos (base heredada, paleta propia)
+   ═══════════════════════════════════════════════════════════════════════════
+
+   Lenguaje enterprise claro (maqueta rev. 3 aprobada): header global blanco,
+   barra de app marina, encabezados de objeto, path de etapas en chevrones y
+   kanban compacto sobre gris claro.
+
+   · Azul #0B6BC2 para acción primaria y links; marino #06305C para la barra
+     de app y los títulos de objeto.
+   · El ámbar #F2A007 es el color de objeto (icono de órdenes, tab activa).
+     No decora: identifica.
+   · Tipografía de sistema, sin webfonts: look enterprise nativo y carga
+     instantánea. Las cifras siguen tabulares con la mono del sistema.
+   · Los nombres de variables históricos (--acero, --llama, --color-*) siguen
+     vivos como alias apuntando a la paleta GUSMAT: cientos de usos en los
+     componentes se repintan sin tocar un archivo.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+@import 'ngx-toastr/toastr';
+
+// El interceptor de errores separa la oración de la invitación a tocar con
+// "\n\n" (ver error.interceptor.ts). Sin esto, ngx-toastr interpola el texto
+// como si fuera una sola línea y los saltos colapsan a un espacio: la
+// invitación a tocar queda pegada a la oración anterior.
+.toast-message {
+  white-space: pre-line;
+}
+
+:root {
+  /* ─── FG autos: la paleta sale de la calle ───────────────────────────────
+     Asfalto para el menú, amarillo de señal vial para lo que hay que mirar o
+     tocar primero, azul de la chapa patente para botones y enlaces. */
+  --fg-asfalto:      #1E2A32;
+  --fg-senal:        #F5BE0B;
+  --fg-senal-osc:    #DDA800;
+  --fg-patente:      #1F4FA3;
+
+  --gm-brand:        var(--fg-patente);
+  --gm-brand-dark:   #173B7A;
+  --gm-navy:         var(--fg-asfalto);
+  --gm-object:       var(--fg-senal);
+  --gm-bg:           #EDEFEE;
+  --gm-col:          #E2E6E4;
+  --gm-card:         #FFFFFF;
+  --gm-border:       #D6DAD8;
+  --gm-input-border: #B9C0BD;
+  --gm-text:         #162028;
+  --gm-text-2:       #36424B;
+  --gm-muted:        #636E77;
+  --gm-error:        #C4372F;
+  --gm-error-bg:     #FCECEA;
+  --gm-success:      #23794A;
+  --gm-radius:       7px;
+  --gm-radius-lg:    10px;
+  /* Archivo: una grotesca hecha en Argentina (Omnibus-Type). Si no carga, la del sistema. */
+  --gm-font: 'Archivo', -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+
+  /* ─── Materiales (alias históricos → paleta GUSMAT) ──────────────────── */
+  --acero:      var(--gm-bg);
+  --acero-2:    var(--gm-col);
+  --chapa:      var(--gm-card);
+  --grafito:    var(--gm-text);
+  --humo:       var(--gm-muted);
+  --humo-claro: #9aa4af;
+  --filo:       var(--gm-border);
+
+  /* ─── Acentos funcionales ────────────────────────────────────────────── */
+  --llama:      var(--gm-brand);      /* acción primaria */
+  --llama-osc:  var(--gm-brand-dark);
+  --brasa:      var(--gm-error);      /* urgencia */
+  --brasa-osc:  #9c2d29;
+
+  /* ─── Estados ────────────────────────────────────────────────────────── */
+  --ok:         var(--gm-success);
+  --alerta:     #B45309;
+  --peligro:    var(--gm-error);
+  --info:       var(--gm-brand);
+
+  /* ─── Temperatura: hace cuánto que algo espera ───────────────────────── */
+  --temp-fria:  var(--gm-brand);
+  --temp-tibia: #B45309;
+  --temp-brasa: #D9541E;
+  --temp-quema: var(--gm-error);
+
+  /* ─── Tipografía ─────────────────────────────────────────────────────── */
+  --fuente:  var(--gm-font);
+  --fuente-datos: ui-monospace, 'Cascadia Mono', Consolas, monospace;
+
+  /* ─── Geometría ──────────────────────────────────────────────────────── */
+  --radius-sm: 3px;
+  --radius-md: var(--gm-radius);
+  --radius-lg: var(--gm-radius-lg);
+  --radius-xl: 8px;
+
+  --sidebar-width: 236px;
+  --sidebar-width-collapsed: 64px;
+  --topbar-height: 60px;
+  --bottom-nav-height: 58px;
+
+  /* ─── Alias de compatibilidad ────────────────────────────────────────── */
+  /* Los componentes existentes siguen pidiendo estos nombres. Apuntan a la
+     paleta nueva, así que se repintan sin tocar un solo archivo. */
+  --color-twilight-indigo: var(--grafito);
+  --color-steel-azure:     var(--llama);
+  --color-baltic-blue:     var(--llama);
+  --color-dusty-denim:     var(--humo);
+  --color-wisteria-blue:   var(--humo-claro);
+
+  --color-success:   var(--ok);
+  --color-danger:    var(--peligro);
+  --color-warning:   var(--alerta);
+  --color-purple:    var(--brasa);
+  --color-bg-light:  var(--acero);
+  --color-text-dark: var(--grafito);
+  --color-text-muted:var(--humo);
+  --color-border:    var(--filo);
+
+  /* Tokens que piden los módulos nuevos (gastos, inventario, carta,
+     auditoría). Estaban SIN DEFINIR: un var() inexistente invalida la
+     declaración entera, así que los fondos caían al fallback (un azul de
+     tema oscuro sobre el que el texto no se lee) y las barras de progreso
+     directamente no se pintaban. */
+  --color-bg-card:        var(--chapa);
+  --color-bg-main:        var(--chapa);
+  --color-background:     var(--gm-bg);
+  --color-text:           var(--grafito);
+  --color-text-secondary: var(--grafito);
+  --color-text-dim:       var(--humo);
+  --color-accent-teal:    var(--llama);
+
+  /* Varios componentes piden estos nombres con fallback teal/granate inline:
+     definirlos acá los trae a la paleta GUSMAT sin tocar cada archivo. */
+  --color-primary: var(--gm-brand);
+  --color-surface: var(--gm-card);
+}
+
+/* ═══ RESET ═══════════════════════════════════════════════════════════════ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html {
+  font-size: 14px;
+  -webkit-text-size-adjust: 100%;
+}
+@media (min-width: 1280px) { html { font-size: 15px; } }
+
+body {
+  background-color: var(--acero);
+  color: var(--grafito);
+  font-family: var(--fuente);
+  line-height: 1.45;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Títulos enterprise: peso y color, sin mayúsculas de cartel. El marino de
+   objeto los distingue del texto corriente. */
+h1, h2, h3 {
+  font-family: var(--fuente);
+  font-weight: 700;
+  letter-spacing: 0;
+  line-height: 1.2;
+  color: var(--gm-navy);
+}
+
+h1 { font-size: 1.35rem; }
+h2 { font-size: 1.1rem; }
+h3 { font-size: 0.95rem; }
+
+/* Toda cifra se alinea en vertical para poder compararse de un vistazo. */
+.dato, td.num, .monto, .cifra {
+  font-family: var(--fuente-datos);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+a { color: var(--llama); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* Foco visible siempre: se opera con teclado en el mostrador. */
+:focus-visible {
+  outline: 2px solid var(--llama);
+  outline-offset: 2px;
+}
+
+/* ═══ SCROLLBARS ══════════════════════════════════════════════════════════ */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--filo); border-radius: 6px; }
+::-webkit-scrollbar-thumb:hover { background: var(--humo); }
+
+/* ═══ LA TIRA DE TEMPERATURA ══════════════════════════════════════════════
+   El elemento firma. Una barra vertical en el borde izquierdo que dice hace
+   cuánto que algo espera. Se lee con el rabillo del ojo, sin leer el número.
+
+   Uso:  <div class="tira" data-temp="brasa"></div>
+   o bien envolver la fila con .con-tira y ponerle data-temp.
+
+   Significa lo mismo en cocina, salón, despacho y vencimientos: se aprende
+   una vez y sirve en todas.
+   ═══════════════════════════════════════════════════════════════════════════ */
+.con-tira {
+  position: relative;
+  padding-left: 14px;
+}
+
+.con-tira::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 5px;
+  border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+  background: var(--temp-fria);
+  transition: background 0.4s ease;
+}
+
+.con-tira[data-temp='tibia']::before { background: var(--temp-tibia); }
+.con-tira[data-temp='brasa']::before { background: var(--temp-brasa); }
+.con-tira[data-temp='quema']::before {
+  background: var(--temp-quema);
+  /* Solo lo que ya quema pulsa. Si todo parpadea, nada llama la atención. */
+  animation: latido 1.8s ease-in-out infinite;
+}
+
+@keyframes latido {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.45; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .con-tira[data-temp='quema']::before { animation: none; }
+}
+
+/* ═══ BOTONES ═════════════════════════════════════════════════════════════ */
+button {
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.14s ease, border-color 0.14s ease, color 0.14s ease;
+  border: none;
+  background: none;
+  &:active { transform: translateY(1px); }
+  &:disabled { opacity: 0.45; cursor: not-allowed; pointer-events: none; }
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 9px 16px;
+  border-radius: var(--radius-md);
+  font-weight: 600;
+  font-size: 0.88rem;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  border: 1px solid transparent;
+
+  .icon { margin-right: 0; }
+
+  &:disabled { opacity: 0.45; cursor: not-allowed; }
+}
+
+.btn-primary {
+  background-color: var(--llama);
+  color: #fff;
+  &:hover:not(:disabled) { background-color: var(--llama-osc); }
+}
+
+.btn-success {
+  background-color: var(--ok);
+  color: #fff;
+  &:hover:not(:disabled) { filter: brightness(1.1); }
+}
+
+.btn-danger {
+  background-color: var(--peligro);
+  color: #fff;
+  &:hover:not(:disabled) { filter: brightness(1.1); }
+}
+
+/* Antes era violeta. Editar no es una acción de marca: es secundaria. */
+.btn-edit {
+  background-color: transparent;
+  border-color: var(--filo);
+  color: var(--grafito);
+  &:hover:not(:disabled) { border-color: var(--llama); color: var(--llama); }
+}
+
+.btn-outline {
+  background-color: transparent;
+  border-color: var(--filo);
+  color: var(--grafito);
+  &:hover:not(:disabled) {
+    background-color: var(--chapa);
+    border-color: var(--humo);
+  }
+}
+
+/* ═══ FORMULARIOS ═════════════════════════════════════════════════════════ */
+input, select, textarea {
+  font-family: inherit;
+  font-size: 0.9rem;
+  color: var(--grafito);
+  background: var(--chapa);
+  border: 1px solid var(--filo);
+  border-radius: var(--radius-md);
+  padding: 0.6rem 0.8rem;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+
+  &:focus {
+    border-color: var(--llama);
+    box-shadow: 0 0 0 3px rgba(14, 124, 134, 0.15);
+  }
+  &::placeholder { color: var(--humo-claro); }
+}
+
+input[type='number'] {
+  font-family: var(--fuente-datos);
+  font-variant-numeric: tabular-nums;
+}
+
+select { appearance: none; cursor: pointer; }
+
+label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0;
+  color: var(--gm-text-2);
+}
+
+/* ═══ BADGES ══════════════════════════════════════════════════════════════ */
+.status-badge, .badge-success, .badge-warning, .badge-danger,
+.badge-info, .badge-secondary, .badge-dark, .badge-default {
+  display: inline-block;
+  padding: 3px 9px;
+  border-radius: var(--radius-sm);
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  border: 1px solid transparent;
+}
+
+.badge-success   { background: rgba(21,128,61,0.10);  color: var(--ok);       border-color: rgba(21,128,61,0.28); }
+.badge-warning   { background: rgba(180,83,9,0.10);   color: var(--alerta);   border-color: rgba(180,83,9,0.28); }
+.badge-danger    { background: rgba(185,28,28,0.10);  color: var(--peligro);  border-color: rgba(185,28,28,0.28); }
+.badge-info      { background: rgba(14,124,134,0.10); color: var(--llama);    border-color: rgba(14,124,134,0.28); }
+.badge-secondary { background: rgba(90,100,110,0.10); color: var(--humo);     border-color: rgba(90,100,110,0.24); }
+.badge-dark      { background: rgba(20,24,28,0.08);   color: var(--grafito);  border-color: rgba(20,24,28,0.20); }
+.badge-default   { background: var(--acero-2);        color: var(--humo);     border-color: var(--filo); }
+
+/* ═══ SUPERFICIES ═════════════════════════════════════════════════════════ */
+.global-card {
+  background-color: var(--chapa);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  border: 1px solid var(--filo);
+  box-shadow: 0 1px 2px rgba(6, 48, 92, 0.05);
+}
+
+/* ═══ UTILIDADES GUSMAT ═══════════════════════════════════════════════════
+   Las usan los componentes nuevos del rebrand (header global, app-nav,
+   object-header, path de etapas) y cualquier pantalla que se restyle. */
+.gm-btn {
+  height: 34px;
+  padding: 0 16px;
+  border-radius: var(--gm-radius);
+  font-family: var(--gm-font);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+.gm-btn--brand { background: var(--gm-brand); color: #fff; font-weight: 700; }
+.gm-btn--brand:hover:not(:disabled) { background: var(--gm-brand-dark); }
+.gm-btn--neutral { background: var(--gm-card); color: var(--gm-brand); border-color: var(--gm-input-border); }
+.gm-btn--neutral:hover:not(:disabled) { background: var(--gm-bg); }
+.gm-btn--danger { background: var(--gm-error); color: #fff; font-weight: 700; }
+.gm-btn--danger:hover:not(:disabled) { filter: brightness(1.08); }
+.gm-btn--sm { height: 26px; padding: 0 12px; font-size: 12px; }
+
+.gm-card {
+  background: var(--gm-card);
+  border: 1px solid var(--gm-border);
+  border-radius: var(--gm-radius-lg);
+  box-shadow: 0 1px 2px rgba(6, 48, 92, 0.05);
+}
+
+/* --- FORMULARIOS ANCHOS (GLOBAL) ---
+   Los formularios de carga (cliente, alta de orden, editar OS, repuesto,
+   proveedor, OC) se hacen más anchos que altos: en escritorio tres columnas
+   para que la ficha entera entre sin scroll; en tablet dos; en móvil una y
+   ahí sí se scrollea. Una sola regla para que todos se sientan iguales. */
+.gm-form-ancho { width: min(1040px, 94vw) !important; max-width: 1040px !important; }
+.gm-campos-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.5rem 0.9rem; align-items: start; }
+.gm-campos-3 > .gm-campo--ancho { grid-column: 1 / -1; }
+/* Cuando la grilla comparte el modal con otro panel (alta de orden con cliente nuevo). */
+.gm-campos-3.gm-campos-3--dos { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (max-width: 1023px) {
+  .gm-campos-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 767px) {
+  .gm-form-ancho { width: 100% !important; max-width: 100% !important; }
+  .gm-campos-3, .gm-campos-3.gm-campos-3--dos { grid-template-columns: minmax(0, 1fr); }
+}
+
+.gm-input {
+  height: 38px;
+  border: 1px solid var(--gm-input-border);
+  border-radius: var(--gm-radius);
+  padding: 0 12px;
+  font-family: var(--gm-font);
+  font-size: 14px;
+  color: var(--gm-text);
+  background: #fff;
+  outline: none;
+}
+.gm-input:focus {
+  border-color: var(--gm-brand);
+  box-shadow: 0 0 0 2px rgba(11, 107, 194, 0.2);
+}
+.gm-input::placeholder { color: var(--humo-claro); }
+
+/* Pill de metadato (horas en etapa, contadores suaves) */
+.gm-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  color: var(--gm-muted);
+  background: var(--gm-bg);
+}
+.gm-pill--error { color: var(--gm-error); background: var(--gm-error-bg); font-weight: 700; }
+.gm-pill--b2b { color: var(--gm-navy); background: #DCEBF7; font-weight: 700; font-size: 10px; }
+/* T1 — el repuesto está en la vidriera pública. */
+.gm-pill--ok { color: var(--gm-success); background: #E3F3E8; font-weight: 700; }
+
+/* Etapa de la orden: una pill de color por estado (ficha y grilla, 30/09/2026). */
+.pill-estado { background: var(--gm-col); color: var(--gm-text-2); font-weight: 600; }
+.pill-estado[data-estado='a_retirar'] { background: #EEF2FF; color: #3730A3; }
+.pill-estado[data-estado='recibida'] { background: #E0F2FE; color: #075985; }
+.pill-estado[data-estado='en_diagnostico'] { background: #EDE9FE; color: #5B21B6; }
+.pill-estado[data-estado='esperando_cotizacion'] { background: #FEF3C7; color: #92400E; }
+.pill-estado[data-estado='presupuestada'] { background: #FFEDD5; color: #9A3412; }
+.pill-estado[data-estado='esperando_repuesto'] { background: #FCE7F3; color: #9D174D; }
+.pill-estado[data-estado='en_reparacion'] { background: #DBEAFE; color: #1E40AF; }
+.pill-estado[data-estado='listo'] { background: #E3F3E6; color: #1B7F3B; }
+.pill-estado[data-estado='rechazada'] { background: #FBE3E3; color: #A81B1B; }
+.pill-estado[data-estado='entregada'] { background: var(--gm-col); color: var(--gm-muted); }
+
+/* ═══ LOGIN ═══════════════════════════════════════════════════════════════
+   Estaba sin estilar: el botón salía en el gris #ccc por defecto del
+   navegador. Es lo primero que ve cualquiera que entra.
+   ═══════════════════════════════════════════════════════════════════════════ */
+.auth-container {
+  max-width: 380px;
+  margin: 8vh auto;
+  padding: 2rem;
+  background: var(--chapa);
+  border: 1px solid var(--filo);
+  border-radius: var(--radius-lg);
+  border-top: 3px solid var(--brasa);
+
+  h2 {
+    margin: 0 0 1.5rem;
+    font-variation-settings: 'wdth' 118;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--grafito);
+  }
+
+  form {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+
+    div { margin-bottom: 0; display: flex; flex-direction: column; gap: 5px; }
+
+    label {
+      display: block;
+      font-weight: 600;
+      color: var(--humo);
+    }
+
+    input {
+      width: 100%;
+      padding: 0.7rem 0.85rem;
+      border: 1px solid var(--filo);
+      border-radius: var(--radius-md);
+    }
+
+    button {
+      margin-top: 0.5rem;
+      padding: 0.8rem;
+      background: var(--llama);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius-md);
+      font-weight: 700;
+      font-size: 0.95rem;
+      letter-spacing: 0.02em;
+      cursor: pointer;
+
+      &:hover:not(:disabled) { background: var(--llama-osc); }
+      &:disabled { background: var(--humo-claro); }
+    }
+  }
+
+  p {
+    text-align: center;
+    margin-top: 1.25rem;
+    font-size: 0.85rem;
+    color: var(--humo);
+  }
+}
+
+/* ═══ SPINNER ═════════════════════════════════════════════════════════════ */
+.neon-spinner {
+  width: 28px; height: 28px;
+  border: 3px solid var(--filo);
+  border-top-color: var(--llama);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .neon-spinner { animation-duration: 2.4s; }
+}
+/* --- CHECKOUT OVERLAY (GLOBAL) --- */
+.checkout-overlay {
+  position: fixed; inset: 0; z-index: 9999;
+  display: flex; align-items: center; justify-content: center;
+  
+  .backdrop {
+    position: absolute; inset: 0;
+    background: rgba(0,0,0,0.5);
+    backdrop-filter: blur(4px);
+  }
+  
+  .checkout-card-compact {
+    position: relative;
+    background: white;
+    width: 95%; max-width: 800px;
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--color-border);
+    overflow: hidden;
+    animation: slideUp 0.3s ease-out;
+    display: flex; flex-direction: column;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+    max-height: 90vh;
+    
+    .checkout-header-compact {
+      padding: 1.25rem 1.75rem;
+      background: var(--color-bg-light);
+      border-bottom: 1px solid var(--color-border);
+      display: flex; justify-content: space-between; align-items: center;
+      h2 { margin: 0; font-size: 1.4rem; font-weight: 900; color: var(--color-text-dark); }
+      button { color: var(--color-text-muted); font-size: 1.5rem; cursor: pointer; &:hover { color: var(--color-text-dark); } }
+    }
+    
+    .checkout-body {
+      display: flex;
+      overflow-y: auto;
+      @media (max-width: 640px) { flex-direction: column; }
+    }
+    
+    .checkout-items-summary {
+      flex: 1; padding: 1.75rem;
+      background: var(--color-bg-light);
+      border-right: 1px solid var(--color-border);
+      display: flex; flex-direction: column;
+      
+      @media (max-width: 640px) { border-right: none; border-bottom: 1px solid var(--color-border); }
+      
+      h3 { font-size: 0.85rem; font-weight: 900; color: var(--color-steel-azure); margin-bottom: 1rem; text-transform: uppercase; letter-spacing: 1px; }
+      
+      .summary-scroll {
+        flex: 1; max-height: 250px; overflow-y: auto;
+        .mini-item {
+          display: flex; justify-content: space-between;
+          padding: 10px 0;
+          border-bottom: 1px solid var(--color-border);
+          font-size: 1.05rem; font-weight: 600; color: var(--color-text-dark);
+          &.new { color: var(--color-steel-azure); }
+        }
+        .mini-item-empty { color: var(--color-text-muted); font-size: 1rem; font-style: italic; padding: 1.5rem 0; }
+      }
+      
+      .summary-adicionales-bar {
+        margin-top: 10px;
+        padding: 0.85rem 1rem;
+        background: rgba(31, 72, 126, 0.05);
+        border: 1px solid rgba(31, 72, 126, 0.1);
+        border-radius: var(--radius-sm);
+        display: flex; justify-content: space-between; align-items: center;
+        span { font-weight: 800; color: var(--color-steel-azure); font-size: 0.85rem; text-transform: uppercase; }
+        .total-val { font-size: 1.3rem; color: var(--color-steel-azure); font-weight: 900; }
+      }
+
+      .summary-total-bar {
+        margin-top: auto; padding-top: 1.25rem;
+        border-top: 2px solid var(--color-border);
+        display: flex; justify-content: space-between; align-items: center;
+        span { font-weight: 800; color: var(--color-text-muted); font-size: 0.95rem; text-transform: uppercase; }
+        .total-val { font-size: 2.2rem; color: var(--color-text-dark); font-weight: 900; }
+      }
+    }
+    
+    .checkout-payment-form {
+      flex: 1.2; padding: 1.75rem;
+      display: flex; flex-direction: column; gap: 1.5rem;
+      
+      .payment-methods {
+        display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
+        button {
+          background: white !important;
+          border: 1px solid var(--color-border) !important;
+          padding: 0.75rem 0.5rem;
+          border-radius: var(--radius-sm);
+          color: var(--color-text-muted) !important;
+          font-weight: 800; font-size: 0.85rem;
+          transition: all 0.2s;
+          &.active {
+            border-color: var(--color-steel-azure) !important;
+            background: rgba(31, 72, 126, 0.05) !important;
+            color: var(--color-steel-azure) !important;
+            box-shadow: 0 0 0 2px rgba(31, 72, 126, 0.1);
+          }
+        }
+      }
+      
+      .payment-fields {
+        display: flex; flex-direction: column; gap: 1rem;
+        .field {
+          display: flex; flex-direction: column; gap: 6px;
+          label { font-size: 0.85rem; font-weight: 800; color: var(--color-text-muted); text-transform: uppercase; }
+          input { font-size: 1.25rem; font-weight: 900; text-align: center; padding: 0.75rem; border-radius: var(--radius-md); border: 1px solid var(--color-border); color: var(--color-text-dark); background: white; width: 100%; box-sizing: border-box; &:focus { border-color: var(--color-steel-azure); outline: none; } }
+          .vuelto-result {
+            background: rgba(16,185,129,0.1);
+            color: var(--color-success);
+            padding: 12px; border-radius: var(--radius-md);
+            text-align: center; font-weight: 900; font-size: 1.4rem;
+            margin-top: 8px;
+          }
+        }
+        .field.discount-section {
+          background: #f8fafc;
+          padding: 1rem;
+          border-radius: var(--radius-md);
+          border: 1px solid var(--color-border);
+          label { margin-bottom: 4px; }
+          input, select {
+            font-size: 0.95rem !important;
+            font-weight: 600 !important;
+            text-align: left !important;
+            padding: 0.6rem !important;
+          }
+          select { text-align: center !important; }
+        }
+      }
+      
+      .btn-confirm-pay {
+        width: 100%; padding: 1rem;
+        border-radius: var(--radius-sm);
+        background: var(--color-success) !important;
+        color: white !important;
+        font-weight: 900; font-size: 1.1rem;
+        margin-top: auto;
+        border: none;
+        box-shadow: 0 4px 6px rgba(16, 185, 129, 0.2);
+        transition: all 0.2s;
+        &:hover { filter: brightness(0.95); transform: translateY(-1px); }
+      }
+    }
+  }
+}
+
+/* --- ANIMATIONS --- */
+@keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes fadeSlideIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+/* --- UTILITY CLASSES --- */
+.text-teal { color: var(--color-steel-azure); }
+.text-orange { color: var(--color-warning); }
+.text-dim { color: var(--color-text-muted); }
+.fw-900 { font-weight: 700; }
+
+/* ═══ MARCA EN LAS PANTALLAS DE ACCESO ════════════════════════════════════ */
+/* Anidada bajo .auth-container a proposito: la regla generica `.auth-container p`
+   tiene mas especificidad que una clase suelta y le ganaba al color. */
+.auth-container .auth-marca {
+  margin: 0 0 0.35rem;
+  font-variation-settings: 'wdth' 125;
+  font-weight: 800;
+  font-size: 0.72rem;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--brasa);
+  text-align: left;
+}
+
+/* ═══ TABLAS ══════════════════════════════════════════════════════════════
+   Una tabla de operación se lee comparando columnas en vertical, no leyendo
+   filas. De ahí las tres reglas que la ordenan:
+
+   1. Las cifras van a la derecha, en monoespaciada y tabulares, para que las
+      comas decimales queden una debajo de otra y dos importes se comparen sin
+      leerlos.
+   2. La unidad no compite con el número: va detrás, más chica y en humo.
+   3. El estado no se dibuja cuando todo está bien. Una columna que dice "OK"
+      en todas las filas es ruido: ocupa lugar y no informa. Solo se pinta la
+      fila que tiene un problema, con la tira de temperatura del sistema.
+   ═══════════════════════════════════════════════════════════════════════════ */
+.modern-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+
+  thead th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    text-align: left;
+    padding: 0.7rem 1.1rem;
+    background: var(--acero);
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--humo);
+    border-bottom: 1px solid var(--filo);
+    white-space: nowrap;
+
+    /* Los encabezados se pisaban entre sí: esta línea los separa sin agregar
+       peso visual. */
+    & + th { box-shadow: inset 1px 0 0 var(--filo); }
+  }
+
+  tbody td {
+    padding: 0.7rem 1.1rem;
+    font-size: 0.88rem;
+    color: var(--grafito);
+    border-bottom: 1px solid var(--acero-2);
+    vertical-align: middle;
+  }
+
+  /* Zebra tenue: en una lista larga, la fila es más fácil de seguir con el ojo. */
+  tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--acero) 45%, var(--chapa)); }
+  tbody tr:hover td { background: color-mix(in srgb, var(--llama) 7%, var(--chapa)); }
+
+  /* Columna de cifras */
+  th.num, td.num {
+    text-align: right;
+    font-family: var(--fuente-datos);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
+    white-space: nowrap;
+  }
+
+  td.num .unidad {
+    margin-left: 4px;
+    font-family: var(--fuente);
+    font-size: 0.74rem;
+    font-weight: 500;
+    color: var(--humo-claro);
+  }
+
+  /* Nombre: es la columna que se busca con la vista, va con más peso. */
+  td.principal {
+    font-weight: 600;
+    font-size: 0.92rem;
+  }
+
+  /* Acciones a la derecha, sin ocupar más de lo necesario. */
+  th.acciones, td.acciones {
+    text-align: right;
+    white-space: nowrap;
+    width: 1%;
+  }
+
+  /* ─── La tira de estado ─────────────────────────────────────────────────
+     Solo se pinta si hay algo que mirar. La fila sana no lleva marca. */
+  tbody td:first-child {
+    border-left: 3px solid transparent;
+    padding-left: calc(1.1rem - 3px);
+  }
+  tbody tr[data-estado='bajo']   td:first-child { border-left-color: var(--alerta); }
+  tbody tr[data-estado='critico'] td:first-child { border-left-color: var(--brasa); }
+  tbody tr[data-estado='agotado'] td:first-child { border-left-color: var(--peligro); }
+
+  tbody tr[data-estado='agotado'] td.num { color: var(--peligro); font-weight: 600; }
+  tbody tr[data-estado='critico'] td.num { color: var(--brasa); font-weight: 600; }
+
+  td.vacio {
+    padding: 3rem 1rem;
+    text-align: center;
+    color: var(--humo);
+    font-size: 0.9rem;
+  }
+}
+
+/* Contenedor con scroll horizontal: una tabla ancha no puede empujar la página. */
+.table-container {
+  overflow-x: auto;
+  padding: 0;
+}
+
+/* ─── Tabla como tarjetas en pantallas angostas ───────────────────────────
+   A 375 px una tabla de varias columnas no se lee: cada fila pasa a ser una
+   tarjeta y cada celda lleva su rótulo desde `data-etiqueta`. Regla común a
+   las tres tablas del Pañol que la usaban (ficha del repuesto, listado y
+   faltantes); lo que cada una necesita de más queda en su propio SCSS. */
+@media (max-width: 640px) {
+  .tabla-tarjetas {
+    thead { display: none; }
+    tbody, tr, td { display: block; width: 100%; }
+
+    tr {
+      border: 1px solid var(--gm-border);
+      border-radius: var(--gm-radius);
+      margin-bottom: 8px;
+      padding: 10px 12px;
+      background: var(--gm-card);
+    }
+
+    td {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 3px 0;
+      border: 0;
+      text-align: right;
+      font-size: 12.5px;
+
+      &::before {
+        content: attr(data-etiqueta);
+        font-weight: 700;
+        color: var(--gm-muted);
+        text-align: left;
+      }
+    }
+  }
+}
+
+/* Botón de acción en tabla: cuadrado, discreto, y recién al pasar por encima
+   toma color. Si todos gritan, ninguno se ve. */
+.btn-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--humo);
+  border: 1px solid transparent;
+
+  & + .btn-icon { margin-left: 2px; }
+
+  &:hover {
+    background: var(--acero);
+    color: var(--grafito);
+    border-color: var(--filo);
+  }
+
+  &.danger:hover { color: var(--peligro); border-color: var(--peligro); }
+  &.edit:hover   { color: var(--llama);   border-color: var(--llama); }
+}
+
+/* ─── Encabezado de objeto (patrón GUSMAT) ─── */
+.oh {
+  padding: 14px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.oh-fila {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.oh-id { display: flex; align-items: center; gap: 12px; }
+
+.oh-tile {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--gm-radius-lg);
+  background: var(--gm-object);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.oh-titulos {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+
+  .oh-eyebrow { font-size: 12px; color: var(--gm-muted); }
+  h1 { margin: 0; font-size: 18px; }
+}
+
+.oh-fila--meta { gap: 10px; }
+.oh-meta { font-size: 12.5px; color: var(--gm-muted); }
+
+.oh-herramientas {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap; /* en un teléfono, buscador y filtros bajan de renglón en vez de empujar la página */
+  gap: 12px;
+
+  .gm-input { height: 32px; min-width: 220px; font-size: 12.5px; }
+  .check { display: flex; align-items: center; gap: 6px; font-size: 0.85rem; color: var(--gm-muted); cursor: pointer; white-space: nowrap; }
+}
+@media (max-width: 767px) {
+  .oh-herramientas .gm-input { min-width: 0; flex: 1 1 150px; }
+}
+
+/* Contenedor de tabla ancha (OC, auditoría): scrollea la tabla, no la página. */
+.table-responsive { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+
+/* ── Visor de fotos: acciones (descargar / cerrar), compartido por OS, repuestos y notas ── */
+.foto-velo .velo-acciones {
+  position: fixed; top: 12px; right: 12px; display: flex; gap: 8px; z-index: 1; cursor: default;
+  .gm-btn { background: rgba(255, 255, 255, 0.92); color: #111; border: none; }
+}
+
+/* ═══ FG autos (14/11/2026): ajustes de base sobre el sistema heredado ═══════ */
+h1, h2, h3, h4 { letter-spacing: -0.01em; }
+h2 { font-size: 1.45rem; font-weight: 700; }
+.gm-btn { height: 36px; padding: 0 16px; border-radius: 8px; font-weight: 600; font-size: 14px; text-decoration: none; }
+.gm-btn--brand { font-weight: 600; }
+.gm-btn--neutral { color: var(--gm-text); }
+.gm-btn--sm { height: 30px; padding: 0 12px; font-size: 13px; border-radius: 7px; }
+.gm-btn:focus-visible { outline: 2px solid var(--gm-text); outline-offset: 2px; }
+.gm-input { border-radius: 7px; }
+.gm-input:focus { border-color: var(--gm-text); box-shadow: 0 0 0 3px rgba(245, 190, 11, 0.35); outline: none; }
+.gm-card { box-shadow: none; }

@@ -1,0 +1,10 @@
+.registro-titulo { margin: 0 0 16px; font-size: 1.15rem; }
+.registro-error { display: block; margin-top: 4px; color: var(--gm-danger, #b42318); font-size: .8rem; }
+.registro-pie { margin: 14px 0 0; font-size: .88rem; text-align: center; }
+.registro-rubros {
+  margin: 0 0 16px; padding: 0; border: 0;
+  legend { margin-bottom: 6px; font-size: .85rem; font-weight: 600; }
+  label { display: inline-flex; align-items: center; gap: 6px; margin: 0 12px 6px 0; font-size: .88rem; font-weight: 400; }
+}
+/* Fuera de la vista, y no con display:none: varios bots se saltean lo oculto. */
+.registro-trampa { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }

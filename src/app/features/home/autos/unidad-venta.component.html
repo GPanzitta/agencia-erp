@@ -1,0 +1,98 @@
+<section class="venta" [attr.data-estado]="o.estado" aria-label="Venta">
+  <header>
+    <h4>{{ o.estado === 'vendida' ? 'Vendida' : 'Reservada' }} a {{ o.cliente_nombre }} <small>{{ o.numero }}</small></h4>
+    <p class="sub">
+      <ng-container *ngIf="o.cliente_telefono">{{ o.cliente_telefono }} · </ng-container>
+      <ng-container *ngIf="o.vendedor">Vendió {{ o.vendedor.nombre }} · </ng-container>
+      <ng-container *ngIf="o.estado === 'vendida'">Se cerró el {{ fecha(o.cerrada_at) }}</ng-container>
+      <ng-container *ngIf="o.estado === 'reservada' && o.reserva_vence">
+        <span [class.vencido]="o.vencida">{{ o.vencida ? 'La reserva venció el' : 'Reserva hasta el' }} {{ fecha(o.reserva_vence) }}</span>
+      </ng-container>
+      <ng-container *ngIf="o.estado === 'reservada' && !o.reserva_vence">Reserva sin vencimiento</ng-container>
+    </p>
+  </header>
+
+  <div class="cuenta">
+    <div><span>Precio acordado</span><b>{{ plata(o.precio, o.moneda) }}</b></div>
+    <div><span>Cobrado</span><b>{{ plata(o.pagado, o.moneda) }}</b></div>
+    <div [class.saldo-pendiente]="!o.saldada"><span>Saldo</span><b>{{ o.saldada ? 'Saldada' : plata(o.saldo, o.moneda) }}</b></div>
+    <div *ngIf="o.comision !== null && esDuenio"><span>Comisión del vendedor</span><b>{{ plata(o.comision, o.moneda) }}</b></div>
+  </div>
+  <div class="barra-cuenta" role="progressbar" [attr.aria-valuenow]="cubierto" aria-valuemin="0" aria-valuemax="100" aria-label="Cuánto de la venta está cobrado">
+    <i [style.width.%]="cubierto" [class.completa]="o.saldada"></i>
+  </div>
+
+  <p class="vacio" *ngIf="!o.pagos.length">Todavía no se cobró nada: cargá la seña.</p>
+  <ul class="pagos" *ngIf="o.pagos.length">
+    <li *ngFor="let p of o.pagos; trackBy: trackPorId">
+      <span class="cuando">{{ fecha(p.fecha) }}</span>
+      <span>
+        {{ rotuloMedio[p.medio] }}
+        <a *ngIf="p.toma" [routerLink]="['/home/autos/unidad', p.toma.id]">{{ p.toma.titulo }} ({{ p.toma.numero }})</a>
+        <small *ngIf="p.billetera"> · entró a {{ p.billetera }}</small>
+        <small *ngIf="p.detalle"> · {{ p.detalle }}</small>
+      </span>
+      <b>{{ plata(p.monto, p.moneda) }}<small *ngIf="p.tipo_cambio"> = {{ plata(p.equivalente, o.moneda) }}</small></b>
+      <span class="de-pago"><button type="button" class="enlace" (click)="recibo.emit(p.id)">Recibo</button>
+        <button type="button" class="quitar" *ngIf="esDuenio && o.estado === 'reservada'" (click)="quitarPago.emit(p.id)" [disabled]="ocupado">Quitar</button></span>
+    </li>
+  </ul>
+  <p class="papeles-venta"><button type="button" class="gm-btn gm-btn--neutral gm-btn--sm" (click)="boleto.emit()">Boleto de compraventa</button>
+    <small>Es un modelo con los datos ya cargados: hacelo revisar por tu abogado o tu gestor antes de usarlo.</small></p>
+
+  <ng-container *ngIf="o.estado === 'reservada'">
+    <p class="aviso" *ngIf="freno as f">Para entregarla: {{ f }}</p>
+    <div class="botones">
+      <button type="button" *ngIf="o.acciones.pagar" class="gm-btn gm-btn--brand gm-btn--sm" (click)="abrirPanel.emit('pago')">Anotar un pago</button>
+      <button type="button" *ngIf="esDuenio" class="gm-btn gm-btn--sm" [ngClass]="freno ? 'gm-btn--neutral' : 'gm-btn--brand'" (click)="abrirPanel.emit('cerrar')" [disabled]="!!freno">Cerrar la venta</button>
+      <button type="button" *ngIf="esDuenio" class="gm-btn gm-btn--neutral gm-btn--sm" (click)="abrirPanel.emit('anular')">Se cayó la operación</button>
+    </div>
+
+    <form class="panel" *ngIf="panel === 'pago'" (ngSubmit)="pagar.emit()">
+      <h4>Anotar un pago</h4>
+      <div class="campos">
+        <label><span>Cómo paga</span>
+          <select class="gm-input" name="pm" [(ngModel)]="pago.medio"><option *ngFor="let m of medios" [value]="m[0]">{{ m[1] }}</option></select></label>
+        <label><span>{{ pago.medio === 'usado' ? 'En cuánto se toma' : 'Monto' }} *</span><input class="gm-input" name="pmo" inputmode="decimal" [(ngModel)]="pago.monto"></label>
+        <label><span>Moneda</span>
+          <select class="gm-input" name="pmon" [(ngModel)]="pago.moneda"><option value="USD">Dólares</option><option value="ARS">Pesos</option></select></label>
+        <label *ngIf="pago.moneda !== o.moneda"><span>A cuánto se toma el dólar *</span><input class="gm-input" name="ptc" inputmode="decimal" placeholder="$ por US$" [(ngModel)]="pago.tipo_cambio"></label>
+        <label *ngIf="pago.medio !== 'usado'"><span>A qué caja entra</span>
+          <select class="gm-input" name="pw" [(ngModel)]="pago.wallet_id"><option value="">No asentar en caja</option><option *ngFor="let b of cajasDelPago; trackBy: trackPorId" [value]="b.id">{{ b.name }}</option></select></label>
+        <label class="ancho2"><span>Detalle</span><input class="gm-input" name="pd" maxlength="200" placeholder="Banco, número de cheque, entidad del crédito…" [(ngModel)]="pago.detalle"></label>
+      </div>
+      <ng-container *ngIf="pago.medio === 'usado'">
+        <h5>El auto que se toma</h5>
+        <div class="campos">
+          <label><span>Dominio *</span><input class="gm-input dominio" name="td" maxlength="12" [(ngModel)]="pago.toma.dominio"></label>
+          <label><span>Marca *</span><input class="gm-input" name="tm" maxlength="60" [(ngModel)]="pago.toma.marca"></label>
+          <label><span>Modelo *</span><input class="gm-input" name="tmo" maxlength="80" [(ngModel)]="pago.toma.modelo"></label>
+          <label><span>Año *</span><input class="gm-input" name="ta" inputmode="numeric" maxlength="4" [(ngModel)]="pago.toma.anio"></label>
+          <label><span>Kilómetros</span><input class="gm-input" name="tk" inputmode="numeric" [(ngModel)]="pago.toma.km"></label>
+        </div>
+        <p class="ayuda">Entra al stock como una unidad nueva, al valor en que se toma, a nombre de {{ o.cliente_nombre }}. El resto de sus datos y sus papeles se completan en su ficha.</p>
+      </ng-container>
+      <p class="ayuda" *ngIf="pago.medio !== 'usado' && !cajasDelPago.length">No hay ninguna caja en {{ pago.moneda === 'USD' ? 'dólares' : 'pesos' }}: el pago queda anotado pero no entra a ninguna. Se crean en Configuración.</p>
+      <div class="botones"><button type="submit" class="gm-btn gm-btn--brand gm-btn--sm" [disabled]="ocupado">Anotar</button>
+        <button type="button" class="gm-btn gm-btn--neutral gm-btn--sm" (click)="abrirPanel.emit('pago')">Cancelar</button></div>
+    </form>
+
+    <form class="panel" *ngIf="panel === 'cerrar'" (ngSubmit)="cerrar.emit()">
+      <h4>Cerrar la venta</h4>
+      <div class="campos">
+        <label><span>Comisión del vendedor ({{ o.moneda }})</span><input class="gm-input" name="cc" inputmode="decimal" [(ngModel)]="cierre.comision" [placeholder]="o.comision_sugerida !== null ? 'Vacío = ' + plata(o.comision_sugerida, o.moneda) + ' (su porcentaje)' : ''"></label>
+      </div>
+      <p class="ayuda">La unidad pasa a vendida, sale del sitio y la operación ya no admite cambios.</p>
+      <div class="botones"><button type="submit" class="gm-btn gm-btn--brand gm-btn--sm" [disabled]="ocupado">Cerrar la venta</button>
+        <button type="button" class="gm-btn gm-btn--neutral gm-btn--sm" (click)="abrirPanel.emit('cerrar')">Cancelar</button></div>
+    </form>
+
+    <form class="panel" *ngIf="panel === 'anular'" (ngSubmit)="anular.emit()">
+      <h4>Se cayó la operación</h4>
+      <label class="bloque-texto"><span>Por qué *</span><input class="gm-input" name="am" maxlength="300" [(ngModel)]="anulacion.motivo"></label>
+      <p class="ayuda">La unidad vuelve a estar disponible. Lo cobrado sale de las cajas donde entró y el usado que se haya tomado sale del stock: devolvele al cliente lo suyo.</p>
+      <div class="botones"><button type="submit" class="gm-btn gm-btn--brand gm-btn--sm" [disabled]="ocupado">Anular la operación</button>
+        <button type="button" class="gm-btn gm-btn--neutral gm-btn--sm" (click)="abrirPanel.emit('anular')">Cancelar</button></div>
+    </form>
+  </ng-container>
+</section>

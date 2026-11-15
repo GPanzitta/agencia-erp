@@ -1,0 +1,12 @@
+.primeros-pasos { margin-bottom: 1rem; }
+header { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem; margin-bottom: .6rem; }
+h2 { margin: 0; font-size: 1rem; }
+.faltan { flex: 1; color: var(--gm-muted); font-size: .85rem; }
+ul { margin: 0; padding: 0; list-style: none; }
+li { display: flex; align-items: center; gap: .55rem; min-height: 36px; font-size: .92rem; }
+.marca {
+  display: inline-flex; align-items: center; justify-content: center; flex: none;
+  width: 20px; height: 20px; border: 1px solid var(--gm-border); border-radius: 50%;
+  color: var(--gm-success); font-size: .75rem; font-weight: 700;
+}
+.paso--hecho a { color: var(--gm-muted); text-decoration: line-through; }

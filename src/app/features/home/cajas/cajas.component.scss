@@ -1,0 +1,134 @@
+/*
+ * Los chips son los mismos del tablero de gastos (`.cajas-row` / `.caja-chip`),
+ * copiados y no importados: el dueño y el mostrador tienen que ver la caja
+ * dibujada igual. Lo que no vino es `.caja-acciones` —transferir y ajustar son
+ * del dueño— ni el `cursor: pointer`, porque acá el chip no abre nada.
+ */
+.cajas-page { padding: 1rem 1.25rem 2rem; }
+
+.cajas-estado {
+  margin: 1rem 0 0;
+  font-size: 0.9rem;
+  color: var(--gm-muted);
+
+  &--error { color: var(--color-danger); }
+}
+
+.cajas-row {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  align-items: center;
+  margin: 1rem 0 0.9rem;
+}
+
+.caja-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  background: rgba(14, 124, 134, 0.06);
+  border: 1px solid rgba(14, 124, 134, 0.25);
+  border-radius: var(--radius-sm);
+  padding: 0.5rem 0.85rem;
+
+  &.caja-neg { background: rgba(239, 68, 68, 0.06); border-color: rgba(239, 68, 68, 0.35); }
+
+  .caja-info { display: flex; flex-direction: column; }
+  .caja-nombre { font-size: 0.8rem; font-weight: 900; }
+  .caja-tipo {
+    font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.4px;
+    color: var(--color-text-dim); font-weight: 700;
+  }
+  .caja-saldo {
+    font-size: 0.95rem; font-weight: 950; font-variant-numeric: tabular-nums;
+
+    &.danger { color: var(--color-danger); }
+  }
+}
+
+.cajas-hint {
+  margin: 0;
+  font-size: 0.7rem;
+  color: var(--color-text-dim);
+  max-width: 62ch;
+}
+
+/* ---- Turno de caja ---- */
+.turno { margin: 1rem 0 0; padding: 1rem 1.1rem; }
+
+.turno-cabecera {
+  display: flex; justify-content: space-between; align-items: center;
+  gap: 0.75rem; flex-wrap: wrap;
+}
+.turno-titulo { font-size: 1rem; font-weight: 900; color: var(--gm-navy); }
+.turno-sub { margin: 0.2rem 0 0; font-size: 0.82rem; color: var(--gm-muted); }
+.turno-subtitulo { margin: 1.1rem 0 0.4rem; font-size: 0.85rem; font-weight: 900; color: var(--gm-navy); }
+.turno-acciones { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+
+.turno-aviso {
+  margin: 0.8rem 0 0; padding: 0.7rem 0.9rem; font-size: 0.82rem;
+  background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.45);
+  border-radius: var(--radius-sm);
+
+  ul { margin: 0.4rem 0 0.6rem; padding-left: 1.1rem; }
+}
+
+.turno-tabla {
+  width: 100%; margin-top: 0.8rem; border-collapse: collapse; font-size: 0.85rem;
+
+  th, td { padding: 0.4rem 0.5rem; text-align: left; border-bottom: 1px solid var(--gm-input-border); }
+  th { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.4px; color: var(--gm-muted); }
+  .num { text-align: right; font-variant-numeric: tabular-nums; }
+}
+
+.danger { color: var(--color-danger); }
+.sobra { color: var(--gm-brand); }
+
+.turno-movs {
+  list-style: none; margin: 0; padding: 0; font-size: 0.84rem;
+
+  li {
+    display: flex; gap: 0.7rem; align-items: baseline; flex-wrap: wrap;
+    padding: 0.35rem 0; border-bottom: 1px solid var(--gm-input-border);
+  }
+  .mov-tipo { font-weight: 900; color: var(--gm-brand); min-width: 4.5rem; }
+  .mov-tipo--retiro { color: var(--color-danger); }
+  .mov-monto { font-variant-numeric: tabular-nums; font-weight: 700; }
+  .mov-detalle { flex: 1 1 12rem; color: var(--gm-muted); }
+  .mov-hora { color: var(--gm-muted); font-variant-numeric: tabular-nums; }
+}
+
+.cierre { border-bottom: 1px solid var(--gm-input-border); }
+.cierre-fila {
+  display: flex; flex-wrap: wrap; gap: 0.3rem 1rem; align-items: baseline; width: 100%;
+  padding: 0.55rem 0.2rem; background: none; border: 0; text-align: left;
+  font: inherit; font-size: 0.83rem; cursor: pointer; color: inherit;
+
+  &:hover { background: rgba(14, 124, 134, 0.05); }
+  .cierre-quien, .cierre-fechas { color: var(--gm-muted); }
+  .num { font-variant-numeric: tabular-nums; }
+}
+.cierre-detalle { padding: 0 0.2rem 0.8rem; }
+
+/* ---- Modales (mismo estilo que Empleados) ---- */
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(0, 0, 0, 0.5);
+  display: flex; justify-content: center; align-items: center; z-index: 1000;
+}
+.modal-content {
+  background: var(--gm-card, #fff); padding: 1.5rem; border-radius: 12px;
+  width: 95%; max-width: 560px; max-height: 90vh; overflow-y: auto;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+
+  h2 { margin: 0 0 0.3rem; font-size: 1.2rem; color: var(--gm-navy); }
+}
+.campo {
+  margin-top: 0.9rem;
+
+  label { display: block; margin-bottom: 4px; font-weight: 600; font-size: 0.85rem; color: var(--gm-muted); }
+  .gm-input { width: 100%; }
+}
+.obligatorio { font-weight: 400; color: var(--color-danger); }
+.fila-aviso { display: block; font-size: 0.72rem; color: var(--color-danger); }
+.conteo-input { width: 9rem; text-align: right; }
+.modal-actions { display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1.25rem; }

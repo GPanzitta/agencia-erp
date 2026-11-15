@@ -1,0 +1,48 @@
+<div class="cc" [class.cc--obligatorio]="obligatorio">
+  <section class="gm-card cc-card">
+    <header class="cc-cab">
+      <span class="cc-eyebrow">{{ obligatorio ? 'Antes de seguir' : 'Mi perfil' }}</span>
+      <h1>{{ obligatorio ? 'Elegí una clave nueva' : 'Cambiar mi clave' }}</h1>
+      <p class="cc-quien" *ngIf="usuario() as u">{{ u.nombre }} · {{ u.email }}</p>
+      <p class="cc-aviso" *ngIf="obligatorio">
+        Entraste con la clave provisoria que te dio el encargado. Cambiala por una tuya para empezar a trabajar.
+      </p>
+    </header>
+
+    <form [formGroup]="form" (ngSubmit)="guardar()" novalidate>
+      <label class="cc-campo">
+        <span>{{ obligatorio ? 'Clave provisoria' : 'Clave actual' }}</span>
+        <input class="gm-input" [type]="verClaves() ? 'text' : 'password'" formControlName="actual" autocomplete="current-password" maxlength="255">
+        <small class="cc-error" *ngIf="form.controls.actual.touched && form.controls.actual.invalid">Escribí tu clave actual.</small>
+      </label>
+
+      <label class="cc-campo">
+        <span>Clave nueva</span>
+        <input class="gm-input" [type]="verClaves() ? 'text' : 'password'" formControlName="nueva" autocomplete="new-password" maxlength="72">
+        <small class="cc-ayuda">Al menos {{ minimo }} caracteres. Una frase corta que recuerdes sirve.</small>
+        <small class="cc-error" *ngIf="form.controls.nueva.touched && form.controls.nueva.invalid">
+          La clave nueva tiene que tener al menos {{ minimo }} caracteres.
+        </small>
+      </label>
+
+      <label class="cc-campo">
+        <span>Repetí la clave nueva</span>
+        <input class="gm-input" [type]="verClaves() ? 'text' : 'password'" formControlName="repetida" autocomplete="new-password" maxlength="72">
+        <small class="cc-error" *ngIf="form.controls.repetida.touched && form.hasError('distintas')">Las dos claves nuevas no coinciden.</small>
+      </label>
+
+      <label class="cc-ver">
+        <input type="checkbox" [checked]="verClaves()" (change)="verClaves.set(!verClaves())"> Mostrar las claves
+      </label>
+
+      <p class="cc-nota">Al cambiarla se cierran las sesiones abiertas en otros equipos.</p>
+
+      <div class="cc-acciones">
+        <button type="button" class="gm-btn gm-btn--neutral" *ngIf="obligatorio" (click)="salir()">Salir</button>
+        <button type="submit" class="gm-btn gm-btn--brand" [disabled]="guardando()">
+          {{ guardando() ? 'Guardando…' : 'Cambiar la clave' }}
+        </button>
+      </div>
+    </form>
+  </section>
+</div>

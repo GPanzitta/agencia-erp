@@ -1,0 +1,61 @@
+<header class="saludo">
+  <h1>Hola{{ nombre() ? ', ' + nombre() : '' }}</h1>
+  <p>{{ hoy }}</p>
+</header>
+
+<app-primeros-pasos *ngIf="esDuenio()"></app-primeros-pasos>
+
+<div class="dos">
+  <section class="atender" aria-labelledby="t-atender">
+    <h2 id="t-atender">Para atender</h2>
+    <p class="vacio" *ngIf="cargando()">Cargando…</p>
+    <p class="vacio" *ngIf="!cargando() && !pendientes().length">No hay nada pendiente. Buen momento para cargar fotos o revisar precios.</p>
+    <ul *ngIf="pendientes().length">
+      <li *ngFor="let p of pendientes(); trackBy: trackPorClave">
+        <a [routerLink]="p.link" [queryParams]="p.parametros ?? {}" [class.urgente]="p.urgente">
+          <b>{{ p.cuantos }}</b>
+          <span><strong>{{ p.texto }}</strong><small>{{ p.detalle }}</small></span>
+        </a>
+      </li>
+    </ul>
+  </section>
+
+  <section class="playa" *ngIf="resumen() as r" aria-labelledby="t-playa">
+    <h2 id="t-playa">La playa</h2>
+    <dl>
+      <div class="grande"><dt>Autos en stock</dt><dd>{{ r.en_stock }}</dd><small>{{ r.disponibles }} disponibles, {{ r.reservadas }} reservados, {{ r.publicadas }} en el sitio</small></div>
+      <div><dt>Plata puesta en stock</dt><dd>{{ plata(r.valor_stock.USD, 'USD') }}</dd><small *ngIf="r.valor_stock.ARS">más {{ plata(r.valor_stock.ARS, 'ARS') }}</small></div>
+      <div><dt>Vendidos este mes</dt><dd>{{ r.vendidas_mes }}</dd><small>dejaron {{ plata(r.margen_mes.USD, 'USD') }}<ng-container *ngIf="r.margen_mes.ARS"> y {{ plata(r.margen_mes.ARS, 'ARS') }}</ng-container></small></div>
+      <div [class.alerta]="r.mas_de_60_dias > 0"><dt>Días promedio parados</dt><dd>{{ r.dias_promedio }}</dd><small>{{ r.mas_de_60_dias }} con más de 60 días</small></div>
+    </dl>
+  </section>
+</div>
+
+<div class="dos" *ngIf="stock().length">
+  <section aria-labelledby="t-parados">
+    <h2 id="t-parados">Los que más llevan parados</h2>
+    <ng-container *ngTemplateOutlet="autos; context: { $implicit: parados() }"></ng-container>
+  </section>
+  <section aria-labelledby="t-recientes">
+    <h2 id="t-recientes">Recién ingresados</h2>
+    <ng-container *ngTemplateOutlet="autos; context: { $implicit: recientes() }"></ng-container>
+  </section>
+</div>
+
+<section class="primero" *ngIf="!cargando() && !stock().length">
+  <h2>Todavía no hay autos cargados</h2>
+  <p>Cargá el primero: con la marca, el modelo, el año y el precio ya lo podés publicar en tu sitio.</p>
+  <a routerLink="/home/autos/nueva" class="gm-btn gm-btn--brand">Cargar un auto</a>
+</section>
+
+<ng-template #autos let-lista>
+  <ul class="autos">
+    <li *ngFor="let u of lista; trackBy: trackPorId">
+      <a [routerLink]="['/home/autos/unidad', u.id]">
+        <span class="foto"><img *ngIf="u.portada" [src]="foto(u.portada)" [alt]="u.titulo" loading="lazy"><i *ngIf="!u.portada">Sin foto</i></span>
+        <span class="quien"><strong>{{ u.titulo }}</strong><small>{{ renglon(u) }}</small><span class="patente" *ngIf="u.dominio">{{ dominio(u.dominio) }}</span></span>
+        <span class="lado"><b>{{ plata(u.precio_venta, u.moneda) }}</b><small>{{ textoDias(u.dias_en_stock) }}</small></span>
+      </a>
+    </li>
+  </ul>
+</ng-template>

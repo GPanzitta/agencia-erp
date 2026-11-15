@@ -1,0 +1,116 @@
+<div class="cxp-container">
+  <header class="oh gm-card">
+    <div class="oh-fila">
+      <div class="oh-id">
+        <div class="oh-tile" style="background: var(--gm-success);">
+          <svg width="22" height="22" viewBox="0 0 20 20" fill="none" stroke="#FFFFFF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="5.5" width="15" height="9" rx="1.5"/><circle cx="10" cy="10" r="2.2"/></svg>
+        </div>
+        <div class="oh-titulos">
+          <span class="oh-eyebrow">Finanzas</span>
+          <h1>Cuentas por pagar</h1>
+        </div>
+      </div>
+      <button class="gm-btn gm-btn--neutral" (click)="cargar()"><app-icon name="recargar"></app-icon> Actualizar</button>
+    </div>
+    <div class="oh-fila oh-fila--meta">
+      <span class="oh-meta">Cuánto se le debe a cada proveedor, y cuánto de eso ya está vencido.</span>
+      <div class="oh-herramientas">
+        <!-- Anticipo a cualquier proveedor, deba o no: la seña de un pedido grande -->
+        <select class="gm-input" style="max-width: 220px;"
+                [value]="proveedorAnticipo()" (change)="proveedorAnticipo.set($any($event.target).value)">
+          <option value="">Anticipo a proveedor…</option>
+          <option *ngFor="let p of proveedores()" [value]="p.id">{{ p.nombre }}</option>
+        </select>
+        <button class="gm-btn gm-btn--brand" [disabled]="!proveedorAnticipo()" (click)="anticipoElegido()">
+          Dar anticipo
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+    <div class="global-card" style="text-align: center;">
+      <div style="font-size: 0.85rem; color: var(--color-text-muted);">Deuda total</div>
+      <div style="font-size: 1.6rem; font-weight: 800; color: var(--color-text-dark);">
+        ${{ totalDeuda() | number:'1.2-2' }}
+      </div>
+      <!-- Lo que espera una firma no se puede pagar todavía: va aparte. -->
+      <span *ngIf="totalSinAprobar() > 0" class="sin-aprobar">
+        + ${{ totalSinAprobar() | number:'1.2-2' }} esperan firma
+      </span>
+    </div>
+    <div class="global-card" style="text-align: center;">
+      <div style="font-size: 0.85rem; color: var(--color-text-muted);">Vencido</div>
+      <div style="font-size: 1.6rem; font-weight: 800;"
+           [style.color]="totalVencido() > 0 ? 'var(--color-danger)' : 'var(--color-text-dark)'">
+        ${{ totalVencido() | number:'1.2-2' }}
+      </div>
+    </div>
+  </div>
+
+  <div class="global-card">
+    <div class="table-responsive">
+      <table class="modern-table">
+        <thead>
+          <tr>
+            <th>Proveedor</th>
+            <th>Comprobantes</th>
+            <th>Deuda</th>
+            <th>A cuenta</th>
+            <th>Vencido</th>
+            <th>Próximo vencimiento</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngIf="isLoading()">
+            <td colspan="7" style="text-align: center; padding: 2rem;">
+              <div class="neon-spinner" style="margin: 0 auto;"></div>
+            </td>
+          </tr>
+          <tr *ngIf="!isLoading() && deudas().length === 0">
+            <td colspan="7" style="text-align: center; color: var(--color-text-muted); font-style: italic; padding: 2rem;">
+              No hay deuda pendiente con proveedores.
+            </td>
+          </tr>
+          <tr *ngFor="let d of deudas()">
+            <td>
+              <span style="font-weight: 700; color: var(--color-text-dark);">{{ d.proveedor }}</span>
+              <span *ngIf="excedeLimite(d)" class="gm-pill gm-pill--error" style="margin-left: 8px;">
+                Excede el límite de crédito
+              </span>
+            </td>
+            <td>{{ d.comprobantes }}</td>
+            <td style="font-weight: 700;">
+              ${{ d.deuda | number:'1.2-2' }}
+              <span *ngIf="(d.sin_aprobar ?? 0) > 0" class="sin-aprobar"
+                    title="Pendientes de aprobación: no se pueden pagar hasta que alguien los apruebe">
+                + ${{ d.sin_aprobar | number:'1.2-2' }} esperan firma
+              </span>
+            </td>
+            <td [style.color]="(d.a_cuenta ?? 0) > 0 ? 'var(--gm-success)' : 'var(--color-text-muted)'"
+                [style.font-weight]="(d.a_cuenta ?? 0) > 0 ? '700' : '400'">
+              <ng-container *ngIf="(d.a_cuenta ?? 0) > 0">{{ d.a_cuenta | currency:'ARS':'symbol-narrow':'1.2-2' }}</ng-container><ng-container *ngIf="(d.a_cuenta ?? 0) <= 0">—</ng-container>
+            </td>
+            <td [style.color]="d.vencido > 0 ? 'var(--color-danger)' : 'inherit'"
+                [style.font-weight]="d.vencido > 0 ? '700' : '400'">
+              ${{ d.vencido | number:'1.2-2' }}
+            </td>
+            <td>{{ d.proximo_vencimiento ? (d.proximo_vencimiento | date:'dd/MM/yyyy') : '—' }}</td>
+            <td style="white-space: nowrap;">
+              <!-- Pagar acá es pagar como en la realidad: un monto al proveedor,
+                   y el sistema lo imputa comprobante por comprobante. -->
+              <button *ngIf="d.proveedor_id && d.deuda > 0" class="gm-btn gm-btn--brand gm-btn--sm"
+                      style="margin-right: 6px;" (click)="pagarDeuda.emit(d)">
+                Pagar
+              </button>
+              <button *ngIf="d.proveedor_id" class="gm-btn gm-btn--neutral gm-btn--sm" (click)="verGastos.emit(d.proveedor_id!)">
+                Ver gastos
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

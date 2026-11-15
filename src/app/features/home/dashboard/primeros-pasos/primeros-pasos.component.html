@@ -1,0 +1,13 @@
+<section class="global-card primeros-pasos" *ngIf="visible()">
+  <header>
+    <h2>Primeros pasos</h2>
+    <span class="faltan">Te faltan {{ faltan() }} de {{ pasos().length }}</span>
+    <button type="button" class="gm-btn gm-btn--neutral gm-btn--sm" (click)="ocultar()">Ocultar</button>
+  </header>
+  <ul>
+    <li *ngFor="let p of pasos(); trackBy: porClave" [class.paso--hecho]="p.hecho">
+      <span class="marca" aria-hidden="true">{{ p.hecho ? '✓' : '' }}</span>
+      <a [routerLink]="textos[p.clave].ruta" (click)="alAbrir(p.clave)">{{ textos[p.clave].titulo }}</a>
+    </li>
+  </ul>
+</section>

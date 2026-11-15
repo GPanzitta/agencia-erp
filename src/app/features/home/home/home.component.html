@@ -1,0 +1,23 @@
+<div class="marco" [class.menu-abierto]="menuAbierto()">
+  <app-app-nav class="menu-fijo"></app-app-nav>
+
+  <div class="lado">
+    <app-global-header (menu)="menuAbierto.set(!menuAbierto())"></app-global-header>
+    <main class="contenido">
+      <app-aviso-abono></app-aviso-abono>
+      <router-outlet></router-outlet>
+    </main>
+  </div>
+
+  <!-- En el celular el menú es un cajón que entra desde la izquierda. -->
+  <div class="cajon"><app-app-nav [vertical]="true"></app-app-nav></div>
+  <div class="velo" (click)="menuAbierto.set(false)"></div>
+
+  <nav class="barra-abajo" aria-label="Accesos rápidos">
+    <a routerLink="/home" routerLinkActive="activa" [routerLinkActiveOptions]="{ exact: true }"><app-icon name="casa"></app-icon><span>Inicio</span></a>
+    <a routerLink="/home/autos" routerLinkActive="activa" [routerLinkActiveOptions]="{ exact: true }"><app-icon name="inventario"></app-icon><span>Stock</span></a>
+    <a *ngIf="vende()" routerLink="/home/autos/interesados" routerLinkActive="activa"><app-icon name="campana"></app-icon><span>Interesados</span></a>
+    <a *ngIf="vende()" routerLink="/home/autos/operaciones" routerLinkActive="activa"><app-icon name="nota"></app-icon><span>Ventas</span></a>
+    <button type="button" (click)="menuAbierto.set(true)"><app-icon name="menu"></app-icon><span>Más</span></button>
+  </nav>
+</div>

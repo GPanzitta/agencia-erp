@@ -1,0 +1,5 @@
+<div class="aviso-abono" *ngIf="mensaje() as m" [class.aviso-abono--grave]="grave()" role="status">
+  <span class="texto">{{ m }}</span>
+  <a *ngIf="esAdmin(); else empleado" routerLink="/home/configuracion/abono" class="gm-btn gm-btn--brand gm-btn--sm">Ver el abono</a>
+  <ng-template #empleado><span class="texto">Avisale al dueño de la agencia.</span></ng-template>
+</div>

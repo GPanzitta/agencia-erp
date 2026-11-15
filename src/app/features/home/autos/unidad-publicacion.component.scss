@@ -1,0 +1,73 @@
+@use './autos' as *;
+
+:host { display: block; max-width: 1180px; }
+@include autos-base;
+
+.migas { display: flex; gap: 0.4rem; align-items: center; font-size: 0.85rem; color: var(--gm-muted); margin-bottom: 0.5rem;
+  a { color: var(--gm-muted); text-decoration: none; &:hover { color: var(--gm-text); text-decoration: underline; } }
+  b { color: var(--gm-text); font-weight: 500; } }
+.cab { display: flex; justify-content: space-between; align-items: start; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem;
+  h2 { margin: 0 0 0.2rem; } p { color: var(--gm-muted); max-width: 68ch; }
+  .estado { display: flex; gap: 0.6rem; align-items: center; } }
+
+.caja { background: var(--gm-card); border: 1px solid var(--gm-border); border-radius: var(--gm-radius-lg); }
+.enlace { border: 0; background: none; padding: 0; font: inherit; font-size: 0.86rem; color: var(--gm-brand); cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+
+/* Arriba, como en el sitio: fotos a la izquierda, el panel de compra a la derecha. */
+.arriba { display: grid; grid-template-columns: minmax(0, 1.75fr) minmax(300px, 1fr); gap: 1.2rem; align-items: start; margin-bottom: 1.2rem;
+  @media (max-width: 900px) { grid-template-columns: minmax(0, 1fr); } }
+
+.galeria { display: grid; gap: 0.6rem; min-width: 0;
+  .grande { position: relative; aspect-ratio: 16 / 10; border-radius: var(--gm-radius-lg); overflow: hidden; background: var(--gm-col); display: grid; place-items: center;
+    img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    p { color: var(--gm-muted); padding: 1rem; text-align: center; max-width: 34ch; }
+    .cuenta { position: absolute; right: 12px; bottom: 12px; background: rgba(22, 32, 40, 0.78); color: #fff; font-size: 0.8rem; padding: 2px 9px; border-radius: 999px; font-variant-numeric: tabular-nums; } }
+  .minis { list-style: none; display: flex; gap: 0.5rem; overflow-x: auto; padding-bottom: 2px;
+    button { display: block; width: 104px; aspect-ratio: 4 / 3; padding: 0; border: 2px solid transparent; border-radius: 8px; overflow: hidden; cursor: pointer; background: var(--gm-col);
+      img { width: 100%; height: 100%; object-fit: cover; display: block; }
+      &.activa { border-color: var(--gm-text); } &:focus-visible { outline: 2px solid var(--fg-senal); } } } }
+
+.panel { @extend .caja; padding: 1.1rem; display: grid; gap: 0.7rem;
+  h3 { font-size: 1.15rem; line-height: 1.25; }
+  .renglon { color: var(--gm-muted); font-size: 0.9rem; margin-top: -0.4rem; } }
+.opcion { display: grid; gap: 0.2rem; padding: 0.8rem 0.9rem; border: 1px solid var(--gm-border); border-radius: var(--gm-radius-lg); margin: 0; min-width: 0;
+  > span, legend { font-size: 0.86rem; color: var(--gm-text-2); }
+  legend { padding: 0 0.3rem; font-weight: 600; color: var(--gm-text); }
+  > b { font-size: 1.6rem; font-weight: 700; line-height: 1.15; font-variant-numeric: tabular-nums; }
+  small { color: var(--gm-muted); font-size: 0.8rem; }
+  &.editable { border-style: dashed; border-color: var(--gm-input-border); }
+  &.casilla { grid-template-columns: auto minmax(0, 1fr); gap: 0.7rem; align-items: start; cursor: pointer;
+    input { width: 18px; height: 18px; margin-top: 0.15rem; } span { display: grid; gap: 0.1rem; } }
+  .radio { display: flex; gap: 0.5rem; align-items: center; font-size: 0.9rem; cursor: pointer; padding: 0.15rem 0; }
+  .otros { list-style: none; display: grid; gap: 0.1rem; max-height: 220px; overflow-y: auto; margin-top: 0.4rem; border-top: 1px solid var(--gm-border); padding-top: 0.4rem;
+    label { display: flex; gap: 0.5rem; align-items: start; font-size: 0.88rem; cursor: pointer; padding: 0.2rem 0; }
+    span { display: grid; } } }
+
+.bloque { @extend .caja; padding: 1.1rem 1.2rem; margin-bottom: 1rem;
+  h3 { font-size: 1.05rem; display: flex; align-items: baseline; gap: 0.6rem; small { font-size: 0.8rem; font-weight: 400; color: var(--gm-muted); font-variant-numeric: tabular-nums; } }
+  > .ayuda { margin: 0.2rem 0 0.9rem; } }
+.agregar { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; margin-top: 0.8rem;
+  .gm-input { flex: 1 1 200px; max-width: 320px; } select.gm-input { flex: 0 1 190px; }
+  input[type='color'] { width: 40px; height: 36px; padding: 2px; border: 1px solid var(--gm-input-border); border-radius: 7px; background: var(--gm-card); cursor: pointer; } }
+
+.destacados { list-style: none; display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 0.6rem;
+  li { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; padding: 0.6rem 0.8rem; border-radius: var(--gm-radius-lg); background: var(--gm-bg); border-left: 4px solid var(--fg-senal); }
+  span { display: grid; min-width: 0; b { font-weight: 600; } small { color: var(--gm-muted); font-size: 0.8rem; } } }
+.destacados button, .renglones button, .colores button { border: 0; background: none; font: inherit; font-size: 0.8rem; color: var(--gm-muted); cursor: pointer; text-decoration: underline; text-underline-offset: 3px;
+  &:hover { color: var(--gm-error); } }
+
+.grupo { padding: 0.8rem 0; border-top: 1px solid var(--gm-border);
+  h4 { font-size: 0.95rem; margin-bottom: 0.5rem; } }
+.renglones { display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 0.4rem 1.2rem; margin-bottom: 0.5rem;
+  > div { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) auto; gap: 0.4rem; align-items: center; }
+  @media (max-width: 480px) { grid-template-columns: minmax(0, 1fr); } }
+
+.colores { list-style: none; display: flex; gap: 0.6rem; flex-wrap: wrap;
+  li { display: flex; align-items: center; gap: 0.5rem; padding: 0.35rem 0.7rem 0.35rem 0.4rem; border: 1px solid var(--gm-border); border-radius: 999px; }
+  i { width: 22px; height: 22px; border-radius: 50%; border: 1px solid rgba(0, 0, 0, 0.18); } }
+
+// La barra de guardar queda pegada al borde de abajo y tapa el relleno del contenido:
+// sin esto flotaba unos píxeles más arriba y lo de abajo se asomaba por debajo.
+.pie { display: flex; gap: 0.6rem; flex-wrap: wrap; position: sticky; z-index: 2;
+  bottom: calc(-1 * var(--fg-relleno-abajo, 0px)); margin-bottom: calc(-1 * var(--fg-relleno-abajo, 0px));
+  padding: 0.7rem 0 calc(0.7rem + var(--fg-relleno-abajo, 0px)); background: var(--gm-bg); border-top: 1px solid var(--gm-border); }

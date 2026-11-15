@@ -1,0 +1,22 @@
+<div class="login-page">
+  <div class="login-brand">
+    <span class="login-tile">{{ iniciales }}</span>
+    <span class="login-word">{{ marca }}</span>
+  </div>
+  <div class="login-card">
+    <p *ngIf="estado() === 'confirmando'">Confirmando tu cuenta…</p>
+    <ng-container *ngIf="estado() === 'ok'">
+      <h1 class="registro-titulo">Listo, ya podés entrar</h1>
+      <a routerLink="/auth/login" class="gm-btn gm-btn--brand login-btn">Entrar</a>
+    </ng-container>
+    <ng-container *ngIf="estado() === 'invalida'">
+      <h1 class="registro-titulo">El link no es válido o venció</h1>
+      <p>Poné tu correo y te mandamos otro.</p>
+      <div class="campo">
+        <label for="correo">Correo</label>
+        <input id="correo" type="email" class="gm-input" [formControl]="email" autocomplete="username" />
+      </div>
+      <button type="button" class="gm-btn gm-btn--neutral login-btn" (click)="reenviar()">Mandarme otro link</button>
+    </ng-container>
+  </div>
+</div>

@@ -1,0 +1,139 @@
+<div class="sitio-web">
+  <div class="columna-form">
+    <section class="global-card">
+      <div class="card-header">
+        <h2>Sitio web</h2>
+        <p>Los datos de tu agencia que se ven en el sitio. Lo que quede vacío no se muestra.</p>
+        <a class="gm-btn gm-btn--neutral gm-btn--sm" [href]="portalUrl" target="_blank" rel="noopener">Ver sitio ↗</a>
+      </div>
+
+      <p *ngIf="cargando()" class="cargando">Cargando…</p>
+
+      <form *ngIf="!cargando()" [formGroup]="form" (ngSubmit)="guardar()">
+
+        <!-- 1 · Identidad -->
+        <details class="bloque" [open]="abierto() === 'identidad'" (toggle)="onToggle('identidad', $event)">
+          <summary>Identidad</summary>
+          <div class="fila">
+            <div class="form-group imagen">
+              <label>Logo</label>
+              <div class="subida">
+                <img *ngIf="urlImagen(form.value.logo_url) as u" [src]="u" alt="" class="miniatura logo">
+                <label class="gm-btn gm-btn--neutral gm-btn--sm">
+                  {{ subiendo()['logo'] ? 'Subiendo…' : (form.value.logo_url ? 'Cambiar' : 'Subir') }}
+                  <input type="file" accept="image/*" hidden (change)="onArchivo('logo', $event)" [disabled]="subiendo()['logo']">
+                </label>
+                <button *ngIf="form.value.logo_url" type="button" class="gm-btn gm-btn--danger gm-btn--sm" (click)="quitarImagen('logo_url')">Quitar</button>
+              </div>
+            </div>
+            <div class="form-group imagen">
+              <label>Isotipo <small>(el ícono solo, sin el nombre)</small></label>
+              <div class="subida">
+                <img *ngIf="urlImagen(form.value.isotipo_url) as u" [src]="u" alt="" class="miniatura logo">
+                <label class="gm-btn gm-btn--neutral gm-btn--sm">
+                  {{ subiendo()['isotipo'] ? 'Subiendo…' : (form.value.isotipo_url ? 'Cambiar' : 'Subir') }}
+                  <input type="file" accept="image/*" hidden (change)="onArchivo('isotipo', $event)" [disabled]="subiendo()['isotipo']">
+                </label>
+                <button *ngIf="form.value.isotipo_url" type="button" class="gm-btn gm-btn--danger gm-btn--sm" (click)="quitarImagen('isotipo_url')">Quitar</button>
+              </div>
+              <small class="ayuda">Es el que va en la barra de arriba del sitio. Si no lo subís, usamos el logo.</small>
+            </div>
+            <div class="form-group">
+              <label>Eslogan <small class="contador">{{ form.value.eslogan?.length || 0 }}/{{ TOPES.eslogan }}</small></label>
+              <input type="text" formControlName="eslogan" class="gm-input" [maxlength]="TOPES.eslogan" placeholder="Reparamos lo que otros dan por perdido">
+              <small class="error" *ngIf="mensajeError(form.get('eslogan'), mensajeMax(TOPES.eslogan)) as msg">{{ msg }}</small>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Color de acento</label>
+            <div class="acentos" role="radiogroup" aria-label="Color de acento">
+              <button *ngFor="let a of ACENTOS" type="button" class="acento" role="radio"
+                      [attr.aria-checked]="form.value.color_acento === a" [attr.aria-label]="a"
+                      [class.elegido]="form.value.color_acento === a"
+                      [style.background]="colorDeAcento(a).fondo" [style.color]="colorDeAcento(a).tinta"
+                      (click)="elegirAcento(a)">
+                <span *ngIf="form.value.color_acento === a">✓</span>
+              </button>
+            </div>
+          </div>
+        </details>
+
+
+        <!-- 4 · Quiénes somos y trabajos -->
+        <details class="bloque" [open]="abierto() === 'quienes'" (toggle)="onToggle('quienes', $event)">
+          <summary>Quiénes somos</summary>
+          <div class="form-group">
+            <label>Quiénes somos <small class="contador">{{ form.value.quienes_somos?.length || 0 }}/{{ TOPES.quienes_somos }}</small></label>
+            <textarea formControlName="quienes_somos" class="gm-input" rows="5" [maxlength]="TOPES.quienes_somos" placeholder="Somos una agencia familiar con veinte años en la zona…"></textarea>
+            <small class="error" *ngIf="mensajeError(form.get('quienes_somos'), mensajeMax(TOPES.quienes_somos)) as msg">{{ msg }}</small>
+          </div>
+        </details>
+
+
+        <!-- 6 · Contacto -->
+        <details class="bloque" [open]="abierto() === 'contacto'" (toggle)="onToggle('contacto', $event)">
+          <summary>Contacto</summary>
+          <div class="form-group">
+            <label>Zona de cobertura</label>
+            <input type="text" formControlName="zona" class="gm-input" [maxlength]="TOPES.zona" placeholder="Villa Ballester y alrededores">
+            <small class="error" *ngIf="mensajeError(form.get('zona'), mensajeMax(TOPES.zona)) as msg">{{ msg }}</small>
+          </div>
+          <div class="form-group">
+            <label>Horarios</label>
+            <div formArrayName="horarios" class="lista">
+              <div *ngFor="let h of horarios.controls; let i = index" [formGroupName]="i" class="horario">
+                <select formControlName="dias" class="gm-input" [attr.aria-label]="'Días del horario ' + (i + 1)">
+                  <option *ngFor="let d of opcionesDias()" [value]="d.valor">{{ d.etiqueta }}</option>
+                </select>
+                <div class="campo">
+                  <input type="time" formControlName="desde" class="gm-input">
+                  <small class="error" *ngIf="h.get('desde')?.touched && h.get('desde')?.invalid">Campo requerido.</small>
+                </div>
+                <div class="campo">
+                  <input type="time" formControlName="hasta" class="gm-input">
+                  <small class="error" *ngIf="h.get('hasta')?.touched && h.get('hasta')?.invalid">Campo requerido.</small>
+                </div>
+                <button type="button" class="gm-btn gm-btn--danger gm-btn--sm" (click)="quitarHorario(i)" aria-label="Quitar horario">×</button>
+              </div>
+            </div>
+            <button type="button" class="gm-btn gm-btn--neutral gm-btn--sm" (click)="agregarHorario()" [disabled]="horarios.length >= TOPES.horarios">+ Horario</button>
+            <!-- CLI-21: la agenda (Empresa) y los horarios del sitio son fuentes distintas. -->
+            <p class="ayuda" role="status" *ngIf="diasSinHorario().length">
+              La agenda toma turnos el {{ diasSinHorario().join(', ') }}, y acá el sitio dice que está cerrado. Sumá ese horario o sacá el día en Configuración › Empresa › Agenda.
+            </p>
+          </div>
+          <div class="fila" formGroupName="redes">
+            <div class="form-group">
+              <label>Instagram</label>
+              <input type="text" formControlName="instagram" class="gm-input" placeholder="@tuagencia o URL">
+              <small class="error" *ngIf="mensajeError(form.get('redes.instagram'), mensajeRedSocial) as msg">{{ msg }}</small>
+            </div>
+            <div class="form-group">
+              <label>Facebook</label>
+              <input type="text" formControlName="facebook" class="gm-input" placeholder="URL">
+              <small class="error" *ngIf="mensajeError(form.get('redes.facebook'), mensajeRedSocial) as msg">{{ msg }}</small>
+            </div>
+            <div class="form-group">
+              <label>TikTok</label>
+              <input type="text" formControlName="tiktok" class="gm-input" placeholder="@tuagencia o URL">
+              <small class="error" *ngIf="mensajeError(form.get('redes.tiktok'), mensajeRedSocial) as msg">{{ msg }}</small>
+            </div>
+            <div class="form-group">
+              <label>Sitio propio</label>
+              <input type="text" formControlName="sitio" class="gm-input" placeholder="https://…">
+              <small class="error" *ngIf="mensajeError(form.get('redes.sitio'), mensajeRedSocial) as msg">{{ msg }}</small>
+            </div>
+          </div>
+          <small class="ayuda">Usuario (&#64;taller) o dirección que empiece con https://</small>
+        </details>
+
+        <div class="acciones-form">
+          <button type="submit" class="gm-btn gm-btn--brand" [disabled]="!hayCambios() || guardando()">
+            {{ guardando() ? 'Guardando…' : 'Guardar' }}
+          </button>
+        </div>
+      </form>
+    </section>
+  </div>
+
+</div>

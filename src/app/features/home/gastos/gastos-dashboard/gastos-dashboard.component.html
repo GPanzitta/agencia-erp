@@ -1,0 +1,815 @@
+<div class="gastos-elite-container">
+
+  <!-- TABS -->
+  <div class="gastos-tabs">
+    <button [class.active]="activeTab() === 'gastos'" (click)="activeTab.set('gastos')">
+      <app-icon class="icon" name="dinero"></app-icon> <span class="lbl">Gastos</span>
+    </button>
+    <button [class.active]="activeTab() === 'cuentas'" (click)="activeTab.set('cuentas')">
+      <app-icon class="icon" name="nota"></app-icon> <span class="lbl">Cuentas por pagar</span>
+    </button>
+    <button [class.active]="activeTab() === 'vencimientos'" (click)="activeTab.set('vencimientos')">
+      <app-icon class="icon" name="reloj"></app-icon> <span class="lbl">Vencimientos</span>
+    </button>
+    <button [class.active]="activeTab() === 'presupuestos'" (click)="activeTab.set('presupuestos')">
+      <app-icon class="icon" name="grafico"></app-icon> <span class="lbl">Presupuestos</span>
+    </button>
+    <button [class.active]="activeTab() === 'recurrentes'" (click)="activeTab.set('recurrentes')">
+      <app-icon class="icon" name="recargar"></app-icon> <span class="lbl">Gastos fijos</span>
+    </button>
+    <!-- El módulo Proveedores es de admin/pañol; a mostrador no se le ofrece
+         un link que el guard de la ruta le va a rebotar. -->
+    <button *ngIf="puedeVerProveedores()" (click)="irAProveedores()">
+      <app-icon class="icon" name="proveedor"></app-icon> <span class="lbl">Proveedores</span>
+    </button>
+    <button [class.active]="activeTab() === 'config'" (click)="activeTab.set('config')">
+      <app-icon class="icon" name="config"></app-icon> <span class="lbl">Configuración</span>
+    </button>
+  </div>
+
+  <!-- ═══ GASTOS ═══ -->
+  <div *ngIf="activeTab() === 'gastos'" class="tab-content">
+    <header class="oh gm-card">
+      <div class="oh-fila">
+        <div class="oh-id">
+          <div class="oh-tile" style="background: var(--gm-success);">
+            <svg width="22" height="22" viewBox="0 0 20 20" fill="none" stroke="#FFFFFF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="5.5" width="15" height="9" rx="1.5"/><circle cx="10" cy="10" r="2.2"/></svg>
+          </div>
+          <div class="oh-titulos">
+            <span class="oh-eyebrow">Administración</span>
+            <h1>Gastos</h1>
+          </div>
+        </div>
+        <div class="header-acciones">
+          <button class="gm-btn gm-btn--neutral" [disabled]="exportando() || !gastos().length" (click)="exportarExcel()">
+            <app-icon name="grafico"></app-icon> {{ exportando() ? 'Exportando…' : 'Exportar' }}
+          </button>
+          <button class="gm-btn gm-btn--brand" (click)="openModal()"><app-icon name="agregar"></app-icon> Registrar gasto</button>
+        </div>
+      </div>
+      <div class="oh-fila oh-fila--meta">
+        <span class="oh-meta">{{ gastos().length }} {{ gastos().length === 1 ? 'gasto' : 'gastos' }} en la vista</span>
+      </div>
+    </header>
+
+    <!-- KPIs del mes -->
+    <div class="kpi-row" *ngIf="resumen() as r">
+      <div class="kpi-card">
+        <span class="kpi-lbl">Gasto del mes</span>
+        <strong class="kpi-val">{{ r.mes_actual.total | currency:'ARS':'symbol-narrow':'1.0-0' }}</strong>
+        <small>{{ r.mes_actual.cantidad }} {{ r.mes_actual.cantidad === 1 ? 'gasto' : 'gastos' }}</small>
+      </div>
+      <div class="kpi-card">
+        <span class="kpi-lbl">A pagar</span>
+        <strong class="kpi-val" [class.warn]="r.a_pagar.total > 0">{{ r.a_pagar.total | currency:'ARS':'symbol-narrow':'1.0-0' }}</strong>
+        <small>{{ r.a_pagar.cantidad }} pendientes</small>
+      </div>
+      <div class="kpi-card" [class.alerta-card]="r.vencido.cantidad > 0">
+        <span class="kpi-lbl">Vencido</span>
+        <strong class="kpi-val" [class.danger]="r.vencido.total > 0">{{ r.vencido.total | currency:'ARS':'symbol-narrow':'1.0-0' }}</strong>
+        <small>{{ r.vencido.cantidad }} {{ r.vencido.cantidad === 1 ? 'gasto' : 'gastos' }}</small>
+      </div>
+      <div class="kpi-card" [class.alerta-card]="r.esperando_aprobacion.cantidad > 0">
+        <span class="kpi-lbl">Esperando firma</span>
+        <strong class="kpi-val">{{ r.esperando_aprobacion.cantidad }}</strong>
+        <small>{{ r.esperando_aprobacion.total | currency:'ARS':'symbol-narrow':'1.0-0' }} en juego</small>
+      </div>
+
+      <!-- Mini gráfico de los últimos meses -->
+      <div class="kpi-card kpi-meses" *ngIf="r.por_mes.length > 1">
+        <span class="kpi-lbl">Últimos meses</span>
+        <div class="meses-barras">
+          <div class="mes" *ngFor="let m of r.por_mes"
+               [title]="m.mes + ': $' + m.total">
+            <div class="mes-barra"><div class="mes-relleno" [style.height.%]="alturaMes(m.total)"></div></div>
+            <small>{{ etiquetaMes(m.mes) }}</small>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Las cajas: de dónde sale la plata -->
+    <div class="cajas-row" *ngIf="wallets().length">
+      <div class="caja-chip" *ngFor="let w of wallets()" (click)="abrirBilletera(w)"
+           [class.caja-neg]="(w.current_balance ?? 0) < 0"
+           title="Ver movimientos de {{ w.name }}">
+        <app-icon [name]="w.type === 'cash' ? 'caja' : 'dinero'"></app-icon>
+        <div class="caja-info">
+          <span class="caja-nombre">{{ w.name }}</span>
+          <span class="caja-tipo">{{ tipoBilletera(w.type) }}</span>
+        </div>
+        <strong class="caja-saldo" [class.danger]="(w.current_balance ?? 0) < 0">
+          {{ (w.current_balance ?? 0) | currency:'ARS':'symbol-narrow':'1.0-0' }}
+        </strong>
+        <span class="caja-acciones">
+          <button *ngIf="wallets().length > 1" title="Transferir a otra caja"
+                  (click)="abrirTransferencia(w, $event)"><app-icon name="recargar"></app-icon></button>
+          <button title="Ajustar al saldo contado"
+                  (click)="abrirAjuste(w, $event)"><app-icon name="editar"></app-icon></button>
+        </span>
+      </div>
+      <p class="cajas-hint">Los pagos descuentan de estas cajas. Seleccioná una billetera para ver su libro de movimientos, o usá los botones para transferir y ajustar.</p>
+    </div>
+
+    <!-- Desglose del mes por rubro -->
+    <div class="global-card rubros-card" *ngIf="resumen()?.por_categoria?.length">
+      <div class="rubro" *ngFor="let c of resumen()!.por_categoria">
+        <div class="rubro-head">
+          <span>{{ etiquetaCategoria(c.categoria) }}</span>
+          <strong>{{ c.total | currency:'ARS':'symbol-narrow':'1.0-0' }}</strong>
+        </div>
+        <div class="rubro-barra"><div class="rubro-relleno" [style.width.%]="c.participacion"></div></div>
+      </div>
+    </div>
+
+    <div *ngIf="gastosPendientesDeAprobar().length > 0" class="aviso-aprobacion">
+      <app-icon name="alerta"></app-icon>
+      {{ gastosPendientesDeAprobar().length }} gasto{{ gastosPendientesDeAprobar().length === 1 ? '' : 's' }} esperando aprobación por superar el umbral configurado.
+    </div>
+
+    <!-- FILTROS -->
+    <div class="global-card filtros-card">
+      <div class="filtros-fila">
+        <label class="filtro">
+          <span>Rubro</span>
+          <select class="gm-input" [value]="filtros().categoria" (change)="cambiarFiltro('categoria', $any($event.target).value)">
+            <option value="">Todos</option>
+            <option *ngFor="let c of categorias" [value]="c">{{ etiquetaCategoria(c) }}</option>
+          </select>
+        </label>
+
+        <label class="filtro">
+          <span>Estado de pago</span>
+          <select class="gm-input" [value]="filtros().estado_pago" (change)="cambiarFiltro('estado_pago', $any($event.target).value)">
+            <option value="">Todos</option>
+            <option value="pendiente">Sin pagar</option>
+            <option value="parcial">Pago parcial</option>
+            <option value="pagado">Pagado</option>
+          </select>
+        </label>
+
+        <label class="filtro">
+          <span>Desde</span>
+          <input type="date" class="gm-input" [value]="filtros().desde" (change)="cambiarFiltro('desde', $any($event.target).value)">
+        </label>
+
+        <label class="filtro">
+          <span>Hasta</span>
+          <input type="date" class="gm-input" [value]="filtros().hasta" (change)="cambiarFiltro('hasta', $any($event.target).value)">
+        </label>
+
+        <label class="filtro-check">
+          <input type="checkbox" [checked]="filtros().vencidos" (change)="cambiarFiltro('vencidos', $any($event.target).checked)">
+          Solo vencidos
+        </label>
+
+        <label class="filtro-check">
+          <input type="checkbox" [checked]="!filtros().solo_activos" (change)="cambiarFiltro('solo_activos', !$any($event.target).checked)">
+          Incluir anulados
+        </label>
+
+        <span class="chip-proveedor" *ngIf="filtros().proveedor_id">
+          Proveedor: {{ nombreProveedorFiltrado() }}
+          <button (click)="cambiarFiltro('proveedor_id', '')" title="Quitar filtro">×</button>
+        </span>
+
+        <button *ngIf="hayFiltrosActivos()" class="gm-btn gm-btn--neutral gm-btn--sm" (click)="limpiarFiltros()">Limpiar</button>
+      </div>
+
+      <div class="filtros-totales">
+        <span><em>Resultados:</em> <strong>{{ gastos().length }}</strong></span>
+        <span><em>Total:</em> <strong>{{ totalFiltrado() | currency:'ARS':'symbol-narrow':'1.2-2' }}</strong></span>
+        <span><em>Saldo pendiente:</em>
+          <strong [class.danger]="totalAdeudado() > 0">{{ totalAdeudado() | currency:'ARS':'symbol-narrow':'1.2-2' }}</strong>
+        </span>
+      </div>
+    </div>
+
+    <!-- TABLA -->
+    <div class="global-card table-container">
+      <table class="modern-table">
+        <thead>
+          <tr>
+            <th>Fecha</th>
+            <th>Descripción</th>
+            <th>Rubro</th>
+            <th class="num">Monto</th>
+            <th>Aprobación</th>
+            <th>Pago</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngIf="gastos().length === 0">
+            <td colspan="7" class="empty-state">Aún no hay gastos registrados.</td>
+          </tr>
+
+          <tr *ngFor="let gasto of gastos()" [class.row-anulado]="!gasto.estado"
+              class="fila-gasto" (click)="verDetalle(gasto)">
+            <td>
+              <span class="date-main">{{ gasto.fecha | date:'dd/MM/yyyy':'UTC' }}</span>
+              <span class="date-sub">{{ gasto.numero_gasto }}</span>
+              <!-- El vencimiento a la vista en la lista, no solo en su pestaña. -->
+              <span class="date-vence" *ngIf="gasto.fecha_vencimiento && gasto.estado_pago !== EstadoPagoGasto.PAGADO"
+                    [class.vencido]="estaVencido(gasto)">
+                Vence {{ gasto.fecha_vencimiento | date:'dd/MM':'UTC' }}
+              </span>
+            </td>
+            <td>
+              <span class="desc-main">{{ gasto.descripcion }}</span>
+              <span class="desc-sub" *ngIf="gasto.proveedor">{{ gasto.proveedor.nombre }}</span>
+            </td>
+            <td>
+              <span class="category-badge">{{ etiquetaCategoria(gasto.categoria) }}</span>
+            </td>
+            <td class="num amount-danger">{{ gasto.monto | currency:'ARS':'symbol-narrow':'1.2-2' }}</td>
+            <td>
+              <span *ngIf="!gasto.estado" class="status-badge badge-danger">Anulado</span>
+              <span *ngIf="gasto.estado && gasto.estado_aprobacion === EstadoAprobacionGasto.APROBADO" class="status-badge badge-success">Aprobado</span>
+              <span *ngIf="gasto.estado && gasto.estado_aprobacion === EstadoAprobacionGasto.PENDIENTE" class="status-badge badge-espera">Pendiente</span>
+              <span *ngIf="gasto.estado && gasto.estado_aprobacion === EstadoAprobacionGasto.RECHAZADO" class="status-badge badge-danger" [title]="gasto.motivo_rechazo || ''">Rechazado</span>
+            </td>
+            <td class="celda-pago">
+              <span *ngIf="gasto.estado_pago === EstadoPagoGasto.PAGADO" class="status-badge badge-success">Pagado</span>
+              <ng-container *ngIf="gasto.estado_pago === EstadoPagoGasto.PARCIAL">
+                <span class="status-badge badge-parcial">Parcial · {{ porcentajePagado(gasto) }}%</span>
+                <div class="pago-barra"><div class="pago-relleno" [style.width.%]="porcentajePagado(gasto)"></div></div>
+              </ng-container>
+              <span *ngIf="gasto.estado_pago === EstadoPagoGasto.PENDIENTE" class="status-badge badge-neutro">Sin pagar</span>
+            </td>
+            <td class="celda-acciones" (click)="$event.stopPropagation()">
+              <ng-container *ngIf="gasto.estado">
+                <button *ngIf="gasto.estado_aprobacion === EstadoAprobacionGasto.PENDIENTE"
+                        class="gm-btn gm-btn--brand gm-btn--sm" (click)="aprobar(gasto)">Aprobar</button>
+                <button *ngIf="gasto.estado_aprobacion === EstadoAprobacionGasto.PENDIENTE"
+                        class="gm-btn gm-btn--neutral gm-btn--sm" (click)="abrirRechazo(gasto)">Rechazar</button>
+                <button *ngIf="gasto.estado_aprobacion === EstadoAprobacionGasto.APROBADO && gasto.estado_pago !== EstadoPagoGasto.PAGADO"
+                        class="gm-btn gm-btn--brand gm-btn--sm" (click)="abrirPago(gasto)">Pagar</button>
+                <button class="gm-btn gm-btn--neutral gm-btn--sm" (click)="editarGasto(gasto, $event)">Editar</button>
+                <button class="gm-btn gm-btn--neutral gm-btn--sm" title="Mismo gasto, fecha de hoy" (click)="duplicarGasto(gasto, $event)">Duplicar</button>
+                <button class="gm-btn gm-btn--danger gm-btn--sm" (click)="confirmAnularGasto(gasto.id)">Anular</button>
+              </ng-container>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ═══ RESTO DE PESTAÑAS ═══ -->
+  <div *ngIf="activeTab() === 'cuentas'" class="tab-content"><app-cuentas-por-pagar [version]="versionDatos()" (verGastos)="filtrarPorProveedor($event)" (pagarDeuda)="abrirPagoProveedor($event)" (darAnticipo)="abrirAnticipo($event)"></app-cuentas-por-pagar></div>
+  <div *ngIf="activeTab() === 'vencimientos'" class="tab-content"><app-vencimientos [version]="versionDatos()" (pagar)="abrirPago($event)"></app-vencimientos></div>
+  <div *ngIf="activeTab() === 'presupuestos'" class="tab-content"><app-presupuestos></app-presupuestos></div>
+  <div *ngIf="activeTab() === 'recurrentes'" class="tab-content"><app-recurrentes></app-recurrentes></div>
+  <div *ngIf="activeTab() === 'config'" class="tab-content"><app-config-finanzas></app-config-finanzas></div>
+
+</div>
+
+<app-nuevo-gasto
+  [showModal]="showModal()"
+  [gastoAEditar]="gastoAEditar()"
+  (close)="closeModal()"
+  (expenseCreated)="recargarTodo()">
+</app-nuevo-gasto>
+
+<!-- ═══ MODAL ANULAR GASTO (con motivo: la anulación queda auditada) ═══ -->
+<div class="modal-overlay" *ngIf="showConfirmAnular()">
+  <div class="modal-content modal-rechazo">
+    <div class="modal-titulo">
+      <h2>Anular gasto</h2>
+      <p>Si tiene pagos imputados, se revierten y la plata vuelve a las cajas.</p>
+    </div>
+    <div class="form-group">
+      <label>Motivo (queda en la auditoría)</label>
+      <textarea class="gm-input" [(ngModel)]="motivoAnularGasto" [ngModelOptions]="{standalone: true}" rows="2"
+                placeholder="Por qué se anula este gasto"></textarea>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="gm-btn gm-btn--neutral" (click)="onCancelAnular()">Cancelar</button>
+      <button type="button" class="gm-btn gm-btn--danger" [disabled]="anulando() || !motivoAnularGasto.trim()" (click)="onConfirmAnular()">
+        Anular gasto
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ MODAL TRANSFERENCIA ENTRE CAJAS ═══ -->
+<div class="modal-overlay" *ngIf="transferencia() as t">
+  <div class="modal-content modal-rechazo">
+    <div class="modal-titulo">
+      <h2>Transferir entre cajas</h2>
+      <p>
+        Desde <strong>{{ t.origen.name }}</strong>
+        ({{ (t.origen.current_balance ?? 0) | currency:'ARS':'symbol-narrow':'1.2-2' }} disponibles).
+        Quedan dos asientos enlazados, uno en cada caja.
+      </p>
+    </div>
+
+    <div class="form-group">
+      <label>Hacia</label>
+      <select class="gm-input" [value]="transDestino()" (change)="transDestino.set($any($event.target).value)">
+        <option *ngFor="let w of destinosPosibles()" [value]="w.id">
+          {{ w.name }} — {{ (w.current_balance ?? 0) | currency:'ARS':'symbol-narrow':'1.0-0' }}
+        </option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label>Monto</label>
+      <input type="number" class="gm-input" min="0.01" step="0.01" [value]="transMonto() ?? ''"
+             (input)="transMonto.set($any($event.target).valueAsNumber)">
+    </div>
+
+    <div class="saldo-preview saldo-preview--mal" *ngIf="transInsuficiente()">
+      {{ t.origen.name }} no tiene ese monto: hay
+      {{ (t.origen.current_balance ?? 0) | currency:'ARS':'symbol-narrow':'1.2-2' }}.
+    </div>
+
+    <div class="form-group">
+      <label>Motivo</label>
+      <input type="text" class="gm-input" [(ngModel)]="transMotivo" [ngModelOptions]="{standalone: true}"
+             placeholder="Ej: depósito en banco, cambio para la caja chica">
+    </div>
+
+    <div class="modal-actions">
+      <button type="button" class="gm-btn gm-btn--neutral" (click)="transferencia.set(null)">Cancelar</button>
+      <button type="button" class="gm-btn gm-btn--brand"
+              [disabled]="transGuardando() || transInsuficiente() || !transMonto() || !transDestino() || !transMotivo.trim()"
+              (click)="confirmarTransferencia()">
+        {{ transGuardando() ? 'Transfiriendo…' : 'Transferir' }}
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ MODAL AJUSTE DE SALDO ═══ -->
+<div class="modal-overlay" *ngIf="ajuste() as w">
+  <div class="modal-content modal-rechazo">
+    <div class="modal-titulo">
+      <h2>Ajustar {{ w.name }}</h2>
+      <p>
+        El sistema dice <strong>{{ (w.current_balance ?? 0) | currency:'ARS':'symbol-narrow':'1.2-2' }}</strong>.
+        Declará el saldo contado físicamente; el sistema asienta la diferencia
+        en el libro con su motivo. No se borra nada.
+      </p>
+    </div>
+
+    <div class="form-group">
+      <label>Saldo contado</label>
+      <input type="number" class="gm-input" min="0" step="0.01" [value]="ajusteSaldoReal() ?? ''"
+             (input)="ajusteSaldoReal.set($any($event.target).valueAsNumber)">
+    </div>
+
+    <div class="saldo-preview" *ngIf="ajusteDelta() !== null && ajusteDelta() !== 0"
+         [class.saldo-preview--mal]="ajusteDelta()! < 0">
+      Se va a asentar una diferencia de
+      <strong>{{ ajusteDelta() | currency:'ARS':'symbol-narrow':'1.2-2' }}</strong>
+      ({{ ajusteDelta()! > 0 ? 'sobrante' : 'faltante' }}).
+    </div>
+
+    <div class="form-group">
+      <label>Motivo</label>
+      <input type="text" class="gm-input" [(ngModel)]="ajusteMotivo" [ngModelOptions]="{standalone: true}"
+             placeholder="Ej: arqueo del cierre, diferencia detectada al contar">
+    </div>
+
+    <div class="modal-actions">
+      <button type="button" class="gm-btn gm-btn--neutral" (click)="ajuste.set(null)">Cancelar</button>
+      <button type="button" class="gm-btn gm-btn--brand"
+              [disabled]="ajusteGuardando() || ajusteSaldoReal() === null || ajusteDelta() === 0 || !ajusteMotivo.trim()"
+              (click)="confirmarAjuste()">
+        {{ ajusteGuardando() ? 'Asentando…' : 'Asentar ajuste' }}
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ MODAL PAGO A PROVEEDOR (imputación FIFO) ═══ -->
+<div class="modal-overlay" *ngIf="pagoProveedor() as deuda">
+  <div class="modal-content modal-pago">
+
+    <!-- Paso 1: el pago -->
+    <ng-container *ngIf="!ppResultado()">
+      <div class="modal-titulo">
+        <h2>Pagar a {{ deuda.proveedor }}</h2>
+        <p>
+          Deuda: <strong>{{ deuda.deuda | currency:'ARS':'symbol-narrow':'1.2-2' }}</strong>
+          en {{ deuda.comprobantes }} comprobante{{ deuda.comprobantes === 1 ? '' : 's' }}.
+          El pago se imputa solo, del comprobante más viejo al más nuevo.
+        </p>
+      </div>
+
+      <div class="saldo-preview" *ngIf="ppACuenta() > 0" style="margin-bottom: 0.75rem;">
+        Este proveedor tiene <strong>${{ ppACuenta() | number:'1.2-2' }}</strong> a cuenta por anticipos.
+        <label style="display: flex; align-items: center; gap: 6px; margin-top: 6px; cursor: pointer;">
+          <input type="checkbox" [checked]="ppUsarAnticipos()"
+                 (change)="ppUsarAnticipos.set($any($event.target).checked)">
+          Consumir el saldo a cuenta primero
+        </label>
+        <div *ngIf="ppUsarAnticipos()" style="margin-top: 4px; font-size: 0.85rem;">
+          De la caja van a salir <strong>${{ ppDesdeCaja() | number:'1.2-2' }}</strong>.
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Monto a pagar</label>
+        <input type="number" class="gm-input" min="0.01" step="0.01" [value]="ppMonto() ?? ''"
+               (input)="ppMonto.set($any($event.target).valueAsNumber)">
+      </div>
+
+      <div class="form-group">
+        <label>De qué caja sale</label>
+        <select class="gm-input" [value]="ppWallet()" (change)="ppWallet.set($any($event.target).value)">
+          <option *ngFor="let w of wallets()" [value]="w.id">
+            {{ w.name }} — {{ (w.current_balance ?? 0) | currency:'ARS':'symbol-narrow':'1.0-0' }}
+          </option>
+        </select>
+      </div>
+
+      <div class="saldo-preview saldo-preview--mal" *ngIf="ppInsuficiente()">
+        Fondos insuficientes en {{ ppBilletera()?.name }}:
+        hay {{ (ppBilletera()?.current_balance ?? 0) | currency:'ARS':'symbol-narrow':'1.2-2' }}.
+      </div>
+
+      <div class="form-group">
+        <label>Método</label>
+        <select class="gm-input" [(ngModel)]="ppMetodo" [ngModelOptions]="{standalone: true}">
+          <option *ngFor="let m of metodosPago" [value]="m">{{ m }}</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>Referencia (opcional)</label>
+        <input type="text" class="gm-input" [(ngModel)]="ppReferencia" [ngModelOptions]="{standalone: true}"
+               placeholder="N° de transferencia, cheque...">
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="gm-btn gm-btn--neutral" (click)="cerrarPagoProveedor()">Cancelar</button>
+        <button type="button" class="gm-btn gm-btn--brand"
+                [disabled]="ppGuardando() || ppInsuficiente() || !ppMonto() || !ppWallet()"
+                (click)="confirmarPagoProveedor()">
+          {{ ppGuardando() ? 'Imputando…' : 'Pagar' }}
+        </button>
+      </div>
+    </ng-container>
+
+    <!-- Paso 2: qué se imputó -->
+    <ng-container *ngIf="ppResultado() as r">
+      <div class="modal-titulo">
+        <h2>Pago imputado</h2>
+        <p>
+          {{ r.total_aplicado | currency:'ARS':'symbol-narrow':'1.2-2' }} aplicados ·
+          {{ r.comprobantes_saldados }} comprobante{{ r.comprobantes_saldados === 1 ? '' : 's' }} saldado{{ r.comprobantes_saldados === 1 ? '' : 's' }} ·
+          deuda restante {{ r.deuda_restante | currency:'ARS':'symbol-narrow':'1.2-2' }}
+        </p>
+        <p *ngIf="(r.desde_anticipos ?? 0) > 0">
+          {{ r.desde_anticipos | currency:'ARS':'symbol-narrow':'1.2-2' }} salieron del saldo a cuenta
+          y {{ r.desde_caja | currency:'ARS':'symbol-narrow':'1.2-2' }} de la caja.
+        </p>
+      </div>
+
+      <table class="tabla-pagos">
+        <thead><tr><th>Comprobante</th><th class="num">Aplicado</th><th></th></tr></thead>
+        <tbody>
+          <tr *ngFor="let i of r.imputaciones">
+            <td>{{ i.numero_gasto }}</td>
+            <td class="num">{{ i.aplicado | currency:'ARS':'symbol-narrow':'1.2-2' }}</td>
+            <td>
+              <span class="status-badge" [class.badge-success]="i.saldado" [class.badge-parcial]="!i.saldado">
+                {{ i.saldado ? 'Saldado' : 'Parcial' }}
+              </span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="modal-actions">
+        <button type="button" class="gm-btn gm-btn--brand" (click)="cerrarPagoProveedor()">Listo</button>
+      </div>
+    </ng-container>
+  </div>
+</div>
+
+<!-- ═══ MODAL DE PAGO ═══ -->
+<div class="modal-overlay" *ngIf="showPagoModal() && gastoAPagar() as gasto">
+  <div class="modal-content modal-pago">
+    <div class="modal-titulo">
+      <h2>Registrar pago</h2>
+      <p>
+        {{ gasto.descripcion }} · {{ gasto.numero_gasto }}<br>
+        Saldo pendiente: <strong>{{ saldoPendiente() | currency:'ARS':'symbol-narrow':'1.2-2' }}</strong>
+        de {{ gasto.monto | currency:'ARS':'symbol-narrow':'1.2-2' }}
+      </p>
+    </div>
+
+    <form [formGroup]="pagoForm" (ngSubmit)="confirmarPago()">
+      <div class="form-group">
+        <label>Monto a pagar</label>
+        <input type="number" class="gm-input" formControlName="monto" min="0.01" step="0.01">
+      </div>
+
+      <div class="form-group">
+        <label>De qué caja sale</label>
+        <!-- Cada opción muestra el saldo: antes se elegía la billetera a
+             ciegas y el sistema dejaba pagar $100.000 desde una caja con
+             $10.000 sin decir nada. -->
+        <select class="gm-input" formControlName="wallet_id">
+          <option *ngFor="let w of wallets()" [value]="w.id">
+            {{ w.name }} — {{ (w.current_balance ?? 0) | currency:'ARS':'symbol-narrow':'1.0-0' }}
+          </option>
+        </select>
+      </div>
+
+      <!-- Previsión del saldo: el mismo chequeo que hace el backend, mostrado
+           antes de apretar el botón. -->
+      <div class="saldo-preview" *ngIf="billeteraDePago() as w"
+           [class.saldo-preview--mal]="fondosInsuficientes()">
+        <ng-container *ngIf="!fondosInsuficientes()">
+          {{ w.name }} queda con
+          <strong>{{ saldoResultante() | currency:'ARS':'symbol-narrow':'1.2-2' }}</strong>
+          después del pago.
+        </ng-container>
+        <ng-container *ngIf="fondosInsuficientes()">
+          Fondos insuficientes: {{ w.name }} tiene
+          <strong>{{ (w.current_balance ?? 0) | currency:'ARS':'symbol-narrow':'1.2-2' }}</strong>
+          y el pago es de <strong>{{ montoPago() | currency:'ARS':'symbol-narrow':'1.2-2' }}</strong>.
+          Ingresá plata a la caja o pagá desde otra.
+        </ng-container>
+      </div>
+
+      <div class="form-group">
+        <label>Método de pago</label>
+        <select class="gm-input" formControlName="metodo_pago">
+          <option *ngFor="let m of metodosPago" [value]="m">{{ m }}</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>Referencia (opcional)</label>
+        <input type="text" class="gm-input" formControlName="referencia" placeholder="N° de transferencia, cheque...">
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="gm-btn gm-btn--neutral" (click)="cerrarPago()">Cancelar</button>
+        <button type="submit" class="gm-btn gm-btn--brand"
+                [disabled]="pagoForm.invalid || isSubmittingPago() || fondosInsuficientes()">
+          {{ isSubmittingPago() ? 'Registrando...' : 'Registrar pago' }}
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ═══ MODAL DE RECHAZO ═══ -->
+<div class="modal-overlay" *ngIf="showRechazoModal() && gastoARechazar() as gasto">
+  <div class="modal-content modal-rechazo">
+    <div class="modal-titulo">
+      <h2>Rechazar gasto</h2>
+      <p>{{ gasto.descripcion }} · {{ gasto.numero_gasto }}</p>
+    </div>
+
+    <div class="form-group">
+      <label>Motivo</label>
+      <textarea class="gm-input" [(ngModel)]="motivoRechazo" [ngModelOptions]="{standalone: true}" rows="3"
+                placeholder="Por qué se rechaza este gasto"></textarea>
+    </div>
+
+    <div class="modal-actions">
+      <button type="button" class="gm-btn gm-btn--neutral" (click)="cerrarRechazo()">Cancelar</button>
+      <button type="button" class="gm-btn gm-btn--danger" [disabled]="!motivoRechazo.trim()" (click)="confirmarRechazo()">
+        Rechazar gasto
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ MODAL DETALLE DEL GASTO (pagos imputados) ═══ -->
+<div class="modal-overlay" *ngIf="gastoDetalle() as g">
+  <div class="modal-content modal-detalle">
+    <button class="modal-close" (click)="cerrarDetalle()"><app-icon name="cerrar"></app-icon></button>
+
+    <div class="modal-titulo">
+      <h2>{{ g.numero_gasto }}</h2>
+      <p>{{ g.descripcion }} · {{ etiquetaCategoria(g.categoria) }} · {{ g.fecha | date:'dd/MM/yyyy':'UTC' }}</p>
+    </div>
+
+    <div class="detalle-cifras">
+      <div><em>Monto</em><strong>{{ g.monto | currency:'ARS':'symbol-narrow':'1.2-2' }}</strong></div>
+      <div><em>Pagado</em><strong>{{ g.monto_pagado | currency:'ARS':'symbol-narrow':'1.2-2' }}</strong></div>
+      <div><em>Saldo</em>
+        <strong [class.danger]="+g.monto - +(g.monto_pagado || 0) > 0">
+          {{ (+g.monto - +(g.monto_pagado || 0)) | currency:'ARS':'symbol-narrow':'1.2-2' }}
+        </strong>
+      </div>
+      <div *ngIf="g.proveedor"><em>Proveedor</em><strong>{{ g.proveedor.nombre }}</strong></div>
+      <div *ngIf="g.fecha_vencimiento"><em>Vence</em><strong>{{ g.fecha_vencimiento | date:'dd/MM/yyyy':'UTC' }}</strong></div>
+    </div>
+
+    <h3 class="detalle-sub">Pagos imputados</h3>
+    <p class="detalle-vacio" *ngIf="!g.pagos?.length">Todavía no se registró ningún pago.</p>
+
+    <table class="tabla-pagos" *ngIf="g.pagos?.length">
+      <thead>
+        <tr><th>Fecha</th><th>Caja</th><th>Método</th><th class="num">Monto</th><th></th></tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let p of g.pagos" [class.pago-anulado]="p.activo === false">
+          <td>{{ p.fecha_pago | date:'dd/MM/yyyy':'UTC' }}</td>
+          <td>{{ p.wallet?.name || '—' }}</td>
+          <td>{{ p.metodo_pago }}<small class="ref" *ngIf="p.referencia"> · {{ p.referencia }}</small></td>
+          <td class="num">{{ p.monto | currency:'ARS':'symbol-narrow':'1.2-2' }}</td>
+          <td class="num">
+            <span *ngIf="p.activo === false" class="status-badge badge-danger">Anulado</span>
+            <button *ngIf="p.activo !== false && g.estado" class="gm-btn gm-btn--danger gm-btn--sm"
+                    (click)="prepararAnularPago(p)">Anular</button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- Confirmación de anular pago, inline -->
+    <div class="anular-pago-box" *ngIf="pagoAAnular() as pa">
+      <ng-container *ngIf="!pedirDestinoPago(); else elegirDestino">
+        <p>
+          Se revierte el pago de <strong>{{ pa.monto | currency:'ARS':'symbol-narrow':'1.2-2' }}</strong>.
+          Si es del turno de caja abierto, la reversa entra a su arqueo; si es de un
+          turno ya cerrado, se te va a preguntar a dónde va la plata.
+        </p>
+        <input type="text" class="gm-input" [(ngModel)]="motivoAnularPago" [ngModelOptions]="{standalone: true}"
+               placeholder="Motivo (queda en la auditoría)">
+        <div class="modal-actions">
+          <button class="gm-btn gm-btn--neutral" (click)="pagoAAnular.set(null)">Cancelar</button>
+          <button class="gm-btn gm-btn--danger" [disabled]="anulando()" (click)="confirmarAnularPago()">{{ anulando() ? 'Anulando…' : 'Confirmar anulación' }}</button>
+        </div>
+      </ng-container>
+      <ng-template #elegirDestino>
+        <p>
+          Este pago es de un <strong>turno de caja ya cerrado</strong>. ¿Qué pasó con la plata?
+        </p>
+        <div class="modal-actions" style="flex-direction: column; align-items: stretch; gap: 0.5rem;">
+          <button class="gm-btn gm-btn--neutral" [disabled]="anulando()" (click)="confirmarAnularPago('turno_actual')">
+            El proveedor la devolvió — entra al arqueo del turno actual
+          </button>
+          <button class="gm-btn gm-btn--neutral" [disabled]="anulando()" (click)="confirmarAnularPago('sin_arqueo')">
+            Fue un error de carga — la plata nunca salió; no tocar la caja
+          </button>
+          <button class="gm-btn gm-btn--neutral" (click)="pedirDestinoPago.set(false)">Volver</button>
+        </div>
+      </ng-template>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ MODAL LIBRO DE UNA CAJA ═══ -->
+<div class="modal-overlay" *ngIf="billeteraAbierta() as w">
+  <div class="modal-content modal-caja">
+    <button class="modal-close" (click)="cerrarBilletera()"><app-icon name="cerrar"></app-icon></button>
+
+    <div class="modal-titulo">
+      <h2>{{ w.name }}</h2>
+      <p>
+        {{ tipoBilletera(w.type) }} · saldo actual
+        <strong [class.danger]="(w.current_balance ?? 0) < 0">
+          {{ (w.current_balance ?? 0) | currency:'ARS':'symbol-narrow':'1.2-2' }}
+        </strong>
+      </p>
+    </div>
+
+    <p class="detalle-vacio" *ngIf="cargandoMovimientos()">Cargando movimientos…</p>
+    <p class="detalle-vacio" *ngIf="!cargandoMovimientos() && !movimientosBilletera().length">
+      Esta caja todavía no tiene movimientos registrados.
+    </p>
+
+    <table class="tabla-pagos" *ngIf="!cargandoMovimientos() && movimientosBilletera().length">
+      <thead>
+        <tr><th>Fecha</th><th>Origen</th><th>Concepto</th><th class="num">Monto</th><th class="num">Saldo</th></tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let m of movimientosBilletera()">
+          <td>{{ m.fecha | date:'dd/MM HH:mm' }}</td>
+          <td><span class="origen-chip">{{ etiquetaOrigen(m.origen) }}</span></td>
+          <td class="concepto">{{ m.concepto || '—' }}</td>
+          <td class="num" [class.mov-ingreso]="m.signo === 'ingreso'" [class.mov-egreso]="m.signo === 'egreso'">
+            {{ m.signo === 'ingreso' ? '+' : '−' }}{{ m.monto | currency:'ARS':'symbol-narrow':'1.2-2' }}
+          </td>
+          <td class="num">{{ m.saldo_posterior | currency:'ARS':'symbol-narrow':'1.2-2' }}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ═══ Modal: anticipo a proveedor ═══ -->
+<div class="modal-overlay" *ngIf="anticipoProveedor() as deuda">
+  <div class="modal-content modal-pago">
+    <div class="modal-titulo">
+      <h2>Anticipo a {{ deuda.proveedor }}</h2>
+      <p>
+        La plata sale de la caja hoy y queda a cuenta: cuando llegue la factura,
+        el pago la consume antes de tocar la caja.
+      </p>
+    </div>
+
+    <div class="form-group">
+      <label>Monto</label>
+      <input type="number" class="gm-input" min="0.01" step="0.01" [value]="antMonto() ?? ''"
+             (input)="antMonto.set($any($event.target).valueAsNumber)">
+    </div>
+
+    <div class="form-group">
+      <label>De qué caja sale</label>
+      <select class="gm-input" [value]="antWallet()" (change)="antWallet.set($any($event.target).value)">
+        <option *ngFor="let w of wallets()" [value]="w.id">
+          {{ w.name }} — {{ (w.current_balance ?? 0) | currency:'ARS':'symbol-narrow':'1.0-0' }}
+        </option>
+      </select>
+    </div>
+
+    <div class="saldo-preview saldo-preview--mal" *ngIf="antInsuficiente()">
+      Fondos insuficientes en {{ antBilletera()?.name }}:
+      hay {{ (antBilletera()?.current_balance ?? 0) | currency:'ARS':'symbol-narrow':'1.2-2' }}.
+    </div>
+
+    <div class="form-group">
+      <label>Notas (opcional)</label>
+      <input type="text" class="gm-input" [(ngModel)]="antNotas" [ngModelOptions]="{standalone: true}"
+             placeholder="Seña por pedido grande, acuerdo de precio…">
+    </div>
+
+    <!-- Anticipos vigentes: verlos evita duplicar, y desde acá se anulan -->
+    <ng-container *ngIf="antVigentes().length">
+      <div class="detalle-sub">Anticipos vigentes</div>
+      <table class="tabla-pagos">
+        <thead><tr><th>Fecha</th><th class="num">Monto</th><th class="num">Saldo</th><th></th></tr></thead>
+        <tbody>
+          <tr *ngFor="let a of antVigentes()">
+            <td>{{ a.created_at | date:'dd/MM/yyyy' }}</td>
+            <td class="num">{{ a.monto | currency:'ARS':'symbol-narrow':'1.2-2' }}</td>
+            <td class="num">{{ a.saldo | currency:'ARS':'symbol-narrow':'1.2-2' }}</td>
+            <td style="text-align: right;">
+              <!-- Consumido aunque sea en parte, ya no se anula: está imputado a facturas -->
+              <button *ngIf="+a.saldo === +a.monto" class="gm-btn gm-btn--neutral gm-btn--sm" (click)="anularAnticipo(a)">
+                Anular
+              </button>
+              <span *ngIf="+a.saldo !== +a.monto" style="font-size: 0.75rem; color: var(--color-text-muted);">
+                En uso
+              </span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </ng-container>
+
+    <div class="modal-actions">
+      <button type="button" class="gm-btn gm-btn--neutral" (click)="cerrarAnticipo()">Cerrar</button>
+      <button type="button" class="gm-btn gm-btn--brand"
+              [disabled]="antGuardando() || antInsuficiente() || !antMonto() || !antWallet()"
+              (click)="confirmarAnticipo()">
+        {{ antGuardando() ? 'Registrando…' : 'Registrar anticipo' }}
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ Modal: anular anticipo ═══ -->
+<div class="modal-overlay" *ngIf="anticipoAAnular() as ant">
+  <div class="modal-content modal-pago">
+    <div class="modal-titulo">
+      <h2>Anular anticipo</h2>
+      <p>El anticipo de {{ ant.monto | currency:'ARS':'symbol-narrow':'1.2-2' }} vuelve íntegro a la caja de origen.</p>
+    </div>
+    <div class="form-group">
+      <label>Motivo (opcional)</label>
+      <input type="text" class="gm-input" [(ngModel)]="motivoAnularAnticipo" [ngModelOptions]="{standalone: true}"
+             placeholder="Ej: cargado por error, se canceló el pedido…">
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="gm-btn gm-btn--neutral" (click)="anticipoAAnular.set(null)">Cancelar</button>
+      <button type="button" class="gm-btn gm-btn--danger" (click)="confirmarAnularAnticipo()">Anular anticipo</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ Modal: destino del dinero (pagos de un turno cerrado) ═══ -->
+<div class="modal-overlay" *ngIf="destinoPendiente()">
+  <div class="modal-content modal-pago">
+    <div class="modal-titulo">
+      <h2>Destino del dinero</h2>
+      <p>Este gasto tiene pagos de un turno de caja ya cerrado. Indicá qué pasó con ese dinero para que el arqueo cierre bien.</p>
+    </div>
+    <div class="destino-opciones">
+      <button type="button" class="destino-opcion" [disabled]="anulando()" (click)="elegirDestino('turno_actual')">
+        <strong>El proveedor devolvió el dinero</strong>
+        <span>Entra al arqueo del turno actual como devolución real.</span>
+      </button>
+      <button type="button" class="destino-opcion" [disabled]="anulando()" (click)="elegirDestino('sin_arqueo')">
+        <strong>Fue un error de carga</strong>
+        <span>No se toca ninguna caja: el arqueo de cierre de ese turno ya ajustó la diferencia.</span>
+      </button>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="gm-btn gm-btn--neutral" (click)="cancelarDestino()">Cancelar</button>
+    </div>
+  </div>
+</div>

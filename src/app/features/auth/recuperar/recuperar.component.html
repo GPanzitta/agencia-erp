@@ -1,0 +1,25 @@
+<div class="login-page">
+  <div class="login-brand">
+    <span class="login-tile">{{ iniciales }}</span>
+    <span class="login-word">{{ marca }}</span>
+  </div>
+  <div class="login-card">
+    <ng-container *ngIf="!enviado()">
+      <h1 class="registro-titulo">Recuperar la clave</h1>
+      <p>Poné tu correo y te mandamos un link para elegir una clave nueva.</p>
+      <form (ngSubmit)="enviar()" novalidate>
+        <div class="campo">
+          <label for="correo">Correo</label>
+          <input id="correo" type="email" class="gm-input" [formControl]="email" autocomplete="username" />
+          <small class="registro-error" *ngIf="email.touched && email.invalid">Ese correo no parece válido.</small>
+        </div>
+        <button type="submit" class="gm-btn gm-btn--brand login-btn">Mandarme el link</button>
+      </form>
+    </ng-container>
+    <ng-container *ngIf="enviado()">
+      <h1 class="registro-titulo">Revisá tu correo</h1>
+      <p>Si hay una cuenta con ese correo, te mandamos un link. Vale una hora.</p>
+    </ng-container>
+    <p class="login-registro"><a routerLink="/auth/login">Volver a entrar</a></p>
+  </div>
+</div>

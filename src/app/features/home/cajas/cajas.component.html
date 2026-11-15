@@ -1,0 +1,288 @@
+<div class="cajas-page">
+  <header class="oh gm-card">
+    <div class="oh-fila">
+      <div class="oh-id">
+        <div class="oh-tile" style="background: var(--gm-navy);"><app-icon name="caja"></app-icon></div>
+        <div class="oh-titulos">
+          <span class="oh-eyebrow">Plata</span>
+          <h1>Cajas</h1>
+        </div>
+      </div>
+      <button type="button" class="gm-btn gm-btn--neutral" (click)="cargar()" [disabled]="cargando()">
+        <app-icon name="recargar"></app-icon> Actualizar
+      </button>
+    </div>
+    <div class="oh-fila oh-fila--meta">
+      <span class="oh-meta">De estas cajas sale la plata de las compras y acá entra lo que se cobra.</span>
+    </div>
+  </header>
+
+  <!-- ESTADO DEL TURNO: solo para quien opera caja (mostrador y admin) -->
+  <section class="turno gm-card" *ngIf="puedeOperar()" aria-label="Turno de caja">
+    <div class="turno-aviso" *ngIf="diferenciasApertura().length" role="status">
+      <strong>Lo contado al abrir no coincide con el sistema.</strong>
+      No se corrigió solo: lo ajusta el administrador al cerrar el turno.
+      <ul>
+        <li *ngFor="let d of diferenciasApertura(); trackBy: trackPorBilletera">
+          {{ d.billetera }}: contado {{ d.contado | currency:'ARS':'symbol-narrow':'1.2-2' }},
+          sistema {{ d.segun_sistema | currency:'ARS':'symbol-narrow':'1.2-2' }}
+          ({{ d.diferencia | currency:'ARS':'symbol-narrow':'1.2-2' }})
+        </li>
+      </ul>
+      <button type="button" class="gm-btn gm-btn--neutral gm-btn--sm" (click)="descartarDiferenciasApertura()">Entendido</button>
+    </div>
+
+    <p class="cajas-estado" *ngIf="cargandoTurno() && !turno()">Cargando el turno…</p>
+
+    <p class="cajas-estado cajas-estado--error" *ngIf="!cargandoTurno() && falloTurno()">
+      No se pudo traer el turno. Probá con Actualizar.
+    </p>
+
+    <ng-container *ngIf="!cargandoTurno() && !falloTurno() && !turno()">
+      <div class="turno-cabecera">
+        <div>
+          <strong class="turno-titulo">No hay un turno abierto</strong>
+          <p class="turno-sub">Para cobrar en efectivo o mover plata hace falta abrir el turno.</p>
+        </div>
+        <button type="button" class="gm-btn gm-btn--brand" (click)="abrirModalApertura()" [disabled]="!hayCajas()">
+          Abrir turno
+        </button>
+      </div>
+    </ng-container>
+
+    <ng-container *ngIf="turno() as t">
+      <div class="turno-cabecera">
+        <div>
+          <strong class="turno-titulo">Turno {{ t.turno_numero }} abierto</strong>
+          <p class="turno-sub">
+            Abierto por {{ t.empleado?.nombre || 'un empleado' }} desde las {{ t.fecha_apertura | date:'HH:mm' }}
+            ({{ t.fecha_apertura | date:'dd/MM/yyyy' }})
+          </p>
+        </div>
+        <div class="turno-acciones">
+          <button type="button" class="gm-btn gm-btn--neutral" (click)="abrirModalMovimiento('ingreso')">Ingreso</button>
+          <button type="button" class="gm-btn gm-btn--neutral" (click)="abrirModalMovimiento('retiro')">Retiro</button>
+          <button type="button" class="gm-btn gm-btn--danger" *ngIf="esAdmin()" (click)="abrirModalCierre()">
+            Cerrar turno
+          </button>
+        </div>
+      </div>
+
+      <table class="turno-tabla">
+        <thead>
+          <tr><th>Billetera</th><th class="num">Al abrir</th><th class="num">Esperado ahora</th></tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let b of t.walletBalances; trackBy: trackPorId">
+            <td>{{ b.wallet?.name }}</td>
+            <td class="num">{{ num(b.opening_amount) | currency:'ARS':'symbol-narrow':'1.2-2' }}</td>
+            <td class="num"><strong>{{ num(b.expected_amount) | currency:'ARS':'symbol-narrow':'1.2-2' }}</strong></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2 class="turno-subtitulo">Movimientos del turno</h2>
+      <p class="turno-sub" *ngIf="!movimientosDelTurno().length">Todavía no hubo ingresos ni retiros.</p>
+      <ul class="turno-movs" *ngIf="movimientosDelTurno().length">
+        <li *ngFor="let m of movimientosDelTurno(); trackBy: trackPorId">
+          <span class="mov-tipo" [class.mov-tipo--retiro]="m.tipo === 'retiro'">{{ m.tipo === 'retiro' ? 'Retiro' : 'Ingreso' }}</span>
+          <span class="mov-monto">{{ num(m.monto) | currency:'ARS':'symbol-narrow':'1.2-2' }}</span>
+          <span class="mov-detalle">
+            {{ m.motivo }}<ng-container *ngIf="m.wallet"> · {{ m.wallet.name }}</ng-container>
+          </span>
+          <span class="mov-hora">{{ m.fecha | date:'HH:mm' }}</span>
+        </li>
+      </ul>
+    </ng-container>
+  </section>
+
+  <p class="cajas-estado" *ngIf="cargando()">Cargando cajas…</p>
+
+  <p class="cajas-estado cajas-estado--error" *ngIf="!cargando() && fallo()">
+    No se pudieron traer las cajas. Probá con Actualizar.
+  </p>
+
+  <p class="cajas-estado" *ngIf="!cargando() && !fallo() && !hayCajas()">
+    Todavía no hay cajas cargadas.
+  </p>
+
+  <div class="cajas-row" *ngIf="!cargando() && hayCajas()">
+    <div class="caja-chip" *ngFor="let w of cajas(); trackBy: trackPorId" [class.caja-neg]="enRojo(w)">
+      <app-icon [name]="iconoBilletera(w.type)"></app-icon>
+      <div class="caja-info">
+        <span class="caja-nombre">{{ w.name }}</span>
+        <span class="caja-tipo">{{ tipoBilletera(w.type) }}</span>
+      </div>
+      <strong class="caja-saldo" [class.danger]="enRojo(w)">
+        {{ saldo(w) | currency:'ARS':'symbol-narrow':'1.0-0' }}
+      </strong>
+    </div>
+  </div>
+
+  <!--
+    "Saldo del sistema" y no "plata en caja": es lo que el sistema tiene
+    asentado, no un arqueo. Si no coincide con lo que hay en el cajón, la
+    diferencia se resuelve al cerrar el turno, con motivo.
+  -->
+  <p class="cajas-hint" *ngIf="!cargando() && hayCajas()">
+    Es el <strong>saldo del sistema</strong>: lo que quedó asentado de ventas, cobros y pagos.
+    No es un arqueo — si no coincide con lo que hay en el cajón, avisale al dueño.
+  </p>
+
+  <!-- HISTORIAL DE CIERRES -->
+  <section class="turno gm-card" *ngIf="puedeOperar() && historial().length" aria-label="Últimos cierres">
+    <h2 class="turno-subtitulo">Últimos cierres</h2>
+    <div class="cierre" *ngFor="let h of historial(); trackBy: trackPorId">
+      <button type="button" class="cierre-fila" (click)="alternarDetalle(h.id)" [attr.aria-expanded]="estaExpandido(h.id)">
+        <strong>{{ h.turno_numero }}</strong>
+        <span class="cierre-quien">
+          Abrió {{ h.empleado?.nombre || '—' }} · cerró {{ h.cerrado_por?.nombre || '—' }}
+        </span>
+        <span class="cierre-fechas">
+          {{ h.fecha_apertura | date:'dd/MM HH:mm' }} → {{ h.fecha_cierre | date:'dd/MM HH:mm' }}
+        </span>
+        <span class="num">Esperado {{ num(h.monto_esperado) | currency:'ARS':'symbol-narrow':'1.2-2' }}</span>
+        <span class="num">Declarado {{ num(h.monto_declarado) | currency:'ARS':'symbol-narrow':'1.2-2' }}</span>
+        <span class="num" [class.danger]="num(h.diferencia) < 0" [class.sobra]="num(h.diferencia) > 0">
+          Dif. {{ num(h.diferencia) | currency:'ARS':'symbol-narrow':'1.2-2' }}
+        </span>
+      </button>
+      <div class="cierre-detalle" *ngIf="estaExpandido(h.id)">
+        <p class="turno-sub" *ngIf="h.notas_cierre">Notas: {{ h.notas_cierre }}</p>
+        <table class="turno-tabla">
+          <thead>
+            <tr>
+              <th>Billetera</th><th class="num">Al abrir</th><th class="num">Esperado</th>
+              <th class="num">Declarado</th><th class="num">Diferencia</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let b of h.walletBalances; trackBy: trackPorId">
+              <td>{{ b.wallet?.name }}</td>
+              <td class="num">{{ num(b.opening_amount) | currency:'ARS':'symbol-narrow':'1.2-2' }}</td>
+              <td class="num">{{ num(b.expected_amount) | currency:'ARS':'symbol-narrow':'1.2-2' }}</td>
+              <td class="num">{{ num(b.declared_amount) | currency:'ARS':'symbol-narrow':'1.2-2' }}</td>
+              <td class="num" [class.danger]="num(b.difference) < 0" [class.sobra]="num(b.difference) > 0">
+                {{ num(b.difference) | currency:'ARS':'symbol-narrow':'1.2-2' }}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- MODAL: ABRIR / CERRAR (comparten el conteo por billetera) -->
+  <div class="modal-overlay" *ngIf="modal() === 'abrir' || modal() === 'cerrar'" (click)="cerrarModal()">
+    <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="titulo-conteo" (click)="$event.stopPropagation()">
+      <h2 id="titulo-conteo">{{ modal() === 'abrir' ? 'Abrir turno' : 'Cerrar turno ' + (turno()?.turno_numero || '') }}</h2>
+      <p class="turno-sub">
+        <ng-container *ngIf="modal() === 'abrir'">
+          Contá lo que hay en cada caja. Viene cargado con el saldo del sistema, que es aproximado
+          (el sistema compara contra su libro al abrir): corregilo si no coincide.
+        </ng-container>
+        <ng-container *ngIf="modal() === 'cerrar'">
+          Declará lo que contaste en cada caja. La diferencia con lo esperado se asienta como ajuste.
+        </ng-container>
+      </p>
+
+      <table class="turno-tabla">
+        <thead>
+          <tr>
+            <th>Billetera</th>
+            <th class="num">{{ modal() === 'abrir' ? 'Según el sistema' : 'Esperado' }}</th>
+            <th class="num">Contado</th>
+            <th class="num" *ngIf="modal() === 'cerrar'">Diferencia</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let f of filas(); let i = index; trackBy: trackPorBilletera">
+            <td>
+              {{ f.nombre }}
+              <small class="fila-aviso" *ngIf="modal() === 'abrir' && f.saldoNegativo">
+                El sistema da saldo negativo: anotá lo que hay físicamente.
+              </small>
+            </td>
+            <td class="num">{{ f.esperado | currency:'ARS':'symbol-narrow':'1.2-2' }}</td>
+            <td class="num">
+              <input type="number" min="0" step="0.01" class="gm-input conteo-input"
+                     [attr.aria-label]="'Contado en ' + f.nombre"
+                     [value]="f.declarado ?? ''"
+                     (input)="contar(i, $any($event.target).value)">
+            </td>
+            <td class="num" *ngIf="modal() === 'cerrar'"
+                [class.danger]="(diferenciaFila(f) ?? 0) < 0" [class.sobra]="(diferenciaFila(f) ?? 0) > 0">
+              {{ diferenciaFila(f) === null ? '—' : (diferenciaFila(f) | currency:'ARS':'symbol-narrow':'1.2-2') }}
+            </td>
+          </tr>
+        </tbody>
+        <tfoot *ngIf="modal() === 'cerrar'">
+          <tr>
+            <th>Total</th>
+            <th class="num">{{ totalEsperadoConteo() | currency:'ARS':'symbol-narrow':'1.2-2' }}</th>
+            <th class="num">{{ totalDeclaradoConteo() | currency:'ARS':'symbol-narrow':'1.2-2' }}</th>
+            <th class="num" [class.danger]="totalDiferenciaConteo() < 0" [class.sobra]="totalDiferenciaConteo() > 0">
+              {{ totalDiferenciaConteo() | currency:'ARS':'symbol-narrow':'1.2-2' }}
+            </th>
+          </tr>
+        </tfoot>
+      </table>
+
+      <div class="campo" *ngIf="modal() === 'cerrar'">
+        <label for="notas-cierre">
+          Motivo de la diferencia
+          <span *ngIf="conDiferencia()" class="obligatorio">(obligatorio)</span>
+        </label>
+        <textarea id="notas-cierre" class="gm-input" rows="2" maxlength="500"
+                  [value]="notas()" (input)="notas.set($any($event.target).value)"
+                  placeholder="Ej: faltante de vuelto, retiro sin anotar…"></textarea>
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="gm-btn gm-btn--neutral" (click)="cerrarModal()" [disabled]="enviando()">Cancelar</button>
+        <button *ngIf="modal() === 'abrir'" type="button" class="gm-btn gm-btn--brand"
+                [disabled]="!puedeAbrir()" (click)="confirmarApertura()">
+          {{ enviando() ? 'Abriendo…' : 'Abrir turno' }}
+        </button>
+        <button *ngIf="modal() === 'cerrar'" type="button" class="gm-btn gm-btn--danger"
+                [disabled]="!puedeCerrar()" (click)="confirmarCierre()">
+          {{ enviando() ? 'Cerrando…' : 'Cerrar turno' }}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: INGRESO / RETIRO -->
+  <div class="modal-overlay" *ngIf="modal() === 'movimiento'" (click)="cerrarModal()">
+    <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="titulo-mov" (click)="$event.stopPropagation()">
+      <h2 id="titulo-mov">{{ tipoMovimiento() === 'ingreso' ? 'Ingreso de plata' : 'Retiro de plata' }}</h2>
+
+      <div class="campo">
+        <label for="mov-billetera">Billetera</label>
+        <select id="mov-billetera" class="gm-input" (change)="movWalletId.set($any($event.target).value)">
+          <option *ngFor="let b of turno()?.walletBalances; trackBy: trackPorId" [value]="b.walletId" [selected]="b.walletId === movWalletId()">
+            {{ b.wallet?.name }}
+          </option>
+        </select>
+      </div>
+      <div class="campo">
+        <label for="mov-monto">Monto</label>
+        <input id="mov-monto" type="number" min="0.01" step="0.01" class="gm-input"
+               [value]="movMonto() ?? ''" (input)="movMonto.set($any($event.target).value === '' ? null : +$any($event.target).value)">
+      </div>
+      <div class="campo">
+        <label for="mov-motivo">Motivo <span class="obligatorio">(obligatorio)</span></label>
+        <input id="mov-motivo" type="text" maxlength="200" class="gm-input"
+               [value]="movMotivo()" (input)="movMotivo.set($any($event.target).value)"
+               placeholder="Ej: cambio para el mostrador">
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="gm-btn gm-btn--neutral" (click)="cerrarModal()" [disabled]="enviando()">Cancelar</button>
+        <button type="button" class="gm-btn gm-btn--brand" [disabled]="!puedeMover()" (click)="confirmarMovimiento()">
+          {{ enviando() ? 'Guardando…' : (tipoMovimiento() === 'ingreso' ? 'Registrar ingreso' : 'Registrar retiro') }}
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

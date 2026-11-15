@@ -1,0 +1,58 @@
+.config-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* El tile de configuración va en navy, a diferencia del acento naranja
+   de los objetos operativos (órdenes). */
+.oh .oh-tile {
+  background: var(--gm-navy);
+}
+
+.config-tabs {
+  display: flex;
+  gap: 0 0.5rem;
+  // Envuelve en vez de desbordar: con ocho pestañas la fila mide más que el
+  // contenido y el main scrolleaba de costado al hacer clic dentro de una
+  // pestaña (el mismo defecto que tuvo .inv-tabs).
+  flex-wrap: wrap;
+  border-bottom: 2px solid var(--color-border);
+}
+
+.tab-item {
+  padding: 0.75rem 1.25rem;
+  text-decoration: none;
+  color: var(--color-text-muted);
+  font-weight: 600;
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  position: relative;
+  transition: color 0.2s ease;
+
+  &:hover {
+    color: var(--color-steel-azure);
+  }
+
+  &.active {
+    color: var(--color-steel-azure);
+    font-weight: 700;
+
+    &::after {
+      content: '';
+      position: absolute;
+      bottom: -2px;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background-color: var(--color-steel-azure);
+      border-radius: 2px 2px 0 0;
+    }
+  }
+}
+
+.config-content {
+  flex: 1;
+}

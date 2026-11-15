@@ -1,0 +1,42 @@
+@use './autos' as *;
+
+:host { display: block; max-width: 880px; }
+@include autos-base;
+
+.volver { font-size: 0.85rem; color: var(--gm-muted); text-decoration: none; &:hover { color: var(--gm-text); } &::before { content: '‹ '; } }
+h2 { margin: 0.3rem 0 0.2rem; }
+.bajada { color: var(--gm-muted); font-size: 0.9rem; margin: 0 0 1rem; max-width: 62ch; }
+
+.alta { display: grid; gap: 0.9rem; }
+section { background: var(--gm-card); border: 1px solid var(--gm-border); border-radius: var(--gm-radius-lg); padding: 1rem 1.1rem;
+  h3 { margin: 0 0 0.8rem; font-size: 1rem; } }
+
+.opciones { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0.6rem; margin-bottom: 0.9rem;
+  label { display: grid; gap: 0.1rem; padding: 0.65rem 0.8rem; border: 1px solid var(--gm-input-border); border-radius: var(--gm-radius-lg); cursor: pointer;
+    input { position: absolute; opacity: 0; }
+    small { color: var(--gm-muted); font-size: 0.8rem; }
+    &:focus-within { outline: 2px solid var(--gm-brand); outline-offset: 1px; } }
+  .elegida { border-color: var(--gm-text); box-shadow: inset 4px 0 0 var(--fg-senal, var(--gm-brand)); } }
+
+.campos { grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 0.7rem 0.9rem; margin-bottom: 0;
+  label span { font-size: 0.8rem; } }
+.ayuda { margin: 0.7rem 0 0; }
+
+.fotos { list-style: none; margin: 0 0 0.7rem; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 0.5rem;
+  li { position: relative; aspect-ratio: 4 / 3; border-radius: var(--gm-radius-lg); overflow: hidden; background: var(--gm-col); }
+  img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .portada { position: absolute; top: 6px; left: 6px; background: var(--gm-text); color: #fff; font-size: 0.7rem; font-weight: 600; padding: 1px 7px; border-radius: 999px; }
+  button { position: absolute; right: 6px; bottom: 6px; border: 0; border-radius: 999px; padding: 2px 9px; font-size: 0.74rem; cursor: pointer; background: rgba(255, 255, 255, 0.92); color: var(--gm-text); } }
+.agregar { display: grid; gap: 0.15rem; justify-items: start; padding: 0.9rem; border: 1px dashed var(--gm-input-border); border-radius: var(--gm-radius-lg); cursor: pointer; margin-bottom: 0.9rem;
+  input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+  span { font-weight: 600; color: var(--gm-brand); }
+  small { color: var(--gm-muted); font-size: 0.8rem; }
+  &:focus-within { outline: 2px solid var(--gm-brand); outline-offset: 1px; } }
+.descripcion { display: grid; gap: 0.2rem; margin-bottom: 0.8rem; span { font-size: 0.8rem; color: var(--gm-muted); } textarea { resize: vertical; } }
+.casilla { display: flex; align-items: center; gap: 0.5rem; cursor: pointer; input { width: 18px; height: 18px; flex: none; } }
+
+// La barra de guardar queda pegada al borde de abajo y tapa el relleno del contenido:
+// sin esto flotaba unos píxeles más arriba y lo de abajo se asomaba por debajo.
+.pie { display: flex; gap: 0.6rem; flex-wrap: wrap; position: sticky; z-index: 2;
+  bottom: calc(-1 * var(--fg-relleno-abajo, 0px)); margin-bottom: calc(-1 * var(--fg-relleno-abajo, 0px));
+  padding: 0.7rem 0 calc(0.7rem + var(--fg-relleno-abajo, 0px)); background: var(--gm-bg); border-top: 1px solid var(--gm-border); }

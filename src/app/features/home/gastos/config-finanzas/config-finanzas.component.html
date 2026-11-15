@@ -1,0 +1,63 @@
+<div class="config-finanzas-container">
+  <header class="oh gm-card">
+    <div class="oh-fila">
+      <div class="oh-id">
+        <div class="oh-tile">
+          <svg width="22" height="22" viewBox="0 0 20 20" fill="none" stroke="#FFFFFF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="3"/><path d="M10 2.2v2.6M10 15.2v2.6M2.2 10h2.6M15.2 10h2.6M4.5 4.5l1.8 1.8M13.7 13.7l1.8 1.8M15.5 4.5l-1.8 1.8M6.3 13.7l-1.8 1.8"/></svg>
+        </div>
+        <div class="oh-titulos">
+          <span class="oh-eyebrow">Finanzas</span>
+          <h1>Configuración financiera</h1>
+        </div>
+      </div>
+    </div>
+    <div class="oh-fila oh-fila--meta">
+      <span class="oh-meta">Las reglas de la agencia: qué se considera un gasto grande, cuándo avisar.</span>
+    </div>
+  </header>
+
+  <div *ngIf="isLoading()" style="text-align: center; padding: 2rem; color: var(--gm-muted);">
+    <div class="neon-spinner" style="margin: 0 auto;"></div>
+    <p style="margin-top: 0.6rem; font-size: 0.85rem;">Cargando…</p>
+  </div>
+
+  <div class="global-card" *ngIf="!isLoading()">
+    <form [formGroup]="form" (ngSubmit)="guardar()">
+      <div class="form-group" style="margin-bottom: 1.5rem;">
+        <label style="display:block; margin-bottom:6px; font-weight:600; font-size:0.9rem; color:var(--color-text-muted);">
+          Umbral de aprobación
+        </label>
+        <input type="number" class="gm-input" formControlName="umbral_aprobacion" min="0" step="0.01" style="width: 220px;">
+        <small style="display: block; margin-top: 6px; color: var(--color-text-muted); font-size: 0.82rem;">
+          Un gasto por encima de este monto queda <strong>pendiente de aprobación</strong> y no se puede pagar
+          hasta que alguien lo apruebe. Poné <strong>0</strong> para desactivar las aprobaciones: todos los gastos
+          nacen aprobados.
+        </small>
+      </div>
+
+      <div class="form-group" style="margin-bottom: 1.5rem;">
+        <label style="display:block; margin-bottom:6px; font-weight:600; font-size:0.9rem; color:var(--color-text-muted);">
+          Alerta de saldo mínimo en billetera
+        </label>
+        <input type="number" class="gm-input" formControlName="alerta_saldo_minimo" min="0" step="0.01" style="width: 220px;">
+        <small style="display: block; margin-top: 6px; color: var(--color-text-muted); font-size: 0.82rem;">
+          Avisa cuando el saldo de una billetera baja de este monto. <strong>0</strong> desactiva el aviso.
+        </small>
+      </div>
+
+      <div class="form-group" style="margin-bottom: 1.5rem;">
+        <label style="display:block; margin-bottom:6px; font-weight:600; font-size:0.9rem; color:var(--color-text-muted);">
+          Días de aviso antes de un vencimiento
+        </label>
+        <input type="number" class="gm-input" formControlName="dias_aviso_vencimiento" min="0" max="90" style="width: 120px;">
+        <small style="display: block; margin-top: 6px; color: var(--color-text-muted); font-size: 0.82rem;">
+          Con cuánta anticipación marcar un gasto como "por vencer".
+        </small>
+      </div>
+
+      <button type="submit" class="gm-btn gm-btn--brand" [disabled]="form.invalid || isSaving()">
+        {{ isSaving() ? 'Guardando…' : 'Guardar configuración' }}
+      </button>
+    </form>
+  </div>
+</div>

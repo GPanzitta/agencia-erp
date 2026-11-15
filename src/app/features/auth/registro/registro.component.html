@@ -1,0 +1,57 @@
+<div class="login-page">
+  <div class="login-brand">
+    <span class="login-tile">{{ iniciales }}</span>
+    <span class="login-word">{{ marca }}</span>
+  </div>
+
+  <div class="login-card" *ngIf="!enviadoA()">
+    <h1 class="registro-titulo">Registrá tu agencia</h1>
+    <form [formGroup]="form" (ngSubmit)="enviar()" novalidate>
+      <div class="campo">
+        <label for="taller">Nombre de la agencia</label>
+        <input id="taller" class="gm-input" formControlName="taller" autocomplete="organization" />
+      </div>
+      <div class="campo">
+        <label for="nombre">Tu nombre</label>
+        <input id="nombre" class="gm-input" formControlName="nombre" autocomplete="name" />
+      </div>
+      <div class="campo">
+        <label for="email">Correo</label>
+        <input id="email" type="email" class="gm-input" formControlName="email" autocomplete="username" />
+        <small class="registro-error" *ngIf="form.controls.email.touched && form.controls.email.invalid">Ese correo no parece válido.</small>
+      </div>
+      <div class="campo">
+        <label for="telefono">Teléfono</label>
+        <input id="telefono" type="tel" class="gm-input" formControlName="telefono" autocomplete="tel" />
+      </div>
+      <div class="campo">
+        <label for="clave">Clave</label>
+        <input id="clave" type="password" class="gm-input" formControlName="clave" autocomplete="new-password" />
+        <small class="registro-error" *ngIf="form.controls.clave.touched && form.controls.clave.invalid">Tiene que tener al menos {{ minimo }} caracteres.</small>
+      </div>
+      <fieldset class="registro-rubros">
+        <legend>¿Qué vendés? (opcional)</legend>
+        <label *ngFor="let r of rubros">
+          <input type="checkbox" [checked]="rubrosElegidos().includes(r)" (change)="alternarRubro(r)" /> {{ r }}
+        </label>
+      </fieldset>
+      <!-- Trampa para bots: una persona no lo ve ni llega con el teclado. -->
+      <div class="registro-trampa" aria-hidden="true">
+        <label for="sitio_web">Sitio web</label>
+        <input id="sitio_web" tabindex="-1" autocomplete="off" formControlName="sitio_web" />
+      </div>
+      <button type="submit" class="gm-btn gm-btn--brand login-btn" [disabled]="enviando()">{{ enviando() ? 'Creando…' : 'Crear mi cuenta' }}</button>
+    </form>
+    <p class="registro-pie">¿Ya tenés cuenta? <a routerLink="/auth/login">Entrá</a></p>
+  </div>
+
+  <div class="login-card" *ngIf="enviadoA() as correo">
+    <h1 class="registro-titulo">{{ correoFallo() ? 'No pudimos mandar el correo' : 'Revisá tu correo' }}</h1>
+    <p *ngIf="!correoFallo()">Te mandamos un correo a {{ correo }} para confirmar la cuenta. El link vale 48 horas.</p>
+    <p *ngIf="correoFallo()">Tu agencia quedó creada, pero el correo a {{ correo }} no salió. Probá mandarlo de nuevo.</p>
+    <button type="button" class="gm-btn gm-btn--neutral login-btn" (click)="reenviar()">Reenviar el correo</button>
+    <p class="registro-pie"><a routerLink="/auth/login">Volver a entrar</a></p>
+  </div>
+
+  <div class="login-footer">{{ marca }} · Sistema de gestión para agencias de autos</div>
+</div>

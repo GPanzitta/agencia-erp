@@ -1,0 +1,191 @@
+<p class="vacio" *ngIf="cargando() && !u()">Cargando…</p>
+
+<ng-container *ngIf="u() as u">
+  <header class="cab">
+    <a class="volver" routerLink="/home/autos">← Stock</a>
+    <div class="titulo">
+      <h2>{{ u.titulo }}</h2>
+      <span class="chip" [attr.data-estado]="u.estado">{{ rotuloEstado[u.estado] }}</span>
+      <span class="chip" data-estado="disponible" *ngIf="u.publicada">En el sitio</span>
+    </div>
+    <p class="sub">
+      {{ renglon(u) }} · <span class="patente">{{ dominio(u.dominio) }}</span> · {{ u.numero }} · {{ rotuloOrigen[u.origen] }}
+      <ng-container *ngIf="u.color"> · {{ u.color }}</ng-container>
+    </p>
+  </header>
+
+  <div class="cuerpo">
+    <section class="galeria" aria-label="Fotos">
+      <div class="grande">
+        <img *ngIf="fotoGrande() || u.fotos[0]?.url as f" [src]="foto(f)" [alt]="u.titulo">
+        <span *ngIf="!u.fotos.length" class="sin-foto">Todavía no tiene fotos</span>
+      </div>
+      <ul class="tira" *ngIf="u.fotos.length">
+        <li *ngFor="let f of u.fotos; let i = index; trackBy: trackPorId">
+          <button type="button" class="mini" (click)="fotoGrande.set(f.url)" [attr.aria-label]="'Ver foto ' + (i + 1)">
+            <img [src]="foto(f.url_miniatura)" alt="" loading="lazy">
+          </button>
+          <div class="de-foto" *ngIf="u.acciones.editar">
+            <button type="button" *ngIf="i > 0" (click)="portada(f.id)" [disabled]="ocupado()">Portada</button>
+            <span *ngIf="i === 0">Portada</span>
+            <button type="button" class="quitar" *ngIf="esComercial()" (click)="borrarFoto(f.id)" [disabled]="ocupado()">Quitar</button>
+          </div>
+        </li>
+      </ul>
+      <label class="gm-btn gm-btn--neutral gm-btn--sm subir" *ngIf="u.acciones.editar">
+        {{ ocupado() ? 'Subiendo…' : 'Agregar fotos' }}
+        <input type="file" accept="image/*" multiple hidden (change)="subirFotos($event)" [disabled]="ocupado()">
+      </label>
+    </section>
+
+    <div class="lado">
+      <section class="cuentas" aria-label="La plata de la unidad">
+        <div class="precio"><span>Precio de venta</span><b>{{ plata(u.precio_venta, u.moneda) }}</b></div>
+        <ng-container *ngIf="esDuenio()">
+          <div *ngIf="u.origen !== 'consignacion'"><span>{{ u.origen === 'toma' ? 'Se tomó en' : 'Se pagó' }}</span><b>{{ plata(u.costo_adquisicion, u.moneda) }}</b></div>
+          <div *ngIf="u.origen === 'consignacion'"><span>Piso del dueño</span><b>{{ plata(u.precio_piso, u.moneda) }}</b></div>
+          <div><span>Gastos de alistaje</span><b>{{ plata(u.total_gastos, u.moneda) }}</b></div>
+          <div><span>{{ u.estado === 'vendida' ? 'Dejó' : 'Deja al precio de hoy' }}</span><b [class.negativo]="(u.margen ?? 0) < 0">{{ plata(u.margen, u.moneda) }}</b></div>
+        </ng-container>
+        <div [ngClass]="u.fecha_venta ? '' : claseDias(u.dias_en_stock)"><span>{{ u.fecha_venta ? 'Estuvo en stock' : 'En stock' }}</span><b>{{ u.dias_en_stock }} {{ u.dias_en_stock === 1 ? 'día' : 'días' }}</b></div>
+      </section>
+
+      <div class="botones" *ngIf="esComercial()">
+        <button type="button" *ngIf="u.acciones.mover && u.estado !== 'disponible'" class="gm-btn gm-btn--brand gm-btn--sm" (click)="mover('disponible')" [disabled]="ocupado()">Lista para vender</button>
+        <button type="button" *ngIf="u.acciones.mover && u.estado === 'disponible'" class="gm-btn gm-btn--neutral gm-btn--sm" (click)="mover('alistaje')" [disabled]="ocupado()">Volver a alistaje</button>
+        <button type="button" *ngIf="u.acciones.publicar && !u.publicada" class="gm-btn gm-btn--neutral gm-btn--sm" (click)="publicar(true)" [disabled]="ocupado()">Publicar en el sitio</button>
+        <button type="button" *ngIf="u.publicada && u.acciones.editar" class="gm-btn gm-btn--neutral gm-btn--sm" (click)="publicar(false)" [disabled]="ocupado()">Quitar del sitio</button>
+        <button type="button" *ngIf="u.acciones.reservar" class="gm-btn gm-btn--brand gm-btn--sm" (click)="abrir('reservar')">Reservar</button>
+        <button type="button" *ngIf="u.acciones.editar" class="gm-btn gm-btn--neutral gm-btn--sm" (click)="abrir('precio')">Precio y descripción</button>
+        <a *ngIf="u.acciones.editar" class="gm-btn gm-btn--neutral gm-btn--sm" [routerLink]="['/home/autos/unidad', u.id, 'publicacion']">Armar la publicación</a>
+        <button type="button" *ngIf="u.acciones.mover" class="gm-btn gm-btn--neutral gm-btn--sm" (click)="abrir('salida')">Sacar del stock</button>
+      </div>
+      <p class="ayuda" *ngIf="u.acciones.mover && u.precio_venta === null">Cargale el precio de venta para poder publicarla o reservarla.</p>
+
+      <form class="panel" *ngIf="panel() === 'precio'" (ngSubmit)="guardarPrecio()">
+        <h4>Precio y descripción</h4>
+        <div class="campos">
+          <label><span>Precio de venta ({{ u.moneda }}) *</span><input class="gm-input" name="pv" inputmode="decimal" [(ngModel)]="precio.precio_venta" [disabled]="u.estado === 'reservada'"></label>
+          <label *ngIf="esDuenio() && u.origen !== 'consignacion'"><span>Costo de adquisición</span><input class="gm-input" name="costo" inputmode="decimal" [(ngModel)]="precio.costo" [disabled]="u.estado === 'reservada'"></label>
+          <label *ngIf="esDuenio() && u.origen === 'consignacion'"><span>Piso del dueño</span><input class="gm-input" name="piso" inputmode="decimal" [(ngModel)]="precio.piso"></label>
+        </div>
+        <label class="bloque-texto"><span>Descripción para el sitio</span>
+          <textarea class="gm-input" name="desc" rows="4" maxlength="4000" placeholder="Único dueño, service oficial al día, cubiertas nuevas…" [(ngModel)]="precio.descripcion"></textarea></label>
+        <p class="ayuda" *ngIf="u.estado === 'reservada'">Está reservada: el precio acordado quedó en la operación y no se cambia desde acá.</p>
+        <div class="botones"><button type="submit" class="gm-btn gm-btn--brand gm-btn--sm" [disabled]="ocupado()">Guardar</button>
+          <button type="button" class="gm-btn gm-btn--neutral gm-btn--sm" (click)="panel.set('')">Cancelar</button></div>
+      </form>
+
+      <form class="panel" *ngIf="panel() === 'salida'" (ngSubmit)="sacarDelStock()">
+        <h4>Sacar del stock</h4>
+        <div class="campos">
+          <label><span>Qué pasó</span>
+            <select class="gm-input" name="est" [(ngModel)]="salida.estado">
+              <option value="baja">Baja (siniestro, error de carga)</option>
+              <option value="devuelta" *ngIf="u.origen === 'consignacion'">Se devuelve al dueño</option>
+            </select></label>
+          <label class="ancho2"><span>Motivo *</span><input class="gm-input" name="mot" maxlength="500" [(ngModel)]="salida.motivo"></label>
+        </div>
+        <p class="ayuda">Queda en el historial, pero no vuelve a aparecer en el stock ni en el sitio.</p>
+        <div class="botones"><button type="submit" class="gm-btn gm-btn--brand gm-btn--sm" [disabled]="ocupado()">Sacar del stock</button>
+          <button type="button" class="gm-btn gm-btn--neutral gm-btn--sm" (click)="panel.set('')">Cancelar</button></div>
+      </form>
+
+      <form class="panel" *ngIf="panel() === 'reservar'" (ngSubmit)="reservar()">
+        <h4>Reservar la unidad</h4>
+        <div class="campos">
+          <label class="ancho2"><span>Cliente *</span><input class="gm-input" name="cn" maxlength="120" [(ngModel)]="reserva.cliente_nombre"></label>
+          <label><span>Teléfono</span><input class="gm-input" name="ct" maxlength="40" inputmode="tel" [(ngModel)]="reserva.cliente_telefono"></label>
+          <label><span>DNI o CUIT</span><input class="gm-input" name="cd" maxlength="20" [(ngModel)]="reserva.cliente_documento"></label>
+          <label><span>Precio acordado ({{ u.moneda }}) *</span><input class="gm-input" name="rp" inputmode="decimal" [(ngModel)]="reserva.precio"></label>
+          <label><span>La reserva vence el</span><input class="gm-input" type="date" name="rv" [(ngModel)]="reserva.vence"></label>
+        </div>
+        <p class="ayuda">La unidad queda guardada para este cliente. Después cargás la seña y los pagos, incluido un usado en parte de pago.</p>
+        <div class="botones"><button type="submit" class="gm-btn gm-btn--brand gm-btn--sm" [disabled]="ocupado()">Reservar</button>
+          <button type="button" class="gm-btn gm-btn--neutral gm-btn--sm" (click)="panel.set('')">Cancelar</button></div>
+      </form>
+    </div>
+  </div>
+
+  <app-unidad-venta *ngIf="op() as o" [o]="o" [u]="u" [billeteras]="billeteras()" [ocupado]="ocupado()" [esDuenio]="esDuenio()"
+                    [panel]="panel()" [pago]="pago" [cierre]="cierre" [anulacion]="anulacion"
+                    (abrirPanel)="abrir($event)" (pagar)="pagar()" (quitarPago)="quitarPago($event)" (cerrar)="cerrar()" (anular)="anular()" (recibo)="recibo($event)" (boleto)="boleto()"></app-unidad-venta>
+
+  <section class="bloque interesados" *ngIf="interesados() as it" aria-label="Interesados">
+    <h4>Interesados <small>{{ it.consultaron.length }} consultaron por este auto · a {{ it.coinciden.length }} más les sirve</small></h4>
+    <p class="vacio" *ngIf="!it.consultaron.length && !it.coinciden.length">Nadie consultó por este auto y no coincide con lo que busca ningún interesado cargado.</p>
+    <ul *ngIf="it.consultaron.length || it.coinciden.length">
+      <li *ngFor="let i of it.consultaron; trackBy: trackPorId">
+        <a [routerLink]="['/home/autos/interesados']" [queryParams]="{ abrir: i.id }">{{ i.nombre }}</a>
+        <span>Consultó por este auto<ng-container *ngIf="i.telefono"> · {{ i.telefono }}</ng-container></span>
+        <small [class.vencido]="i.atrasado">{{ proxima(i) }}</small>
+      </li>
+      <li *ngFor="let i of it.coinciden; trackBy: trackPorId">
+        <a [routerLink]="['/home/autos/interesados']" [queryParams]="{ abrir: i.id }">{{ i.nombre }}</a>
+        <span>Busca {{ busqueda(i) }}<ng-container *ngIf="i.telefono"> · {{ i.telefono }}</ng-container></span>
+        <small [class.vencido]="i.atrasado">{{ proxima(i) }}</small>
+      </li>
+    </ul>
+  </section>
+
+  <div class="dos">
+    <section class="bloque" aria-label="Papeles">
+      <h4><i class="luz" [attr.data-color]="u.semaforo" aria-hidden="true"></i> Papeles <small>{{ textoSemaforo[u.semaforo] }}</small></h4>
+      <ul class="papeles">
+        <li *ngFor="let p of u.papeles; trackBy: trackPorTipo" [class.falta]="p.bloquea && (p.estado !== 'ok' || p.vencido)">
+          <div class="nombre">
+            <b>{{ p.nombre }}</b>
+            <small *ngIf="p.bloquea">Frena la venta si no está</small>
+            <small class="vencido" *ngIf="p.vencido">Venció el {{ fecha(p.vence) }}</small>
+          </div>
+          <div class="estado-papel" role="group" [attr.aria-label]="p.nombre">
+            <button type="button" *ngFor="let e of estadosPapel" [class.activa]="p.estado === e" [attr.data-e]="e"
+                    [disabled]="ocupado() || !u.acciones.editar" (click)="papel(p, e)">{{ rotuloPapel[e] }}</button>
+          </div>
+          <label class="vence" *ngIf="p.estado === 'ok' && (p.tipo === 'vtv' || p.tipo === 'informe_dominio' || p.tipo === 'verificacion_policial')">
+            <span>Vence</span>
+            <input class="gm-input" type="date" [ngModel]="p.vence" [ngModelOptions]="{ standalone: true }" (change)="papel(p, 'ok', $any($event.target).value || null)" [disabled]="ocupado() || !u.acciones.editar">
+          </label>
+        </li>
+      </ul>
+    </section>
+
+    <section class="bloque" aria-label="Gastos de alistaje">
+      <h4>Gastos de alistaje <small *ngIf="esDuenio()">{{ plata(u.total_gastos, u.moneda) }} en total</small></h4>
+      <p class="vacio" *ngIf="!u.gastos.length">Todavía no se le cargó ningún gasto.</p>
+      <ul class="gastos" *ngIf="u.gastos.length">
+        <li *ngFor="let g of u.gastos; trackBy: trackPorId">
+          <span class="cuando">{{ fecha(g.fecha) }}</span>
+          <span>{{ g.descripcion }}</span>
+          <b>{{ plata(g.monto, g.moneda) }}<small *ngIf="g.tipo_cambio"> a {{ plata(g.tipo_cambio, 'ARS') }}</small></b>
+          <button type="button" class="quitar" *ngIf="esComercial() && u.acciones.gastos" (click)="quitarGasto(g.id)" [disabled]="ocupado()">Quitar</button>
+        </li>
+      </ul>
+      <form class="fila-form" *ngIf="u.acciones.gastos" (ngSubmit)="agregarGasto()">
+        <label class="largo"><span>En qué se gastó</span><input class="gm-input" name="gd" maxlength="200" placeholder="Chapa y pintura, service, cubiertas, gestoría…" [(ngModel)]="gasto.descripcion"></label>
+        <label class="monto"><span>Monto</span><input class="gm-input" name="gm" inputmode="decimal" [(ngModel)]="gasto.monto"></label>
+        <label><span>Moneda</span><select class="gm-input" name="gmo" [(ngModel)]="gasto.moneda"><option value="ARS">Pesos</option><option value="USD">Dólares</option></select></label>
+        <label class="monto" *ngIf="gasto.moneda !== u.moneda"><span>Dólar ese día</span><input class="gm-input" name="gtc" inputmode="decimal" placeholder="$ por US$" [(ngModel)]="gasto.tipo_cambio"></label>
+        <button type="submit" class="gm-btn gm-btn--brand gm-btn--sm" [disabled]="ocupado()">Cargar gasto</button>
+      </form>
+    </section>
+  </div>
+
+  <section class="bloque datos" aria-label="Datos">
+    <h4>Datos</h4>
+    <dl>
+      <div *ngIf="u.titular_nombre"><dt>{{ u.origen === 'consignacion' ? 'Dueño' : u.origen === 'toma' ? 'La entregó' : 'Se le compró a' }}</dt>
+        <dd>{{ u.titular_nombre }}<ng-container *ngIf="u.titular_telefono"> · {{ u.titular_telefono }}</ng-container></dd></div>
+      <div><dt>Ingresó</dt><dd>{{ fecha(u.fecha_ingreso) }}</dd></div>
+      <div *ngIf="u.fecha_venta"><dt>Se vendió</dt><dd>{{ fecha(u.fecha_venta) }}</dd></div>
+      <div *ngIf="u.nro_motor"><dt>Motor</dt><dd>{{ u.nro_motor }}</dd></div>
+      <div *ngIf="u.nro_chasis"><dt>Chasis</dt><dd>{{ u.nro_chasis }}</dd></div>
+      <div *ngIf="u.ubicacion"><dt>Dónde está</dt><dd>{{ u.ubicacion }}</dd></div>
+    </dl>
+    <p class="notas" *ngIf="u.descripcion"><b>Descripción en el sitio:</b> {{ u.descripcion }}
+      <button type="button" class="enlace" *ngIf="u.acciones.editar" (click)="abrir('precio')">Cambiarla</button></p>
+    <p class="notas" *ngIf="!u.descripcion && u.acciones.editar"><b>Sin descripción para el sitio.</b> Quien mira el auto sólo ve los datos.
+      <button type="button" class="enlace" (click)="abrir('precio')">Escribirla</button></p>
+    <p class="notas" *ngIf="u.notas">{{ u.notas }}</p>
+  </section>
+</ng-container>

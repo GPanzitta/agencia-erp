@@ -1,0 +1,92 @@
+<header class="cab">
+  <h2>Stock</h2>
+</header>
+
+
+<section class="numeros" *ngIf="resumen() as r" aria-label="Números del stock">
+  <div><span>En stock</span><b>{{ r.en_stock }}</b><small>{{ r.disponibles }} disponibles · {{ r.reservadas }} reservadas</small></div>
+  <div><span>Plata puesta en stock</span><b>{{ plata(r.valor_stock.USD, 'USD') }}</b><small *ngIf="r.valor_stock.ARS">más {{ plata(r.valor_stock.ARS, 'ARS') }}</small></div>
+  <div [class.alerta]="r.mas_de_60_dias > 0"><span>Días promedio en stock</span><b>{{ r.dias_promedio }}</b><small>{{ r.mas_de_60_dias }} con más de 60 días</small></div>
+  <div [class.alerta]="r.papeles_en_rojo > 0"><span>Con papeles que frenan</span><b>{{ r.papeles_en_rojo }}</b><small>no se pueden entregar hoy</small></div>
+  <div><span>Vendidas este mes</span><b>{{ r.vendidas_mes }}</b><small>dejaron {{ plata(r.margen_mes.USD, 'USD') }}<ng-container *ngIf="r.margen_mes.ARS"> y {{ plata(r.margen_mes.ARS, 'ARS') }}</ng-container></small></div>
+</section>
+
+<div class="barra">
+  <div class="vistas" role="tablist" aria-label="Qué unidades ver">
+    <button type="button" role="tab" *ngFor="let v of vistas" [attr.aria-selected]="vista() === v.valor"
+            [class.activa]="vista() === v.valor" (click)="ver(v.valor)">{{ v.rotulo }}</button>
+  </div>
+  <input class="gm-input buscar" type="search" placeholder="Buscar por marca, modelo, dominio o número" aria-label="Buscar unidades"
+         [ngModel]="busqueda()" (ngModelChange)="buscar($event)">
+</div>
+
+<p class="vacio" *ngIf="cargando() && !lista().length">Cargando…</p>
+<p class="vacio" *ngIf="!cargando() && !lista().length">
+  {{ busqueda() ? 'Ninguna unidad coincide con la búsqueda.' : vista() === 'stock' ? 'Todavía no hay autos en stock. Cargá el primero con el botón de arriba.' : 'No hay unidades en esta vista.' }}
+</p>
+
+<ul class="unidades" *ngIf="lista().length">
+  <li *ngFor="let u of lista(); trackBy: trackPorId" class="unidad" (click)="abrir(u)">
+    <div class="foto">
+      <img *ngIf="u.portada" [src]="foto(u.portada)" [alt]="u.titulo" loading="lazy">
+      <span *ngIf="!u.portada" class="sin-foto">Sin foto</span>
+    </div>
+    <div class="quien">
+      <a [routerLink]="['/home/autos/unidad', u.id]" (click)="$event.stopPropagation()"><b>{{ u.titulo }}</b></a>
+      <span>{{ renglon(u) }}</span>
+      <small><span class="patente">{{ dominio(u.dominio) }}</span> · {{ u.numero }} · {{ rotuloOrigen[u.origen] }}</small>
+    </div>
+    <div class="estado">
+      <span class="chip" [attr.data-estado]="u.estado">{{ rotuloEstado[u.estado] }}</span>
+      <small *ngIf="u.publicada">En el sitio</small>
+      <small *ngIf="u.operacion">{{ u.operacion.cliente_nombre }}</small>
+    </div>
+    <div class="dias" [ngClass]="claseDias(u.dias_en_stock)">{{ textoDias(u.dias_en_stock) }}</div>
+    <div class="papeles" [title]="textoSemaforo[u.semaforo]">
+      <i class="luz" [attr.data-color]="u.semaforo" aria-hidden="true"></i><span>{{ u.semaforo === 'verde' ? 'Papeles en regla' : u.semaforo === 'rojo' ? 'Faltan papeles' : 'Papeles por completar' }}</span>
+    </div>
+    <div class="plata">
+      <b>{{ plata(u.precio_venta, u.moneda) }}</b>
+      <small *ngIf="esDuenio()">lleva {{ plata(u.costo_total, u.moneda) }}<ng-container *ngIf="u.margen !== null"> · deja <span [class.negativo]="u.margen < 0">{{ plata(u.margen, u.moneda) }}</span></ng-container></small>
+    </div>
+  </li>
+</ul>
+
+<details class="sitio-caja" *ngIf="sitio()">
+<summary>Tu sitio y lo que muestra</summary>
+<p class="sitio" *ngIf="sitio() as s">Tu sitio: <a [href]="s" target="_blank" rel="noopener noreferrer">{{ s }}</a> <small>Ahí se ven las unidades publicadas y entran las consultas.</small></p>
+<label class="sitio-opcion" *ngIf="esDuenio() && sitio()">
+  <input type="checkbox" [checked]="muestraPapeles()" (change)="cambiarPapelesDelSitio($any($event.target).checked)">
+  <span>Mostrar en el sitio cómo están los papeles de cada auto <small>(título, cédula, 08, VTV, libre deuda de patentes y multas)</small></span>
+</label>
+<div class="sitio-fin" *ngIf="esDuenio() && sitio()">
+  <p>Reserva con seña en el sitio: <b>{{ res.activa ? 'el sitio toma reservas' : 'apagada' }}</b>
+    <button type="button" class="enlace" (click)="resAbierta.set(!resAbierta())">{{ resAbierta() ? 'Cerrar' : 'Configurar' }}</button></p>
+  <form *ngIf="resAbierta()" (ngSubmit)="guardarReserva()">
+    <label class="casilla"><input type="checkbox" name="resActiva" [(ngModel)]="res.activa"><span>Dejar que el cliente reserve un auto desde el sitio transfiriendo una seña</span></label>
+    <div class="campos" *ngIf="res.activa">
+      <label><span>Seña</span><input class="gm-input" name="resMonto" inputmode="decimal" maxlength="14" placeholder="200.000" [(ngModel)]="res.monto"></label>
+      <label><span>Moneda</span><select class="gm-input" name="resMoneda" [(ngModel)]="res.moneda"><option value="ARS">Pesos</option><option value="USD">Dólares</option></select></label>
+      <label><span>Horas para transferir</span><input class="gm-input" name="resHoras" inputmode="numeric" maxlength="3" [(ngModel)]="res.horas"></label>
+      <label><span>Días que se guarda el auto</span><input class="gm-input" name="resDias" inputmode="numeric" maxlength="2" [(ngModel)]="res.dias"></label>
+      <label><span>Alias o CBU</span><input class="gm-input" name="resAlias" maxlength="60" [(ngModel)]="res.alias"></label>
+      <label><span>Cuenta a nombre de</span><input class="gm-input" name="resTitular" maxlength="120" [(ngModel)]="res.titular"></label>
+    </div>
+    <p class="ayuda" *ngIf="res.activa">El auto recién queda reservado cuando confirmás que la seña llegó, en Ventas → Del sitio. Mientras tanto sigue a la venta.</p>
+    <button type="submit" class="gm-btn gm-btn--brand gm-btn--sm">Guardar</button>
+  </form>
+  <p>Cuotas en el sitio: <b>{{ fin.activa ? 'el sitio simula cuotas' : 'apagadas' }}</b>
+    <button type="button" class="enlace" (click)="finAbierta.set(!finAbierta())">{{ finAbierta() ? 'Cerrar' : 'Configurar' }}</button></p>
+  <form *ngIf="finAbierta()" (ngSubmit)="guardarFinanciacion()">
+    <label class="casilla"><input type="checkbox" name="finActiva" [(ngModel)]="fin.activa"><span>Mostrar un simulador de cuotas en la página de cada auto</span></label>
+    <div class="campos" *ngIf="fin.activa">
+      <label><span>Anticipo mínimo (%)</span><input class="gm-input" name="finAnticipo" inputmode="numeric" maxlength="2" [(ngModel)]="fin.anticipo"></label>
+      <label><span>Plazos, en meses</span><input class="gm-input" name="finPlazos" maxlength="40" placeholder="12, 24, 36" [(ngModel)]="fin.plazos"></label>
+      <label><span>Tasa anual, autos en pesos (%)</span><input class="gm-input" name="finArs" inputmode="decimal" maxlength="6" placeholder="Vacío = no se financian" [(ngModel)]="fin.tna_ars"></label>
+      <label><span>Tasa anual, autos en dólares (%)</span><input class="gm-input" name="finUsd" inputmode="decimal" maxlength="6" placeholder="Vacío = no se financian" [(ngModel)]="fin.tna_usd"></label>
+    </div>
+    <p class="ayuda" *ngIf="fin.activa">El sitio muestra una cuota fija estimada (sistema francés) y aclara que no es una oferta de crédito.</p>
+    <button type="submit" class="gm-btn gm-btn--brand gm-btn--sm">Guardar</button>
+  </form>
+</div>
+</details>

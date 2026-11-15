@@ -1,0 +1,12 @@
+<header class="bs">
+  <button class="bs-menu" type="button" (click)="menu.emit()" aria-label="Abrir el menú"><app-icon name="menu" [size]="22"></app-icon></button>
+  <p class="bs-donde">{{ donde() }}</p>
+
+  <form class="bs-buscar" role="search" (ngSubmit)="buscar(campo.value); campo.blur()">
+    <app-icon name="buscar" [size]="16"></app-icon>
+    <input #campo type="search" name="q" placeholder="Buscar un auto: marca, modelo o patente" aria-label="Buscar un auto en el stock">
+  </form>
+
+  <a *ngIf="sitio()" class="bs-sitio" [href]="sitio()" target="_blank" rel="noopener noreferrer">Ver mi sitio</a>
+  <a *ngIf="puedeCargar()" class="bs-cargar" routerLink="/home/autos/nueva"><app-icon name="agregar" [size]="16"></app-icon><span>Cargar un auto</span></a>
+</header>

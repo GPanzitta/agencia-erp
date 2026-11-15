@@ -1,0 +1,45 @@
+<div class="config-container">
+  <header class="oh gm-card">
+    <div class="oh-fila">
+      <div class="oh-id">
+        <div class="oh-tile">
+          <svg width="22" height="22" viewBox="0 0 20 20" fill="none" stroke="#FFFFFF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 6.5h4.2"/><circle cx="9.7" cy="6.5" r="2.2"/><path d="M12.4 6.5H17"/>
+            <path d="M3 13.5h4.8"/><circle cx="12.3" cy="13.5" r="2.2"/><path d="M15 13.5h2"/>
+          </svg>
+        </div>
+        <div class="oh-titulos">
+          <span class="oh-eyebrow">Configuración</span>
+          <h1>{{ tituloSeccion }}</h1>
+        </div>
+      </div>
+    </div>
+    <div class="oh-fila oh-fila--meta">
+      <span class="oh-meta">Los datos de la agencia, su sitio, las cajas y quién usa el sistema.</span>
+    </div>
+    <div class="config-tabs">
+      <a routerLink="empresa" routerLinkActive="active" class="tab-item">
+        <app-icon class="icon" name="config"></app-icon> Empresa
+      </a>
+      <a *ngIf="esAdmin()" routerLink="sitio-web" routerLinkActive="active" class="tab-item">
+        <app-icon class="icon" name="web"></app-icon> Sitio web
+      </a>
+      <a *ngIf="esAdmin()" routerLink="mensajes" routerLinkActive="active" class="tab-item">
+        <app-icon class="icon" name="mail"></app-icon> Mensajes
+      </a>
+      <a routerLink="wallets" routerLinkActive="active" class="tab-item">
+        <app-icon class="icon" name="dinero"></app-icon> Cajas y cuentas
+      </a>
+      <a *ngIf="esAdmin()" routerLink="empleados" routerLinkActive="active" class="tab-item">
+        <app-icon class="icon" name="usuario"></app-icon> Vendedores
+      </a>
+      <a *ngIf="esAdmin()" routerLink="abono" routerLinkActive="active" class="tab-item">
+        Abono
+      </a>
+    </div>
+  </header>
+
+  <div class="config-content">
+    <router-outlet></router-outlet>
+  </div>
+</div>

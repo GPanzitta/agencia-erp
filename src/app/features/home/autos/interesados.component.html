@@ -1,0 +1,182 @@
+<header class="cab">
+  <h2>Interesados</h2>
+  <button type="button" class="gm-btn gm-btn--brand gm-btn--sm" (click)="nuevoAbierto.set(!nuevoAbierto())">Nuevo interesado</button>
+</header>
+
+<section class="numeros" *ngIf="vista() === 'activos' && lista().length" aria-label="Seguimiento">
+  <div [class.alerta]="cuentas().atrasados > 0"><span>Atrasados</span><b>{{ cuentas().atrasados }}</b><small>había que hablarles y pasó la fecha</small></div>
+  <div><span>Para hoy</span><b>{{ cuentas().hoy }}</b><small>toca hablarles hoy</small></div>
+  <div [class.aviso]="cuentas().sinFecha > 0"><span>Sin fecha</span><b>{{ cuentas().sinFecha }}</b><small>nadie quedó en volver a hablarles</small></div>
+  <div><span>Con autos que les sirven</span><b>{{ cuentas().conAutos }}</b><small>hay stock para ofrecerles hoy</small></div>
+</section>
+
+<form class="nuevo" *ngIf="nuevoAbierto()" (ngSubmit)="crear()">
+  <h4>Nuevo interesado</h4>
+  <div class="campos">
+    <label class="ancho2"><span>Nombre *</span><input class="gm-input" name="nombre" maxlength="120" [(ngModel)]="nuevo.nombre"></label>
+    <label><span>Teléfono *</span><input class="gm-input" name="tel" maxlength="40" inputmode="tel" [(ngModel)]="nuevo.telefono"></label>
+    <label><span>Cómo llegó</span>
+      <select class="gm-input" name="origen" [(ngModel)]="nuevo.origen"><option *ngFor="let o of origenes" [value]="o[0]">{{ o[1] }}</option></select></label>
+    <label><span>Qué tan decidido está</span>
+      <select class="gm-input" name="temp" [(ngModel)]="nuevo.temperatura"><option *ngFor="let t of temperaturas" [value]="t[0]">{{ t[1] }}</option></select></label>
+    <label><span>Hablarle de nuevo el</span><input class="gm-input" type="date" name="prox" [(ngModel)]="nuevo.proxima_accion"></label>
+  </div>
+  <h5>Qué busca</h5>
+  <div class="campos">
+    <label><span>Tipo</span>
+      <select class="gm-input" name="carr" [(ngModel)]="nuevo.busca_carroceria"><option value="">Cualquiera</option><option *ngFor="let c of carrocerias" [value]="c[0]">{{ c[1] }}</option></select></label>
+    <label><span>Marca</span><input class="gm-input" name="marca" maxlength="60" placeholder="Cualquiera" [(ngModel)]="nuevo.busca_marca"></label>
+    <label><span>Hasta cuánto</span><input class="gm-input" name="tope" inputmode="decimal" [(ngModel)]="nuevo.precio_max"></label>
+    <label><span>Moneda</span>
+      <select class="gm-input" name="mon" [(ngModel)]="nuevo.precio_moneda"><option value="USD">Dólares</option><option value="ARS">Pesos</option></select></label>
+    <label class="ancho2"><span>Con sus palabras</span><input class="gm-input" name="busca" maxlength="2000" placeholder="Automática, pocos kilómetros, para la familia…" [(ngModel)]="nuevo.busca"></label>
+    <label class="ancho2"><span>Entrega un usado</span><input class="gm-input" name="usado" maxlength="200" placeholder="Gol Trend 2016, 90.000 km" [(ngModel)]="nuevo.tiene_usado"></label>
+  </div>
+  <label class="bloque-texto"><span>Primera nota</span><input class="gm-input" name="nota" maxlength="1000" placeholder="Qué dijo, qué se le ofreció" [(ngModel)]="nuevo.nota"></label>
+  <p class="ayuda">Con el tipo, la marca o el tope cargados, el sistema te avisa qué autos del stock le sirven, hoy y cuando entre uno nuevo.</p>
+  <div class="botones">
+    <button type="submit" class="gm-btn gm-btn--brand gm-btn--sm" [disabled]="ocupado()">Cargar</button>
+    <button type="button" class="gm-btn gm-btn--neutral gm-btn--sm" (click)="nuevoAbierto.set(false)">Cancelar</button>
+  </div>
+</form>
+
+<div class="vistas" role="tablist" aria-label="Qué interesados ver">
+  <button type="button" role="tab" *ngFor="let v of vistas; trackBy: trackPorValor" [attr.aria-selected]="vista() === v.valor"
+          [class.activa]="vista() === v.valor" (click)="ver(v.valor)">{{ v.rotulo }}</button>
+</div>
+
+<p class="vacio" *ngIf="cargando() && !lista().length">Cargando…</p>
+<p class="vacio" *ngIf="!cargando() && !lista().length">
+  {{ vista() === 'activos' ? 'Todavía no hay interesados. Cargá el primero, o esperá la primera consulta del sitio: entra sola acá.' : 'No hay nadie en esta vista.' }}
+</p>
+
+<div class="mesa" [class.con-detalle]="elegido()">
+  <!-- Tablero por etapa -->
+  <div class="tablero" *ngIf="vista() === 'activos' && lista().length">
+    <section class="columna" *ngFor="let c of columnas(); trackBy: trackPorValor" [attr.aria-label]="c.rotulo">
+      <h3>{{ c.rotulo }} <small>{{ c.items.length }}</small></h3>
+      <p class="vacio" *ngIf="!c.items.length">Nadie</p>
+      <button type="button" class="tarjeta" *ngFor="let i of c.items; trackBy: trackPorId" [class.elegida]="elegidoId() === i.id"
+              [attr.aria-pressed]="elegidoId() === i.id" (click)="elegir(i)">
+        <span class="nombre"><i class="temp" [attr.data-t]="i.temperatura" aria-hidden="true"></i>{{ i.nombre }}</span>
+        <span class="que" *ngIf="i.unidad">Consultó por {{ i.unidad.titulo }}</span>
+        <span class="que" *ngIf="!i.unidad && busqueda(i)">Busca {{ busqueda(i) }}</span>
+        <span class="que" *ngIf="!i.unidad && !busqueda(i) && i.busca">{{ i.busca }}</span>
+        <span class="pide" *ngIf="i.cotizacion.pendiente">Pide cotización de su auto</span>
+        <span class="cuando" [ngClass]="claseProxima(i)">{{ proxima(i) }}</span>
+        <span class="sirven" *ngIf="i.sugeridas.length">{{ i.sugeridas.length === 1 ? '1 auto le sirve' : i.sugeridas.length + ' autos le sirven' }}</span>
+      </button>
+    </section>
+  </div>
+
+  <!-- Listas de cerrados -->
+  <ul class="cerrados" *ngIf="vista() !== 'activos' && lista().length">
+    <li *ngFor="let i of lista(); trackBy: trackPorId">
+      <button type="button" class="tarjeta" [class.elegida]="elegidoId() === i.id" (click)="elegir(i)">
+        <span class="nombre">{{ i.nombre }}</span>
+        <span class="que" *ngIf="i.unidad">{{ i.unidad.titulo }}</span>
+        <span class="que" *ngIf="i.motivo_perdida">{{ i.motivo_perdida }}</span>
+        <span class="cuando">{{ fecha(i.updated_at) }}</span>
+      </button>
+    </li>
+  </ul>
+
+  <!-- Detalle del elegido -->
+  <aside class="detalle" *ngIf="elegido() as i" aria-label="Detalle del interesado">
+    <header>
+      <h3>{{ i.nombre }}</h3>
+      <button type="button" class="cerrar" (click)="elegidoId.set(null)" aria-label="Cerrar el detalle">Cerrar</button>
+    </header>
+    <p class="contacto">
+      <ng-container *ngIf="i.telefono">{{ i.telefono }}</ng-container>
+      <button type="button" class="escribirle" (click)="escribirA.set(i.id)">Escribirle</button>
+      <span>{{ rotuloOrigen(i.origen) }}<ng-container *ngIf="i.vendedor"> · lo atiende {{ i.vendedor.nombre }}</ng-container></span>
+    </p>
+
+    <dl class="datos">
+      <div *ngIf="i.unidad"><dt>Consultó por</dt>
+        <dd><a [routerLink]="['/home/autos/unidad', i.unidad.id]">{{ i.unidad.titulo }} {{ i.unidad.anio }}</a> · {{ plata(i.unidad.precio, i.unidad.moneda === 'ARS' ? 'ARS' : 'USD') }}
+          <small *ngIf="i.unidad.estado !== 'disponible'"> · ya no está disponible</small></dd></div>
+      <div *ngIf="busqueda(i) || i.busca"><dt>Busca</dt><dd>{{ busqueda(i) }}<ng-container *ngIf="busqueda(i) && i.busca"> · </ng-container>{{ i.busca }}</dd></div>
+      <div *ngIf="i.tiene_usado"><dt>Entrega</dt><dd>{{ i.tiene_usado }}</dd></div>
+      <div *ngIf="i.fotos?.length"><dt>Fotos que mandó</dt>
+        <dd><ul class="fotos-usado">
+          <li *ngFor="let f of i.fotos; let n = index">
+            <a [href]="foto(f.url)" target="_blank" rel="noopener noreferrer" [attr.aria-label]="'Abrir la foto ' + (n + 1) + ' en tamaño completo'">
+              <img [src]="foto(f.url_miniatura)" alt="" loading="lazy"></a>
+          </li>
+        </ul></dd></div>
+      <div *ngIf="i.cotizacion.valor != null"><dt>Cotización de su auto</dt>
+        <dd><b>{{ plata(i.cotizacion.valor, i.cotizacion.moneda === 'ARS' ? 'ARS' : 'USD') }}</b><small *ngIf="i.cotizacion.fecha"> · cotizado el {{ fecha(i.cotizacion.fecha) }}</small>
+          <a class="enviar-cotizacion" *ngIf="whatsappCotizacion(i) as w" [href]="w" target="_blank" rel="noopener noreferrer">Mandársela por WhatsApp</a></dd></div>
+      <div *ngIf="i.cotizacion.pendiente"><dt>Cotización de su auto</dt><dd class="vencido">La pidió y todavía no se le contestó.</dd></div>
+      <div *ngIf="proxima(i)"><dt>Seguimiento</dt><dd [ngClass]="claseProxima(i)">{{ proxima(i) }}<ng-container *ngIf="i.proxima_nota"> · {{ i.proxima_nota }}</ng-container></dd></div>
+      <div *ngIf="i.motivo_perdida"><dt>Se perdió por</dt><dd>{{ i.motivo_perdida }}</dd></div>
+    </dl>
+
+    <form class="cotizar" *ngIf="vista() === 'activos' && i.tiene_usado" (ngSubmit)="cotizar()">
+      <label><span>{{ i.cotizacion.valor != null ? 'Cambiar la cotización' : 'Cotizar su auto' }}</span>
+        <input class="gm-input" name="cotValor" inputmode="decimal" placeholder="9.500" [(ngModel)]="cotiza.valor"></label>
+      <label><span>Moneda</span>
+        <select class="gm-input" name="cotMoneda" [(ngModel)]="cotiza.moneda"><option value="USD">Dólares</option><option value="ARS">Pesos</option></select></label>
+      <label class="largo"><span>Aclaración (opcional)</span>
+        <input class="gm-input" name="cotNota" maxlength="300" placeholder="Sujeto a ver el estado de la chapa" [(ngModel)]="cotiza.nota"></label>
+      <button type="submit" class="gm-btn gm-btn--brand gm-btn--sm" [disabled]="ocupado()">Guardar cotización</button>
+      <button type="button" class="gm-btn gm-btn--neutral gm-btn--sm" *ngIf="i.usado" (click)="tomarAlStock(i)">Pasar su auto al stock</button>
+    </form>
+
+    <ng-container *ngIf="vista() === 'activos'">
+      <div class="grupo-botones" role="group" aria-label="Qué tan decidido está">
+        <button type="button" *ngFor="let t of temperaturas" [class.activa]="i.temperatura === t[0]" [attr.data-t]="t[0]" (click)="temperatura(t[0])" [disabled]="ocupado()">{{ t[1] }}</button>
+      </div>
+
+      <section class="sugeridas" *ngIf="i.sugeridas.length">
+        <h4>Autos del stock que le sirven</h4>
+        <ul>
+          <li *ngFor="let s of i.sugeridas; trackBy: trackPorId">
+            <a [routerLink]="['/home/autos/unidad', s.id]">{{ s.titulo }}</a>
+            <span>{{ s.anio }} · {{ km(s.km) }}</span>
+            <b>{{ plata(s.precio, s.moneda === 'ARS' ? 'ARS' : 'USD') }}</b>
+          </li>
+        </ul>
+      </section>
+
+      <form class="anotar" (ngSubmit)="anotar()">
+        <label class="bloque-texto"><span>Qué pasó</span>
+          <textarea class="gm-input" name="nt" rows="2" maxlength="1000" placeholder="Lo llamé, le mandé fotos, viene el sábado…" [(ngModel)]="nota.texto"></textarea></label>
+        <div class="fila-form">
+          <label><span>Volver a hablarle el</span><input class="gm-input" type="date" name="np" [(ngModel)]="nota.proxima_accion"></label>
+          <label class="largo"><span>Para qué</span><input class="gm-input" name="nn" maxlength="200" placeholder="Confirmar la visita" [(ngModel)]="nota.proxima_nota"></label>
+          <button type="submit" class="gm-btn gm-btn--brand gm-btn--sm" [disabled]="ocupado()">Anotar</button>
+        </div>
+      </form>
+
+      <div class="mover">
+        <span>Pasar a</span>
+        <ng-container *ngFor="let e of etapas; trackBy: trackPorValor">
+          <button type="button" *ngIf="e.valor !== i.etapa" class="gm-btn gm-btn--neutral gm-btn--sm" (click)="mover(e.valor)" [disabled]="ocupado()">{{ rotuloEtapa[e.valor] }}</button>
+        </ng-container>
+        <button type="button" class="gm-btn gm-btn--brand gm-btn--sm" (click)="mover('ganado')" [disabled]="ocupado()">Compró</button>
+        <button type="button" class="gm-btn gm-btn--neutral gm-btn--sm" (click)="perdiendo.set(!perdiendo())">Se perdió</button>
+      </div>
+      <form class="fila-form" *ngIf="perdiendo()" (ngSubmit)="perder()">
+        <label class="largo"><span>Por qué se perdió *</span><input class="gm-input" name="pm" maxlength="200" placeholder="Compró en otro lado, no le dieron el crédito, no contestó más…" [(ngModel)]="perdida.motivo"></label>
+        <button type="submit" class="gm-btn gm-btn--brand gm-btn--sm" [disabled]="ocupado()">Guardar</button>
+      </form>
+    </ng-container>
+    <button type="button" *ngIf="vista() === 'perdidos'" class="gm-btn gm-btn--neutral gm-btn--sm" (click)="mover('contactado')" [disabled]="ocupado()">Volvió a aparecer</button>
+
+    <section class="historia">
+      <h4>Seguimiento</h4>
+      <p class="vacio" *ngIf="!i.seguimiento.length">Sin notas todavía.</p>
+      <ol>
+        <li *ngFor="let n of i.seguimiento.slice().reverse()">
+          <span class="cuando">{{ fecha(n.fecha) }}<ng-container *ngIf="n.autor"> · {{ n.autor }}</ng-container></span>
+          <span>{{ n.texto }}</span>
+        </li>
+      </ol>
+    </section>
+  </aside>
+</div>
+
+<app-escribir *ngIf="escribirA() as id" contexto="interesado" [destino]="id" (cerrar)="escribirA.set(null)" (enviado)="cargar()"></app-escribir>

@@ -1,0 +1,30 @@
+@use './autos' as *;
+
+:host { display: block; }
+@include autos-base;
+
+.cab h2 { margin: 0 0 0.8rem; }
+.vistas { margin-bottom: 0.8rem; }
+.fila { cursor: pointer; }
+small { color: var(--gm-muted); }
+.num { text-align: right; font-variant-numeric: tabular-nums; }
+
+// Pedidos del sitio y comisiones (13/11/2026).
+.cuenta { display: inline-block; min-width: 1.4em; margin-left: 0.3rem; padding: 0 0.35em; border-radius: 999px; background: var(--gm-brand, #1f6feb); color: #fff; font-size: 0.75rem; font-weight: 700; text-align: center; }
+.pedidos { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.7rem; }
+.pedidos > li { display: grid; gap: 0.5rem; padding: 0.9rem 1rem; border: 1px solid var(--gm-border, #d8dce3); border-radius: 8px; background: var(--gm-surface, #fff); }
+.pedidos p { margin: 0.15rem 0 0; }
+.pedido-cab { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; gap: 0.6rem 1rem; }
+.estado { padding: 0.15rem 0.55rem; border-radius: 4px; font-size: 0.8rem; font-weight: 700; background: #fbf1cf; white-space: nowrap; }
+.estado[data-estado='confirmada'] { background: #d9f2e0; }
+.estado[data-estado='rechazada'], .estado[data-estado='vencida'] { background: #eceef1; }
+.nota { margin: 0; font-size: 0.88rem; color: var(--gm-muted); }
+.acciones { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.panel, .periodo, .pct { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 0.6rem; }
+.panel { padding-top: 0.6rem; border-top: 1px solid var(--gm-border, #d8dce3); }
+.panel .nota { flex-basis: 100%; }
+.panel label, .periodo label, .pct label { display: grid; gap: 0.2rem; font-size: 0.85rem; font-weight: 600; }
+.pct input { width: 6rem; }
+.periodo { margin-bottom: 0.8rem; }
+.enlace { justify-self: start; padding: 0; border: 0; background: none; color: var(--gm-brand, #1f6feb); font: inherit; font-weight: 600; text-decoration: underline; cursor: pointer; min-height: 32px; }
+td .enlace { margin-left: 0.5rem; }

@@ -1,0 +1,22 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "node scripts/vercel-build.cjs",
+  "installCommand": "npm ci",
+  "outputDirectory": "dist/brumm-frontend/browser",
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "Content-Security-Policy", "value": "default-src 'self'; script-src 'self' 'sha256-fFsUKj/czN3B627z3raUPagBItV8rqGtVcXHmIVvB+o='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; media-src 'self' blob: https:; connect-src 'self' https://REEMPLAZAR-backend-agencia.example wss://REEMPLAZAR-backend-agencia.example https://REEMPLAZAR-backend-agencia-staging.example wss://REEMPLAZAR-backend-agencia-staging.example https://res.cloudinary.com; frame-src 'self' blob:; worker-src 'self' blob:; manifest-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'self'; object-src 'none'" },
+        { "key": "X-Frame-Options", "value": "DENY" },
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
+        { "key": "Strict-Transport-Security", "value": "max-age=31536000" },
+        { "key": "Permissions-Policy", "value": "camera=(self), microphone=(), geolocation=(), payment=()" }
+      ]
+    }
+  ]
+}

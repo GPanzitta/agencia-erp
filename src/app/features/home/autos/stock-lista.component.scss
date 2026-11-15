@@ -1,0 +1,77 @@
+@use './autos' as *;
+
+:host { display: block; }
+@include autos-base;
+
+.cab { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; margin-bottom: 0.8rem; h2 { margin: 0; } }
+
+.numeros { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 0.6rem; margin-bottom: 1rem;
+  > div { background: var(--gm-card); border: 1px solid var(--gm-border); border-left: 4px solid var(--gm-brand); border-radius: var(--gm-radius-lg);
+    padding: 0.6rem 0.8rem; display: flex; flex-direction: column; gap: 0.1rem; min-width: 0;
+    span { font-size: 0.75rem; color: var(--gm-muted); }
+    b { font-size: 1.35rem; line-height: 1.2; font-variant-numeric: tabular-nums; }
+    small { font-size: 0.75rem; color: var(--gm-text-2); } }
+  .alerta { border-left-color: var(--gm-error); b { color: var(--gm-error); } } }
+
+.nuevo { background: var(--gm-card); border: 1px solid var(--gm-border); border-radius: 8px; padding: 0.8rem; margin-bottom: 1rem;
+  h4 { margin: 0 0 0.6rem; }
+  h5 { margin: 0.4rem 0; font-size: 0.85rem; color: var(--gm-text-2); } }
+
+.barra { display: flex; gap: 0.6rem; align-items: center; justify-content: space-between; margin-bottom: 0.8rem; flex-wrap: wrap;
+  .buscar { flex: 1 1 240px; max-width: 360px; } }
+
+.unidades { list-style: none; margin: 0; padding: 0; background: var(--gm-card); border: 1px solid var(--gm-border); border-radius: 8px; overflow: hidden; }
+.unidad { display: grid; grid-template-columns: 84px minmax(0, 2.2fr) minmax(0, 1.1fr) minmax(0, 1fr) minmax(0, 1.1fr) minmax(0, 1.4fr);
+  gap: 0.8rem; align-items: center; padding: 0.55rem 0.8rem; border-bottom: 1px solid var(--gm-border); cursor: pointer; font-size: 0.88rem;
+  &:last-child { border-bottom: 0; }
+  &:hover { background: var(--gm-bg); }
+  small { color: var(--gm-muted); font-size: 0.76rem; }
+  > div { min-width: 0; } }
+.foto { width: 84px; aspect-ratio: 4 / 3; border-radius: var(--gm-radius-lg); overflow: hidden; background: var(--gm-col); display: grid; place-items: center;
+  img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .sin-foto { font-size: 0.68rem; color: var(--gm-muted); } }
+.quien { display: flex; flex-direction: column; gap: 0.1rem;
+  a { color: var(--gm-text); text-decoration: none; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  b { font-size: 0.95rem; }
+  > span { color: var(--gm-text-2); }
+  b, > span, small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } }
+.estado { display: flex; flex-direction: column; align-items: flex-start; gap: 0.15rem; small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; } }
+.dias { color: var(--gm-text-2); }
+.papeles { display: flex; align-items: center; gap: 0.4rem; color: var(--gm-text-2); }
+.plata { display: flex; flex-direction: column; align-items: flex-end; text-align: right; font-variant-numeric: tabular-nums; b { font-size: 1rem; } }
+
+// Pantalla angosta: cada unidad es una tarjeta con la foto a la izquierda.
+@media (max-width: 1100px) {
+  .unidades { background: none; border: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 0.6rem; overflow: visible; }
+  .unidad { grid-template-columns: 104px minmax(0, 1fr); grid-template-areas: 'foto quien' 'foto estado' 'dias papeles' 'plata plata';
+    gap: 0.35rem 0.7rem; background: var(--gm-card); border: 1px solid var(--gm-border); border-radius: 8px; padding: 0.6rem;
+    &:last-child { border-bottom: 1px solid var(--gm-border); } }
+  .foto { grid-area: foto; width: 104px; align-self: start; }
+  .quien { grid-area: quien; }
+  .estado { grid-area: estado; flex-direction: row; flex-wrap: wrap; align-items: center; gap: 0.4rem; }
+  .dias { grid-area: dias; font-size: 0.8rem; }
+  .papeles { grid-area: papeles; font-size: 0.8rem; }
+  .plata { grid-area: plata; flex-direction: row; justify-content: space-between; align-items: baseline; border-top: 1px solid var(--gm-border); padding-top: 0.4rem; }
+}
+
+.sitio-caja { margin-top: 1.2rem; background: var(--gm-card); border: 1px solid var(--gm-border); border-radius: var(--gm-radius-lg); padding: 0.8rem 1rem;
+  summary { cursor: pointer; font-weight: 600; }
+  &[open] summary { margin-bottom: 0.8rem; } }
+.sitio { margin: 0 0 0.8rem; font-size: 0.88rem; a { color: var(--gm-brand); font-weight: 600; } small { color: var(--gm-muted); } }
+app-primeros-pasos { display: block; margin-bottom: 1rem; }
+
+// Qué muestra el sitio (13/11/2026).
+.sitio-opcion { display: flex; align-items: flex-start; gap: 0.5rem; margin: 0 0 0.8rem; font-size: 0.86rem; cursor: pointer;
+  input { width: 18px; height: 18px; margin-top: 0.1rem; flex: none; }
+  small { color: var(--gm-muted); } }
+
+// Cuotas en el sitio (13/11/2026).
+.sitio-fin { margin: 0 0 0.8rem; font-size: 0.86rem;
+  p { margin: 0 0 0.4rem; }
+  .enlace { border: 0; background: none; padding: 0; margin-left: 0.5rem; color: var(--gm-brand); cursor: pointer; font-size: inherit; }
+  form { display: grid; gap: 0.6rem; max-width: 640px; padding: 0.8rem; border: 1px solid var(--gm-border); border-radius: 8px; background: var(--gm-card); }
+  .casilla { display: flex; align-items: center; gap: 0.5rem; cursor: pointer; input { width: 18px; height: 18px; flex: none; } }
+  .campos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.6rem;
+    label { display: grid; gap: 0.2rem; min-width: 0; span { font-size: 0.74rem; color: var(--gm-muted); } } }
+  .ayuda { color: var(--gm-muted); font-size: 0.8rem; }
+  button[type='submit'] { justify-self: start; } }

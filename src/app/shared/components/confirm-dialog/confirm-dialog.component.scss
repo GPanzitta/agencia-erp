@@ -1,0 +1,33 @@
+.modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+
+  &.hidden { display: none; }
+
+  .modal-content {
+    background: white;
+    border-radius: 12px;
+    position: relative;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+
+    .modal-close {
+      position: absolute;
+      top: 15px;
+      right: 15px;
+      background: none;
+      border: none;
+      font-size: 1.2rem;
+      cursor: pointer;
+      color: var(--color-text-muted);
+      &:hover { color: var(--color-danger); }
+    }
+
+    h2 { color: var(--color-twilight-indigo); margin: 0; }
+  }
+}

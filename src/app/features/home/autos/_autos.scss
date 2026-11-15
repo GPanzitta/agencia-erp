@@ -1,0 +1,32 @@
+// Piezas que comparten las pantallas de la agencia: chip de estado, semáforo de
+// papeles, patente, formularios. Usa los tokens gm-* del ERP.
+@mixin autos-base {
+  .chip { display: inline-flex; align-items: center; padding: 2px 9px; border-radius: 10px; font-size: 11px; font-weight: 700; white-space: nowrap;
+    background: var(--gm-col); color: var(--gm-text-2);
+    &[data-estado='disponible'] { background: #E3F3E8; color: var(--gm-success); }
+    &[data-estado='reservada'] { background: #FFF1D6; color: #8a5a00; }
+    &[data-estado='vendida'] { background: #DCEBF7; color: var(--gm-navy); }
+    &[data-estado='alistaje'] { background: #ECE7FA; color: #4b3a8f; }
+    &[data-estado='anulada'], &[data-estado='baja'], &[data-estado='devuelta'] { background: var(--gm-col); color: var(--gm-muted); } }
+  .luz { display: inline-block; width: 10px; height: 10px; border-radius: 50%; flex: none; background: var(--gm-muted);
+    &[data-color='rojo'] { background: var(--gm-error); }
+    &[data-color='amarillo'] { background: var(--gm-object); }
+    &[data-color='verde'] { background: var(--gm-success); } }
+  // La patente se dibuja como la chapa del Mercosur: blanca, con la franja azul arriba.
+  .patente { display: inline-block; padding: 1px 7px; border: 1px solid #1B2730; border-top: 4px solid var(--fg-patente, #1F4FA3); border-radius: 4px; background: #fff;
+    font-family: var(--fuente-datos); font-size: 0.78rem; font-weight: 700; letter-spacing: 0.06em; line-height: 1.35; color: #111; white-space: nowrap; }
+  .escribirle { border: 0; background: none; padding: 0; font: inherit; font-size: 0.86rem; color: var(--gm-brand); cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+  td .escribirle { display: block; margin-top: 2px; }
+  .vencido { color: var(--gm-error); font-weight: 600; }
+  .pronto { color: #9a6700; font-weight: 600; }
+  .negativo { color: var(--gm-error); font-weight: 700; }
+  .vacio, .ayuda { color: var(--gm-muted); font-size: 0.85rem; }
+  .botones { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+  .campos { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 0.5rem 0.8rem; margin-bottom: 0.6rem;
+    label { display: flex; flex-direction: column; gap: 0.2rem; min-width: 0; span { font-size: 0.78rem; color: var(--gm-muted); } }
+    .ancho2 { grid-column: span 2; @media (max-width: 480px) { grid-column: auto; } } }
+  .dominio { text-transform: uppercase; }
+  .vistas { display: flex; gap: 0.3rem; flex-wrap: wrap;
+    button { border: 1px solid var(--gm-border); background: var(--gm-card); border-radius: 999px; padding: 0.3rem 0.8rem; font-size: 0.82rem; cursor: pointer; }
+    .activa { border-color: var(--gm-brand); color: var(--gm-brand); font-weight: 600; } }
+}

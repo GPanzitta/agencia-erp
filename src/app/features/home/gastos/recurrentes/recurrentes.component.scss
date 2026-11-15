@@ -1,0 +1,24 @@
+.recurrentes-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+// Modal de Reactivar (#42): las dos opciones apiladas, cada una con su ayuda.
+.reactivar-opciones {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0.5rem 0 1rem;
+
+  .gm-btn {
+    white-space: normal;
+    text-align: left;
+  }
+}
+
+.reactivar-ayuda {
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  margin-bottom: 8px;
+}

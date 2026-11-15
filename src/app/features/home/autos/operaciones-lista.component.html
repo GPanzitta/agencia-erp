@@ -1,0 +1,134 @@
+<header class="cab"><h2>Ventas</h2></header>
+
+<div class="vistas" role="tablist" aria-label="Qué operaciones ver">
+  <button type="button" role="tab" *ngFor="let v of vistas" [attr.aria-selected]="vista() === v.valor"
+          [class.activa]="vista() === v.valor" (click)="ver(v.valor)">{{ v.rotulo }}<span class="cuenta" *ngIf="v.valor === 'sitio' && porConfirmar()"> {{ porConfirmar() }}</span></button>
+</div>
+
+<ng-container *ngIf="vista() !== 'sitio' && vista() !== 'comisiones'">
+<p class="vacio" *ngIf="cargando() && !lista().length">Cargando…</p>
+<p class="vacio" *ngIf="!cargando() && !lista().length">
+  {{ vista() === 'reservas' ? 'No hay unidades reservadas. Una reserva se abre desde la ficha de la unidad.' : 'No hay operaciones en esta vista.' }}
+</p>
+
+<div class="table-container" *ngIf="lista().length">
+  <table class="modern-table tabla-tarjetas">
+    <thead><tr><th>Operación</th><th>Unidad</th><th>Cliente</th><th class="num">Precio</th><th class="num">Cobrado</th><th class="num">Saldo</th><th>{{ vista() === 'reservas' ? 'Reserva' : 'Fecha' }}</th></tr></thead>
+    <tbody>
+      <tr *ngFor="let o of lista(); trackBy: trackPorId" class="fila" [routerLink]="['/home/autos/unidad', o.unidad.id]">
+        <td data-label="Operación"><b>{{ o.numero }}</b></td>
+        <td data-label="Unidad">{{ o.unidad.titulo }} {{ o.unidad.anio }}<small> · <span class="patente">{{ dominio(o.unidad.dominio) }}</span></small></td>
+        <td data-label="Cliente">{{ o.cliente_nombre }}<small *ngIf="o.vendedor"> · {{ o.vendedor.nombre }}</small>
+          <button type="button" class="escribirle" *ngIf="o.estado !== 'anulada'" (click)="$event.stopPropagation(); escribirA.set(o.id)">Escribirle</button></td>
+        <td data-label="Precio" class="num">{{ plata(o.precio, o.moneda) }}</td>
+        <td data-label="Cobrado" class="num">{{ plata(o.pagado, o.moneda) }}</td>
+        <td data-label="Saldo" class="num" [class.vencido]="vista() === 'reservas' && !o.saldada">{{ o.saldada ? 'Saldada' : plata(o.saldo, o.moneda) }}</td>
+        <td [attr.data-label]="vista() === 'reservas' ? 'Reserva' : 'Fecha'">
+          <ng-container *ngIf="vista() === 'reservas'">
+            <span [class.vencido]="o.vencida">{{ o.reserva_vence ? (o.vencida ? 'Venció el ' : 'Hasta el ') + fecha(o.reserva_vence) : 'Sin vencimiento' }}</span>
+            <small *ngIf="o.bloqueantes.length"> · faltan papeles</small>
+          </ng-container>
+          <ng-container *ngIf="vista() === 'vendidas'">{{ fecha(o.cerrada_at) }}</ng-container>
+          <ng-container *ngIf="vista() === 'anuladas'">{{ o.anulada_motivo }}</ng-container>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+</ng-container>
+
+<ng-container *ngIf="vista() === 'sitio'">
+  <p class="vacio" *ngIf="!pedidos().length">{{ cargando() ? 'Cargando…' : 'Nadie pidió una reserva desde el sitio. Se prende en Stock → «Reserva con seña en el sitio».' }}</p>
+  <ul class="pedidos" *ngIf="pedidos().length">
+    <li *ngFor="let p of pedidos(); trackBy: trackPorId" [attr.data-estado]="p.estado">
+      <div class="pedido-cab">
+        <div>
+          <b>{{ p.unidad.titulo }} {{ p.unidad.anio }}</b> <small>{{ p.unidad.numero }}</small>
+          <p>{{ p.cliente_nombre }} · {{ p.cliente_telefono }}<span *ngIf="p.cliente_documento"> · DNI {{ p.cliente_documento }}</span></p>
+          <p><b>Seña de {{ plata(p.monto, p.moneda) }}</b> por transferencia · pedido el {{ p.created_at | date:'dd/MM HH:mm' }}</p>
+        </div>
+        <span class="estado" [attr.data-estado]="p.estado">{{ ROTULO_PEDIDO[p.estado] }}</span>
+      </div>
+      <p class="nota" *ngIf="p.estado === 'pendiente'">Tiene hasta el {{ p.vence_at | date:'dd/MM HH:mm' }} para transferir.</p>
+      <p class="nota" *ngIf="p.estado === 'vencida'">Se le pasó el plazo. Si la transferencia llegó igual y el auto sigue libre, todavía la podés confirmar.</p>
+      <p class="nota" *ngIf="p.estado === 'confirmada' && p.operacion">Operación <a [routerLink]="['/home/autos/unidad', p.unidad.id]">{{ p.operacion.numero }}</a>.</p>
+      <p class="nota" *ngIf="p.estado === 'rechazada' && p.motivo">{{ p.motivo }}</p>
+      <p class="nota vencido" *ngIf="(p.estado === 'pendiente' || p.estado === 'vencida') && !p.unidad.disponible">La unidad ya no está disponible: no se puede confirmar.</p>
+      <div class="acciones" *ngIf="(p.estado === 'pendiente' || p.estado === 'vencida') && panel()?.id !== p.id">
+        <button type="button" class="gm-btn gm-btn--brand gm-btn--sm" [disabled]="!p.unidad.disponible" (click)="abrir(p, 'confirmar')">Llegó la seña</button>
+        <button type="button" class="gm-btn gm-btn--neutral gm-btn--sm" (click)="abrir(p, 'rechazar')">Rechazar</button>
+      </div>
+      <form class="panel" *ngIf="panel()?.id === p.id && panel()?.tipo === 'confirmar'" (ngSubmit)="confirmar(p)">
+        <label><span>Caja a la que entró</span>
+          <select class="gm-input" name="caja" [(ngModel)]="confirma.wallet_id">
+            <option value="">Sin asentar en caja</option>
+            <option *ngFor="let b of cajasPara(p)" [value]="b.id">{{ b.name }}</option>
+          </select></label>
+        <label *ngIf="p.moneda !== p.unidad.moneda"><span>A cuánto tomás el dólar</span><input class="gm-input" name="tc" inputmode="decimal" [(ngModel)]="confirma.tipo_cambio"></label>
+        <p class="nota">La unidad queda reservada a nombre de {{ p.cliente_nombre }} por {{ p.dias }} días, con la seña cargada.</p>
+        <div class="acciones">
+          <button type="submit" class="gm-btn gm-btn--brand gm-btn--sm" [disabled]="ocupado()">Confirmar la reserva</button>
+          <button type="button" class="gm-btn gm-btn--neutral gm-btn--sm" (click)="panel.set(null)">Cancelar</button>
+        </div>
+      </form>
+      <form class="panel" *ngIf="panel()?.id === p.id && panel()?.tipo === 'rechazar'" (ngSubmit)="rechazar(p)">
+        <label><span>Motivo (opcional)</span><input class="gm-input" name="motivo" maxlength="300" [(ngModel)]="confirma.motivo"></label>
+        <div class="acciones">
+          <button type="submit" class="gm-btn gm-btn--brand gm-btn--sm" [disabled]="ocupado()">Rechazar el pedido</button>
+          <button type="button" class="gm-btn gm-btn--neutral gm-btn--sm" (click)="panel.set(null)">Cancelar</button>
+        </div>
+      </form>
+    </li>
+  </ul>
+</ng-container>
+
+<ng-container *ngIf="vista() === 'comisiones'">
+  <form class="periodo" (ngSubmit)="cargar()">
+    <label><span>Desde</span><input class="gm-input" type="date" name="desde" [(ngModel)]="periodo.desde"></label>
+    <label><span>Hasta</span><input class="gm-input" type="date" name="hasta" [(ngModel)]="periodo.hasta"></label>
+    <button type="submit" class="gm-btn gm-btn--neutral gm-btn--sm">Ver</button>
+  </form>
+  <p class="vacio" *ngIf="cargando() && !comisiones()">Cargando…</p>
+  <p class="nota" *ngIf="esDuenio()">El porcentaje de cada vendedor se aplica solo al cerrar una venta suya; al cerrar se puede poner otro importe a mano.</p>
+  <ul class="pedidos" *ngIf="comisiones() as c">
+    <li *ngFor="let v of c.vendedores; trackBy: trackPorId">
+      <div class="pedido-cab">
+        <div>
+          <b>{{ v.nombre }}</b>
+          <p>{{ v.ventas === 0 ? 'Sin ventas cerradas en el período' : v.ventas === 1 ? '1 venta' : v.ventas + ' ventas' }}<span *ngIf="v.ventas"> · vendió {{ totales(v.vendido) }}</span></p>
+          <p *ngIf="v.ventas">Comisión: <b>{{ totales(v.comision) }}</b> · falta pagarle <b [class.vencido]="v.pendiente.ARS || v.pendiente.USD">{{ totales(v.pendiente) }}</b></p>
+        </div>
+        <form class="pct" *ngIf="esDuenio() && v.id" (ngSubmit)="guardarPct(v)">
+          <label><span>Su porcentaje</span><input class="gm-input" [name]="'pct' + v.id" inputmode="decimal" maxlength="5" placeholder="—" [(ngModel)]="pct[v.id]"></label>
+          <button type="submit" class="gm-btn gm-btn--neutral gm-btn--sm">Guardar</button>
+        </form>
+        <span class="estado" *ngIf="!esDuenio() && v.pct !== null">{{ v.pct }} % por venta</span>
+      </div>
+      <button type="button" class="enlace" *ngIf="v.ventas" (click)="abierto.set(abierto() === (v.id ?? 'sin') ? null : (v.id ?? 'sin'))">{{ abierto() === (v.id ?? 'sin') ? 'Ocultar las ventas' : 'Ver las ventas' }}</button>
+      <div class="table-container" *ngIf="abierto() === (v.id ?? 'sin')">
+        <table class="modern-table tabla-tarjetas">
+          <thead><tr><th>Venta</th><th>Unidad</th><th>Fecha</th><th class="num">Precio</th><th class="num">Comisión</th><th>Pago</th></tr></thead>
+          <tbody>
+            <tr *ngFor="let o of v.operaciones; trackBy: trackPorId">
+              <td data-label="Venta"><a [routerLink]="['/home/autos/unidad', o.unidad_id]"><b>{{ o.numero }}</b></a></td>
+              <td data-label="Unidad">{{ o.unidad }}<small> · {{ o.cliente }}</small></td>
+              <td data-label="Fecha">{{ fecha(o.cerrada_at) }}</td>
+              <td data-label="Precio" class="num">{{ plata(o.precio, o.moneda) }}</td>
+              <td data-label="Comisión" class="num">{{ o.comision === null ? 'Sin cargar' : plata(o.comision, o.moneda) }}</td>
+              <td data-label="Pago">
+                <span *ngIf="o.pagada_at">Pagada el {{ fecha(o.pagada_at) }}</span>
+                <span *ngIf="!o.pagada_at && o.comision">Pendiente</span>
+                <ng-container *ngIf="esDuenio() && o.comision">
+                  <button type="button" class="enlace" *ngIf="!o.pagada_at" (click)="marcar(o, true)">Marcar pagada</button>
+                  <button type="button" class="enlace" *ngIf="o.pagada_at" (click)="marcar(o, false)">Deshacer</button>
+                </ng-container>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </li>
+  </ul>
+</ng-container>
+
+<app-escribir *ngIf="escribirA() as id" contexto="operacion" [destino]="id" (cerrar)="escribirA.set(null)"></app-escribir>

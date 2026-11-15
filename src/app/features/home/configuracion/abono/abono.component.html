@@ -1,0 +1,48 @@
+<div class="global-card abono" *ngIf="estado() as e">
+  <div class="card-header">
+    <h2>Abono</h2>
+    <p>Lo que paga la agencia por usar FG autos.</p>
+  </div>
+
+  <p class="aviso" *ngIf="esperandoMp()" role="status">
+    Estamos esperando la confirmación de Mercado Pago.
+    <button type="button" class="gm-btn gm-btn--neutral gm-btn--sm" (click)="actualizar()">Actualizar</button>
+  </p>
+
+  <dl class="datos">
+    <div><dt>Plan</dt><dd>{{ nombres[e.plan] }}</dd></div>
+    <div *ngIf="e.tope !== null"><dt>Unidades en stock</dt><dd>{{ e.ordenes_mes }} de {{ e.tope }}</dd></div>
+    <div *ngIf="e.tope === null"><dt>Unidades en stock</dt><dd>{{ e.ordenes_mes }}</dd></div>
+    <div *ngIf="e.plan === 'pago'"><dt>Pagado hasta</dt><dd>{{ fecha(e.vence_en) }}</dd></div>
+    <div *ngIf="e.plan !== 'interno'"><dt>Plan pago, sin tope de órdenes</dt><dd>{{ precio() }} por mes</dd></div>
+  </dl>
+
+  <p *ngIf="e.plan === 'interno'">Esta agencia no paga abono.</p>
+
+  <section class="suscribir" *ngIf="puedeSuscribirse()">
+    <label for="abono-correo">Correo de Mercado Pago</label>
+    <input id="abono-correo" type="email" autocomplete="email" [ngModel]="correo()" (ngModelChange)="correo.set($event)">
+    <p class="ayuda">Tiene que ser el de la cuenta de Mercado Pago que va a pagar.</p>
+    <button type="button" class="gm-btn gm-btn--brand" [disabled]="ocupado()" (click)="suscribir()">Suscribirme</button>
+  </section>
+
+  <p *ngIf="e.pago_simulado">
+    <button type="button" class="gm-btn gm-btn--brand" [disabled]="ocupado()" (click)="simular()">Simular pago</button>
+  </p>
+
+  <section class="salir" *ngIf="puedeVolver()">
+    <button *ngIf="!confirmando()" type="button" class="gm-btn gm-btn--neutral gm-btn--sm" (click)="confirmando.set(true)">Volver al plan gratis</button>
+    <ng-container *ngIf="confirmando()">
+      <p>Se cancela la suscripción, perdés lo que quede del mes pagado y vuelve el tope de órdenes. No se borra ningún dato.</p>
+      <button type="button" class="gm-btn gm-btn--brand gm-btn--sm" [disabled]="ocupado()" (click)="volverAGratis()">Sí, volver</button>
+      <button type="button" class="gm-btn gm-btn--neutral gm-btn--sm" (click)="confirmando.set(false)">Cancelar</button>
+    </ng-container>
+  </section>
+
+  <section *ngIf="e.pagos?.length">
+    <h3>Pagos</h3>
+    <ul class="pagos">
+      <li *ngFor="let p of e.pagos"><span>{{ fecha(p.pagado_en) }}</span><span>${{ p.monto.toLocaleString('es-AR') }}</span></li>
+    </ul>
+  </section>
+</div>

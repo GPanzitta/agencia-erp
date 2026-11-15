@@ -1,0 +1,204 @@
+<div class="recurrentes-container">
+  <header class="oh gm-card">
+    <div class="oh-fila">
+      <div class="oh-id">
+        <div class="oh-tile" style="background: var(--gm-success);">
+          <svg width="22" height="22" viewBox="0 0 20 20" fill="none" stroke="#FFFFFF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="5.5" width="15" height="9" rx="1.5"/><circle cx="10" cy="10" r="2.2"/></svg>
+        </div>
+        <div class="oh-titulos">
+          <span class="oh-eyebrow">Finanzas</span>
+          <h1>Gastos fijos</h1>
+        </div>
+      </div>
+      <div class="btn-group" style="display: flex; align-items: center; gap: 10px;">
+        <button class="gm-btn gm-btn--neutral" [disabled]="generando()" (click)="generar()">
+          {{ generando() ? 'Generando…' : 'Generar los de este período' }}
+        </button>
+        <button class="gm-btn gm-btn--brand" (click)="abrirModal()"><app-icon name="agregar"></app-icon> Nuevo gasto fijo</button>
+      </div>
+    </div>
+    <div class="oh-fila oh-fila--meta">
+      <span class="oh-meta">Alquiler, servicios, sueldos. Se cargan una vez y el sistema genera el gasto de cada período.</span>
+    </div>
+  </header>
+
+  <div class="global-card">
+    <div class="table-responsive">
+      <table class="modern-table">
+        <thead>
+          <tr>
+            <th>Descripción</th>
+            <th>Rubro</th>
+            <th>Monto</th>
+            <th>Frecuencia</th>
+            <th>Vence</th>
+            <th>Estado</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngIf="isLoading()">
+            <td colspan="7" style="text-align: center; padding: 2rem;">
+              <div class="neon-spinner" style="margin: 0 auto;"></div>
+            </td>
+          </tr>
+          <tr *ngIf="!isLoading() && recurrentes().length === 0">
+            <td colspan="7" style="text-align: center; color: var(--color-text-muted); font-style: italic; padding: 2rem;">
+              No hay gastos fijos cargados todavía.
+            </td>
+          </tr>
+          <tr *ngFor="let r of recurrentes()" [style.opacity]="estado(r) === 'activo' ? 1 : 0.55">
+            <td>
+              <span style="font-weight: 700; color: var(--color-text-dark);">{{ r.descripcion }}</span>
+              <span *ngIf="r.proveedor" style="display: block; font-size: 0.8rem; color: var(--color-text-muted);">{{ r.proveedor.nombre }}</span>
+            </td>
+            <td><span class="category-badge">{{ etiquetaCategoria(r.categoria) }}</span></td>
+            <td style="font-weight: 700;">${{ r.monto | number:'1.2-2' }}</td>
+            <td>{{ etiquetaFrecuencia(r.frecuencia) }}</td>
+            <td>Día {{ r.dia_vencimiento }}</td>
+            <td>
+              <ng-container [ngSwitch]="estado(r)">
+                <span *ngSwitchCase="'activo'" class="status-badge badge-success">
+                  {{ r.fecha_fin ? 'Termina el ' + diaMes(r.fecha_fin) : 'Activo' }}
+                </span>
+                <span *ngSwitchCase="'finalizado'" class="status-badge badge-warning"
+                      title="Ya pasó su «Hasta». Si sigue, editala y extendé «Hasta».">
+                  Finalizó el {{ diaMes(r.fecha_fin) }}
+                </span>
+                <span *ngSwitchDefault class="status-badge badge-danger">Dado de baja</span>
+              </ng-container>
+            </td>
+            <td>
+              <div class="btn-group" style="gap: 6px;">
+                <button class="gm-btn gm-btn--neutral gm-btn--sm" (click)="abrirModal(r)">Editar</button>
+                <button *ngIf="estado(r) === 'activo'" class="gm-btn gm-btn--danger gm-btn--sm" (click)="desactivar(r)">Dar de baja</button>
+                <button *ngIf="estado(r) === 'baja'" class="gm-btn gm-btn--brand gm-btn--sm" (click)="reactivar(r)">Reactivar</button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL -->
+<div class="modal-overlay" *ngIf="showModal()">
+  <div class="modal-content" style="max-width: 520px;">
+    <div style="margin-bottom: 1.2rem;">
+      <h2 style="margin: 0; color: var(--color-text-dark); font-size: 1.3rem;">
+        {{ editandoId() ? 'Editar gasto fijo' : 'Nuevo gasto fijo' }}
+      </h2>
+      <p style="color: var(--color-text-muted); font-size: 0.9rem; margin-top: 4px;">
+        Se genera automáticamente según la frecuencia que elijas.
+      </p>
+    </div>
+
+    <form [formGroup]="form" (ngSubmit)="guardar()">
+      <div class="form-group" style="margin-bottom: 1rem;">
+        <label style="display:block; margin-bottom:6px; font-weight:600; font-size:0.9rem; color:var(--color-text-muted);">Descripción</label>
+        <input type="text" class="gm-input" formControlName="descripcion" style="width: 100%;" placeholder="Alquiler del local">
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+        <div class="form-group">
+          <label style="display:block; margin-bottom:6px; font-weight:600; font-size:0.9rem; color:var(--color-text-muted);">Rubro</label>
+          <select class="gm-input" formControlName="categoria" style="width: 100%;">
+            <option *ngFor="let c of categorias" [value]="c">{{ etiquetaCategoria(c) }}</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label style="display:block; margin-bottom:6px; font-weight:600; font-size:0.9rem; color:var(--color-text-muted);">Monto</label>
+          <input type="number" class="gm-input" formControlName="monto" min="0.01" step="0.01" style="width: 100%;">
+        </div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+        <div class="form-group">
+          <label style="display:block; margin-bottom:6px; font-weight:600; font-size:0.9rem; color:var(--color-text-muted);">Frecuencia</label>
+          <select class="gm-input" formControlName="frecuencia" style="width: 100%;">
+            <option *ngFor="let f of frecuencias" [value]="f.valor">{{ f.etiqueta }}</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label style="display:block; margin-bottom:6px; font-weight:600; font-size:0.9rem; color:var(--color-text-muted);">Día de vencimiento</label>
+          <input type="number" class="gm-input" formControlName="dia_vencimiento" min="1" max="31" style="width: 100%;">
+        </div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+        <div class="form-group">
+          <label style="display:block; margin-bottom:6px; font-weight:600; font-size:0.9rem; color:var(--color-text-muted);">Desde</label>
+          <input type="date" class="gm-input" formControlName="fecha_inicio" style="width: 100%;">
+        </div>
+        <div class="form-group">
+          <label style="display:block; margin-bottom:6px; font-weight:600; font-size:0.9rem; color:var(--color-text-muted);">Hasta (opcional)</label>
+          <input type="date" class="gm-input" formControlName="fecha_fin" style="width: 100%;">
+        </div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem;">
+        <div class="form-group">
+          <label style="display:block; margin-bottom:6px; font-weight:600; font-size:0.9rem; color:var(--color-text-muted);">Método de pago</label>
+          <select class="gm-input" formControlName="metodo_pago" style="width: 100%;">
+            <option *ngFor="let m of metodosPago" [value]="m">{{ m }}</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label style="display:block; margin-bottom:6px; font-weight:600; font-size:0.9rem; color:var(--color-text-muted);">Proveedor (opcional)</label>
+          <select class="gm-input" formControlName="proveedor_id" style="width: 100%;">
+            <option value="">Sin proveedor</option>
+            <option *ngFor="let p of proveedores()" [value]="p.id">{{ p.nombre }}</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="modal-actions" style="display: flex; justify-content: flex-end; gap: 1rem; border-top: 1px solid var(--color-border); padding-top: 1.2rem;">
+        <button type="button" class="gm-btn gm-btn--neutral" (click)="cerrarModal()">Cancelar</button>
+        <button type="submit" class="gm-btn gm-btn--brand" [disabled]="form.invalid || isSaving()">
+          {{ isSaving() ? 'Guardando...' : 'Guardar' }}
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal: baja de gasto recurrente -->
+<div class="modal-overlay" *ngIf="bajaPendiente() as r">
+  <div class="modal-content">
+    <div class="modal-titulo">
+      <h2>Dar de baja</h2>
+      <p>"{{ r.descripcion }}" deja de generar gastos nuevos. Los ya generados no se tocan.</p>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="gm-btn gm-btn--neutral" (click)="bajaPendiente.set(null)">Cancelar</button>
+      <button type="button" class="gm-btn gm-btn--danger" (click)="confirmarBaja()">Dar de baja</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: reactivar un gasto fijo dado de baja (#42) -->
+<div class="modal-overlay" *ngIf="reactivarPendiente() as r">
+  <div class="modal-content modal-reactivar">
+    <div class="modal-titulo">
+      <h2>Reactivar</h2>
+      <p>
+        "{{ r.descripcion }}" quedó pendiente desde el {{ diaMesAnio(r.proxima_generacion) }}.
+        ¿Qué pasó mientras estuvo de baja?
+      </p>
+    </div>
+    <div class="reactivar-opciones">
+      <button type="button" class="gm-btn gm-btn--brand" [disabled]="reactivando()" (click)="confirmarReactivar('pendiente')">
+        Generar desde el {{ diaMesAnio(r.proxima_generacion) }} (el servicio siguió)
+      </button>
+      <span class="reactivar-ayuda">Se generan también los vencimientos que quedaron atrás.</span>
+      <button type="button" class="gm-btn gm-btn--neutral" [disabled]="reactivando()" (click)="confirmarReactivar('hoy')">
+        Retomar desde hoy
+      </button>
+      <span class="reactivar-ayuda">Lo vencido no se genera: sigue desde el próximo vencimiento.</span>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="gm-btn gm-btn--neutral" (click)="reactivarPendiente.set(null)">Cancelar</button>
+    </div>
+  </div>
+</div>

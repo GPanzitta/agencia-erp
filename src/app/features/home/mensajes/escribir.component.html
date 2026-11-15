@@ -1,0 +1,57 @@
+<div class="velo" (click)="cerrar.emit()"></div>
+<section class="panel" role="dialog" aria-modal="true" aria-labelledby="escribir-titulo">
+  <header>
+    <h3 id="escribir-titulo">Escribirle a {{ datos()?.nombre || '…' }}</h3>
+    <button type="button" class="cerrar" (click)="cerrar.emit()" aria-label="Cerrar">Cerrar</button>
+  </header>
+
+  <p class="vacio" *ngIf="!datos()">Cargando…</p>
+
+  <ng-container *ngIf="datos() as d">
+    <div class="canales" role="tablist" aria-label="Por dónde">
+      <button type="button" role="tab" *ngFor="let c of canales" [attr.aria-selected]="canal() === c" [class.activa]="canal() === c" (click)="elegirCanal(c)">{{ rotuloCanal[c] }}</button>
+    </div>
+
+    <p class="aviso" *ngIf="canal() === 'whatsapp' && !d.whatsapp">
+      {{ d.telefono ? 'El teléfono cargado (' + d.telefono + ') no sirve para WhatsApp: revisalo.' : 'Esta persona no tiene teléfono cargado.' }}
+    </p>
+    <p class="aviso" *ngIf="canal() === 'email' && !d.correo.configurado">
+      El envío de correos todavía no está configurado en el servidor. Mientras tanto podés escribirle por WhatsApp.
+    </p>
+    <p class="aviso suave" *ngIf="canal() === 'email' && d.correo.pruebas">El servidor está en modo de prueba: el correo queda registrado pero no sale de verdad.</p>
+
+    <label class="campo"><span>Mensaje</span>
+      <select class="gm-input" name="plantilla" [ngModel]="plantillaId" (ngModelChange)="elegir($event)">
+        <option *ngFor="let p of plantillas(); trackBy: trackPorId" [ngValue]="p.id">{{ p.nombre }}</option>
+        <option [ngValue]="null">Escribirlo de cero</option>
+      </select></label>
+
+    <ng-container *ngIf="canal() === 'email'">
+      <label class="campo"><span>Para</span><input class="gm-input" name="para" type="email" inputmode="email" placeholder="cliente@correo.com" [(ngModel)]="para"></label>
+      <label class="campo"><span>Asunto</span><input class="gm-input" name="asunto" maxlength="200" [(ngModel)]="asunto"></label>
+    </ng-container>
+
+    <label class="campo"><span>Texto <small>Podés corregirlo antes de mandarlo</small></span>
+      <textarea class="gm-input" name="texto" rows="9" [maxlength]="canal() === 'email' ? 5000 : 4000" [(ngModel)]="texto"></textarea></label>
+
+    <div class="acciones">
+      <button type="button" *ngIf="canal() === 'whatsapp'" class="gm-btn gm-btn--brand wa" [disabled]="!d.whatsapp" (click)="abrirWhatsapp()">Abrir WhatsApp con este mensaje</button>
+      <button type="button" *ngIf="canal() === 'email'" class="gm-btn gm-btn--brand" [disabled]="!d.correo.configurado || enviando()" (click)="enviarCorreo()">{{ enviando() ? 'Enviando…' : 'Enviar el correo' }}</button>
+      <small *ngIf="canal() === 'whatsapp'">Se abre la conversación con el texto escrito; lo mandás vos desde ahí.</small>
+    </div>
+
+    <div class="historial" *ngIf="historial().length">
+      <button type="button" class="enlace" (click)="verHistorial.set(!verHistorial())" [attr.aria-expanded]="verHistorial()">
+        {{ verHistorial() ? 'Ocultar' : 'Ver' }} lo que ya se le escribió ({{ historial().length }})
+      </button>
+      <ul *ngIf="verHistorial()">
+        <li *ngFor="let m of historial(); trackBy: trackPorId" [class.fallo]="m.estado === 'fallido'">
+          <p><b>{{ rotuloCanal[m.canal] }}</b> el {{ cuando(m.created_at) }}<span *ngIf="m.autor">, {{ m.autor }}</span> <i>{{ rotuloEstado(m) }}</i></p>
+          <p class="asunto" *ngIf="m.asunto">{{ m.asunto }}</p>
+          <p class="cuerpo">{{ m.cuerpo }}</p>
+          <p class="error" *ngIf="m.error">{{ m.error }}</p>
+        </li>
+      </ul>
+    </div>
+  </ng-container>
+</section>

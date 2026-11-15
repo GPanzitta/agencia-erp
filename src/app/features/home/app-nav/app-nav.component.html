@@ -1,0 +1,29 @@
+<nav class="an" [class.an--cajon]="vertical" aria-label="Secciones">
+  <a routerLink="/home" class="an-marca">
+    <span class="an-chapa">{{ iniciales }}</span>
+    <span class="an-nombre">{{ marca }}</span>
+  </a>
+
+  <div class="an-grupos">
+    <div class="an-grupo" *ngFor="let g of grupos(); trackBy: trackPorTitulo">
+      <p class="an-titulo" *ngIf="g.titulo">{{ g.titulo }}</p>
+      <a *ngFor="let it of g.items; trackBy: trackPorLink"
+         class="an-item" [routerLink]="it.link" [class.activa]="activo() === it.link"
+         [attr.aria-current]="activo() === it.link ? 'page' : null">
+        <app-icon [name]="it.icono" [size]="18"></app-icon>
+        <span>{{ it.rotulo }}</span>
+        <span class="an-insignia" *ngIf="it.insignia && insignia(it) > 0" [attr.aria-label]="insignia(it) + ' sin atender'">{{ insignia(it) }}</span>
+      </a>
+    </div>
+  </div>
+
+  <div class="an-quien">
+    <a routerLink="/home/perfil" class="an-usuario" title="Mi perfil y cambiar mi clave">
+      <span class="an-avatar">{{ inicialesDelUsuario() }}</span>
+      <span class="an-datos"><b>{{ nombre() }}</b><small *ngIf="puesto()">{{ puesto() }}</small></span>
+    </a>
+    <button class="an-salir" type="button" (click)="logout()" title="Cerrar sesión" aria-label="Cerrar sesión">
+      <app-icon name="salir" [size]="18"></app-icon>
+    </button>
+  </div>
+</nav>

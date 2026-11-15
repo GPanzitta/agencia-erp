@@ -1,0 +1,145 @@
+<div class="modal" [class.hidden]="!showModal">
+  <div class="modal-content">
+    <button class="modal-close" (click)="onClose()"><app-icon name="cerrar"></app-icon></button>
+    <div class="detail-header">
+      <h2>{{ esEdicion ? 'Editar ' + (gastoAEditar?.numero_gasto || 'gasto') : 'Registrar gasto' }}</h2>
+    </div>
+
+    <form [formGroup]="expenseForm" (ngSubmit)="onSubmit()">
+      <div class="detail-grid">
+
+        <div>
+          <label>Fecha *</label>
+          <input type="date" formControlName="fecha" class="gm-input"
+                 [class.invalid]="expenseForm.get('fecha')?.invalid && expenseForm.get('fecha')?.touched">
+        </div>
+
+        <div>
+          <label>Categoría *</label>
+          <select formControlName="categoria" class="gm-input"
+                  [class.invalid]="expenseForm.get('categoria')?.invalid && expenseForm.get('categoria')?.touched">
+            <option value="">Seleccionar…</option>
+            <option *ngFor="let cat of categorias" [value]="cat">{{ etiquetaCategoria(cat) }}</option>
+          </select>
+        </div>
+
+        <div class="span-2">
+          <label>Descripción *</label>
+          <input type="text" formControlName="descripcion" class="gm-input" placeholder="Ej: Chapa y pintura del Corolla"
+                 [class.invalid]="expenseForm.get('descripcion')?.invalid && expenseForm.get('descripcion')?.touched">
+        </div>
+
+        <div>
+          <label>Proveedor <span class="badge-optional">Opcional</span></label>
+          <select formControlName="proveedor_id" class="gm-input">
+            <option value="">Ninguno</option>
+            <option *ngFor="let prov of proveedores()" [value]="prov.id">{{ prov.nombre }}</option>
+          </select>
+        </div>
+
+        <div>
+          <label>Vence <span class="badge-optional">Opcional</span></label>
+          <input type="date" formControlName="fecha_vencimiento" class="gm-input">
+          <!-- El vencimiento alimenta Cuentas por pagar y Vencimientos. Si el
+               proveedor tiene plazo acordado, el backend lo calcula solo. -->
+          <small class="hint" *ngIf="proveedorActual()?.dias_pago && !expenseForm.value.fecha_vencimiento">
+            Si lo dejás vacío se calcula solo: fecha + {{ proveedorActual()!.dias_pago }} días
+            de plazo de {{ proveedorActual()!.nombre }}.
+          </small>
+          <small class="hint" *ngIf="!proveedorActual()?.dias_pago && !expenseForm.value.fecha_vencimiento">
+            Sin vencimiento, el gasto no aparece en Vencimientos ni cuenta como vencido.
+          </small>
+        </div>
+
+        <!-- ── Desglose fiscal ── -->
+        <div class="span-2 desglose-toggle">
+          <label class="check">
+            <input type="checkbox" [checked]="conDesglose()"
+                   (change)="toggleDesglose($any($event.target).checked)">
+            Cargar desglose fiscal (neto + IVA + percepciones)
+          </label>
+        </div>
+
+        <ng-container *ngIf="conDesglose()">
+          <div>
+            <label>Neto</label>
+            <input type="number" formControlName="neto" class="gm-input" placeholder="0.00" step="0.01" min="0">
+          </div>
+          <div>
+            <label>IVA</label>
+            <input type="number" formControlName="iva" class="gm-input" placeholder="0.00" step="0.01" min="0">
+          </div>
+          <div>
+            <label>Percepciones</label>
+            <input type="number" formControlName="percepciones" class="gm-input" placeholder="0.00" step="0.01" min="0">
+          </div>
+        </ng-container>
+
+        <div>
+          <label>Monto ($) *</label>
+          <input type="number" formControlName="monto" class="gm-input" placeholder="0.00" step="0.01"
+                 [class.invalid]="expenseForm.get('monto')?.invalid && expenseForm.get('monto')?.touched">
+          <small class="hint" *ngIf="conDesglose()">
+            Se calcula solo: neto + IVA + percepciones.
+          </small>
+          <small class="hint" *ngIf="montoEnCero()">
+            Este gasto quedó en $0 por una nota de crédito total. Si no cambiás el monto, se guarda igual.
+          </small>
+        </div>
+
+        <div>
+          <label>Método de pago *</label>
+          <select formControlName="metodo_pago" class="gm-input"
+                  [class.invalid]="expenseForm.get('metodo_pago')?.invalid && expenseForm.get('metodo_pago')?.touched">
+            <option value="">Seleccionar…</option>
+            <option *ngFor="let m of metodosPago" [value]="m">{{ m | titlecase }}</option>
+          </select>
+        </div>
+
+        <!-- ── Comprobante ── -->
+        <div>
+          <label>Tipo de comprobante</label>
+          <select formControlName="tipo_comprobante" class="gm-input">
+            <option *ngFor="let t of tiposComprobante" [value]="t">{{ etiquetaComprobante(t) }}</option>
+          </select>
+        </div>
+
+        <div class="fila-comprobante">
+          <div>
+            <label>Pto. venta</label>
+            <input type="text" formControlName="punto_venta" class="gm-input" placeholder="0001" maxlength="10">
+          </div>
+          <div>
+            <label>Nro. comprobante</label>
+            <input type="text" formControlName="numero_comprobante" class="gm-input" placeholder="00001234">
+          </div>
+        </div>
+
+        <div class="span-2 comprobante-foto">
+          <label>Foto del comprobante <span class="badge-optional">Opcional</span></label>
+          <div class="foto-fila" *ngIf="!comprobanteUrl">
+            <input type="file" accept="image/*,.pdf" (change)="subirComprobante($event)" [disabled]="subiendoComprobante()">
+            <small class="hint">{{ subiendoComprobante() ? 'Subiendo…' : 'Adjuntá la foto del comprobante (ticket o factura), o subí el PDF.' }}</small>
+          </div>
+          <div class="foto-cargada" *ngIf="comprobanteUrl">
+            <a [href]="comprobanteHref" target="_blank">Ver comprobante adjunto</a>
+            <button type="button" class="gm-btn gm-btn--neutral gm-btn--sm" (click)="quitarComprobante()">Quitar</button>
+          </div>
+        </div>
+
+        <div class="span-2">
+          <label>Notas <span class="badge-optional">Opcional</span></label>
+          <textarea formControlName="notas" class="gm-input" rows="2" placeholder="Observaciones extra..."></textarea>
+        </div>
+
+      </div>
+
+      <div class="form-actions">
+        <button type="button" class="gm-btn gm-btn--neutral" (click)="onClose()">Cancelar</button>
+        <button type="submit" class="gm-btn gm-btn--brand" [disabled]="expenseForm.invalid || isSaving()">
+          {{ isSaving() ? 'Guardando…' : (esEdicion ? 'Guardar cambios' : 'Registrar gasto') }}
+        </button>
+      </div>
+    </form>
+  </div>
+</div>

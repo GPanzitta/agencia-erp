@@ -1,0 +1,105 @@
+<header class="cab">
+  <h2>Comparar precios</h2>
+  <p>Pegá la dirección del listado de usados de otro vendedor. Leemos sus autos y los ponemos al lado de los tuyos del mismo modelo.</p>
+</header>
+
+<form class="agregar" (ngSubmit)="agregar()">
+  <label class="ancho"><span>Dirección de la página</span><input class="gm-input" name="url" type="url" inputmode="url" placeholder="https://otraagencia.com.ar/usados" [(ngModel)]="url"></label>
+  <label><span>Cómo lo llamás (opcional)</span><input class="gm-input" name="nombre" maxlength="120" placeholder="Agencia del centro" [(ngModel)]="nombre"></label>
+  <button type="submit" class="gm-btn gm-btn--brand" [disabled]="agregando()">Agregar y leer</button>
+</form>
+
+<p class="vacio" *ngIf="cargando()">Cargando…</p>
+
+<ng-container *ngIf="datos() as d">
+  <ul class="vendedores" *ngIf="d.competidores.length">
+    <li *ngFor="let v of d.competidores; trackBy: trackPorId" [class.con-error]="v.error && !v.leyendo">
+      <div>
+        <b>{{ v.nombre }}</b>
+        <a [href]="v.url" target="_blank" rel="noopener noreferrer">{{ v.url }}</a>
+        <small *ngIf="v.leyendo" class="leyendo" role="status">Leyendo sus avisos… podés seguir usando la pantalla.</small>
+        <small *ngIf="!v.error && !v.leyendo">{{ v.autos }} {{ v.autos === 1 ? 'auto leído' : 'autos leídos' }}, el {{ cuando(v.leida_at) }}</small>
+        <small *ngIf="v.error && !v.leyendo" class="error">{{ v.error }}<ng-container *ngIf="v.autos"> Se sigue comparando con los {{ v.autos }} leídos antes.</ng-container></small>
+      </div>
+      <div class="botones">
+        <button type="button" class="gm-btn gm-btn--neutral gm-btn--sm" [disabled]="v.leyendo" (click)="releer(v)">Volver a leer</button>
+        <button type="button" class="gm-btn gm-btn--neutral gm-btn--sm" (click)="quitar(v)">Quitar</button>
+      </div>
+    </li>
+  </ul>
+
+  <p class="vacio" *ngIf="!cargando() && !d.competidores.length">Todavía no agregaste a ningún vendedor. Sirve la página donde se ven todos sus autos con precio.</p>
+
+  <ng-container *ngIf="d.competidores.length">
+    <div class="barra">
+      <p class="cuenta" *ngIf="resumen() as r">
+        <b [class.rojo]="r.caros > 0">{{ r.caros }}</b> caros
+        <b>{{ r.mejores }}</b> más caros pero mejores
+        <b>{{ r.enPrecio }}</b> en precio
+        <b class="verde">{{ r.buenos }}</b> con buen precio
+        <b class="gris">{{ r.sinPar }}</b> sin comparar
+      </p>
+      <form class="dolar" (ngSubmit)="aplicarDolar()" [class.pide]="faltaDolar()">
+        <label><span>Dólar a $</span><input class="gm-input" name="dolar" inputmode="decimal" placeholder="1.450" [(ngModel)]="dolar"></label>
+        <button type="submit" class="gm-btn gm-btn--neutral gm-btn--sm">Guardar</button>
+      </form>
+    </div>
+
+    <ul class="mios">
+      <li *ngFor="let c of mios(); trackBy: trackUnidad" [attr.data-veredicto]="c.veredicto">
+        <button type="button" class="fila" (click)="abierta.set(abierta() === c.unidad.id ? null : c.unidad.id)" [attr.aria-expanded]="abierta() === c.unidad.id" [disabled]="!c.comparables.length">
+          <span class="quien"><b>{{ titulo(c) }}</b><small>{{ c.unidad.anio }}, {{ km(c.unidad.km) }}, {{ c.unidad.numero }}</small></span>
+          <span class="precio"><b>{{ plata(c.unidad.precio, c.unidad.moneda) }}</b><small *ngIf="c.esperado !== null">por sus km y su año, {{ plata(c.esperado, c.unidad.moneda) }}</small>
+            <small *ngIf="c.esperado === null && c.referencia !== null">{{ rotuloBase[c.base] }}, {{ plata(c.referencia, c.unidad.moneda) }}</small>
+            <small *ngIf="c.tendencia as t" class="tendencia" [class.baja]="t.variacion_pct < 0">el modelo {{ t.variacion_pct < 0 ? 'bajó' : t.variacion_pct > 0 ? 'subió' : 'no se movió' }}<ng-container *ngIf="t.variacion_pct !== 0"> {{ t.variacion_pct < 0 ? -t.variacion_pct : t.variacion_pct }} %</ng-container> en {{ t.dias }} días</small></span>
+          <span class="dif" *ngIf="c.diferencia_pct !== null">{{ c.diferencia_pct > 0 ? '+' : '' }}{{ c.diferencia_pct }} %</span>
+          <span class="dif" *ngIf="c.diferencia_pct === null"></span>
+          <span class="veredicto"><i>{{ rotulo[c.veredicto] }}</i><small>{{ c.motivo }}</small></span>
+        </button>
+        <table *ngIf="abierta() === c.unidad.id && c.comparables.length">
+          <thead><tr><th>Publicado por</th><th>Auto</th><th>Año</th><th>Kilómetros</th><th class="num">Precio</th></tr></thead>
+          <tbody>
+            <tr *ngFor="let a of c.comparables" [class.lejano]="!a.medido">
+              <td>{{ a.fuente }}<span class="chip-version" *ngIf="a.nivel === 2">Misma versión</span><span class="chip-version motor" *ngIf="a.nivel === 1">Mismo motor</span></td>
+              <td><a *ngIf="a.url" [href]="a.url" target="_blank" rel="noopener noreferrer">{{ a.titulo }}</a><ng-container *ngIf="!a.url">{{ a.titulo }}</ng-container><small class="detalle" *ngIf="a.detalle">{{ a.detalle }}</small></td>
+              <td>{{ a.anio ?? 'sin dato' }}</td>
+              <td class="km">{{ km(a.km) }}</td>
+              <td class="num">{{ plata(a.precio, a.moneda) }}<small *ngIf="a.moneda !== c.unidad.moneda && a.precio_en_mi_moneda !== null"> = {{ plata(a.precio_en_mi_moneda, c.unidad.moneda) }}</small></td>
+            </tr>
+          </tbody>
+        </table>
+      </li>
+    </ul>
+    <p class="vacio" *ngIf="!d.mios.length">No tenés autos en stock para comparar.</p>
+
+    <details class="ellos" *ngIf="d.novedades.length" open>
+      <summary>Qué se movió en el último mes ({{ d.novedades.length }})</summary>
+      <table>
+        <thead><tr><th>Fecha</th><th>Qué pasó</th><th>Auto</th><th>Año</th><th>Kilómetros</th><th class="num">Precio</th></tr></thead>
+        <tbody>
+          <tr *ngFor="let n of d.novedades" [attr.data-tipo]="n.tipo">
+            <td class="km">{{ dia(n.fecha) }}</td>
+            <td><b>{{ rotuloNovedad[n.tipo] }}</b><small class="detalle" *ngIf="n.variacion_pct !== null">{{ n.variacion_pct > 0 ? '+' : '' }}{{ n.variacion_pct }} %, antes {{ plata(n.precio_anterior, n.moneda) }}</small><small class="detalle" *ngIf="n.dias_publicado !== null">estuvo {{ n.dias_publicado }} {{ n.dias_publicado === 1 ? 'día' : 'días' }} a la vista</small></td>
+            <td><a *ngIf="n.url && n.tipo !== 'salio'" [href]="n.url" target="_blank" rel="noopener noreferrer">{{ n.titulo }}</a><ng-container *ngIf="!n.url || n.tipo === 'salio'">{{ n.titulo }}</ng-container><small class="detalle">{{ n.detalle }}<ng-container *ngIf="n.detalle && n.fuente">, </ng-container>{{ n.fuente }}</small></td>
+            <td>{{ n.anio ?? 'sin dato' }}</td><td class="km">{{ km(n.km) }}</td><td class="num">{{ plata(n.precio, n.moneda) }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </details>
+
+    <details class="ellos" *ngIf="d.solo_ellos.length">
+      <summary>Lo que ellos tienen y vos no ({{ d.solo_ellos.length }})</summary>
+      <table>
+        <thead><tr><th>Publicado por</th><th>Auto</th><th>Año</th><th>Kilómetros</th><th class="num">Precio</th></tr></thead>
+        <tbody>
+          <tr *ngFor="let a of d.solo_ellos">
+            <td>{{ a.fuente }}</td>
+            <td><a *ngIf="a.url" [href]="a.url" target="_blank" rel="noopener noreferrer">{{ a.titulo }}</a><ng-container *ngIf="!a.url">{{ a.titulo }}</ng-container><small class="detalle" *ngIf="a.detalle">{{ a.detalle }}</small></td>
+            <td>{{ a.anio ?? 'sin dato' }}</td><td class="km">{{ km(a.km) }}</td><td class="num">{{ plata(a.precio, a.moneda) }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </details>
+    <p class="ayuda nota">La comparación junta los avisos del mismo modelo con un año de diferencia y mide contra lo más parecido que haya (al menos dos): la misma versión, el mismo motor y caja, o todo el modelo. Con cinco avisos o más estima cuánto debería valer un auto con tus kilómetros y tu año, y compara contra eso. Los avisos se releen solos todos los días a la madrugada. No ve el estado real del auto ni si el precio se negocia.</p>
+  </ng-container>
+</ng-container>

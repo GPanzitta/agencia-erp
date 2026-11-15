@@ -1,0 +1,99 @@
+<div class="global-card empresa-card">
+  <div class="card-header">
+    <h2>Datos de la agencia</h2>
+    <a class="ver-primeros-pasos" routerLink="/home" (click)="verPrimerosPasos()">Ver primeros pasos</a>
+    <p>Con estos datos salen impresos el boleto de compraventa y los recibos, y se completa tu sitio.</p>
+  </div>
+
+  <p *ngIf="cargando()" class="cargando">Cargando…</p>
+
+  <!-- #5: sin la lectura no hay form. Guardar los valores por defecto pisaba
+       la billetera de MP y el token con null. -->
+  <div *ngIf="!cargando() && !cargado()" class="error-carga">
+    <p class="cargando">No se pudieron leer los datos de la empresa.</p>
+    <button type="button" class="gm-btn gm-btn--neutral" (click)="cargarEmpresa()">Reintentar</button>
+  </div>
+
+  <form *ngIf="!cargando() && cargado()" [formGroup]="form" (ngSubmit)="guardar()">
+    <div class="fila">
+      <div class="form-group">
+        <label>Nombre de la agencia</label>
+        <input type="text" formControlName="name" class="gm-input" placeholder="Ej: García Automotores">
+      </div>
+      <div class="form-group">
+        <label>CUIT</label>
+        <input type="text" formControlName="cuit" class="gm-input" placeholder="Ej: 30-12345678-9">
+      </div>
+    </div>
+    <div class="fila">
+      <div class="form-group">
+        <label>Dirección</label>
+        <input type="text" formControlName="direccion" class="gm-input" placeholder="Calle, número, ciudad">
+      </div>
+      <div class="form-group">
+        <label>Teléfono</label>
+        <input type="text" formControlName="telefono" class="gm-input" placeholder="Ej: 11 4444-5555">
+        <!-- CLI-15: el sitio arma con este número todos sus botones de WhatsApp. -->
+        <small class="ayuda">Sale en los documentos y es el WhatsApp del sitio: conviene un celular con WhatsApp, no un fijo.</small>
+      </div>
+    </div>
+
+    <!-- ─── Datos legales y de los documentos (opción B, 13/10/2026) ──────── -->
+    <h2 class="seccion">Datos legales y de los documentos</h2>
+    <p class="seccion-ayuda">
+      Lo que llevan el boleto de compraventa y los recibos. Lo que quede vacío no se imprime.
+    </p>
+    <p class="aviso-legales" *ngIf="!datosLegalesDisponibles()">
+      El servidor todavía no guarda estos datos: se habilitan cuando se actualice. Mientras tanto los
+      papeles salen con los valores por defecto.
+    </p>
+
+    <div class="fila">
+      <div class="form-group">
+        <label for="razon_social">Razón social</label>
+        <input id="razon_social" type="text" formControlName="razon_social" class="gm-input" placeholder="Ej: García Automotores S.R.L.">
+        <small class="ayuda">El nombre legal: va en el boleto y en los recibos. Vacía = se usa el nombre de la agencia.</small>
+      </div>
+      <div class="form-group">
+        <label for="condicion_iva">Condición frente al IVA</label>
+        <select id="condicion_iva" formControlName="condicion_iva" class="gm-input">
+          <option value="">Sin indicar (no se imprime)</option>
+          <option *ngFor="let c of CONDICIONES_IVA" [value]="c.valor">{{ c.etiqueta }}</option>
+        </select>
+        <small class="ayuda">Sale en el pie, junto al CUIT.</small>
+      </div>
+    </div>
+    <div class="fila">
+      <div class="form-group">
+        <label for="iibb">Ingresos Brutos (N°)</label>
+        <input id="iibb" type="text" formControlName="iibb" class="gm-input" placeholder="Ej: 1234567-08">
+        <small class="ayuda">Pie de las hojas. Vacío = no se imprime.</small>
+      </div>
+      <div class="form-group">
+        <label for="inicio_actividades">Inicio de actividades</label>
+        <input id="inicio_actividades" type="date" formControlName="inicio_actividades" class="gm-input">
+        <small class="ayuda">Pie de las hojas. Vacío = no se imprime.</small>
+      </div>
+    </div>
+    <div class="fila">
+      <div class="form-group">
+        <label for="email_contacto">Correo de contacto</label>
+        <input id="email_contacto" type="email" formControlName="email_contacto" class="gm-input" placeholder="Ej: hola@miagencia.com.ar">
+        <small class="ayuda" *ngIf="!form.get('email_contacto')?.errors?.['email']">Acá te llegan las respuestas de tus clientes a tus correos. También es donde piden ver o borrar sus datos y reclaman la garantía. Vacío = los papeles dicen «en el local».</small>
+        <small class="ayuda error" *ngIf="form.get('email_contacto')?.errors?.['email']">No parece un correo válido.</small>
+      </div>
+      <div class="form-group">
+        <label for="horario_atencion">Horario de atención</label>
+        <input id="horario_atencion" type="text" formControlName="horario_atencion" class="gm-input" placeholder="Ej: lunes a sábados de 9 a 18 h">
+        <small class="ayuda">Sale en el encabezado de los papeles. Vacío = se omite.</small>
+      </div>
+    </div>
+
+    <div class="acciones">
+      <button type="submit" class="gm-btn gm-btn--brand" [disabled]="form.invalid || guardando()">
+        {{ guardando() ? 'Guardando…' : 'Guardar' }}
+      </button>
+    </div>
+  </form>
+
+</div>

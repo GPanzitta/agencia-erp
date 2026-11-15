@@ -1,0 +1,38 @@
+<div class="login-page">
+
+  <div class="login-brand">
+    <span class="login-tile">{{ iniciales }}</span>
+    <span class="login-word">{{ marca }}</span>
+  </div>
+
+  <div class="login-card">
+    <form [formGroup]="loginForm" (ngSubmit)="onSubmit()">
+      <div class="campo">
+        <label for="email">Usuario</label>
+        <input id="email" type="email" class="gm-input" formControlName="email"
+               autocomplete="username" placeholder="vendedor@tuagencia.com" />
+      </div>
+
+      <div class="campo">
+        <label for="password">Contraseña</label>
+        <input id="password" type="password" class="gm-input" formControlName="password"
+               autocomplete="current-password" />
+      </div>
+
+      <button type="submit" class="gm-btn gm-btn--brand login-btn" [disabled]="loginForm.invalid || enviando()">{{ enviando() ? 'Entrando…' : 'Iniciar sesión' }}</button>
+    </form>
+
+    <button type="button" class="gm-btn gm-btn--neutral login-btn login-reenviar" *ngIf="sinConfirmar()" (click)="reenviarConfirmacion()">Reenviar el correo de confirmación</button>
+
+    <div class="login-pie">
+      <a routerLink="/auth/recuperar" class="login-ayuda-link">Me olvidé la clave</a>
+      <button type="button" class="login-ayuda-link" (click)="mostrarAyuda.set(!mostrarAyuda())">¿Problemas para ingresar?</button>
+      <span class="login-pie-txt">Uso exclusivo del personal autorizado</span>
+    </div>
+    <p class="login-ayuda" *ngIf="mostrarAyuda()">Solicitá tus credenciales o el restablecimiento de tu contraseña a la administración de la agencia.</p>
+  </div>
+
+  <p class="login-registro">¿Tu agencia todavía no usa {{ marca }}? <a routerLink="/auth/registro">Registrate</a></p>
+
+  <div class="login-footer">{{ marca }} · Sistema de gestión para agencias de autos · v1.0</div>
+</div>

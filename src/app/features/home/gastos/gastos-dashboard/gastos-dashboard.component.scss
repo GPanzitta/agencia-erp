@@ -1,0 +1,348 @@
+/* ═══════════════════════════════════════════════════════
+   GASTOS — Responsive
+   ═══════════════════════════════════════════════════════ */
+
+.gastos-elite-container {
+  animation: fadeSlideIn 0.3s ease-out;
+
+  .gastos-tabs {
+    display: flex;
+    gap: 4px;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--color-border);
+    margin-bottom: 1rem;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    &::-webkit-scrollbar { height: 0; }
+
+    button {
+      display: flex; align-items: center; gap: 6px;
+      padding: 0.5rem 1rem;
+      border-radius: var(--radius-sm);
+      color: var(--color-text-dim);
+      font-weight: 700;
+      font-size: 0.8rem;
+      white-space: nowrap;
+      transition: all 0.15s;
+      .icon { font-size: 1rem; }
+      &:hover { background: rgba(20, 24, 28, 0.04); color: var(--color-text-secondary); }
+      &.active { background: rgba(14, 124, 134,0.1); color: var(--color-accent-teal); }
+    }
+  }
+
+  .tab-content {
+    animation: fadeSlideIn 0.25s ease-out;
+  }
+
+  .table-container { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+  /* Table row styles */
+  .row-anulado td { opacity: 0.4; text-decoration: line-through; }
+
+  .date-main { display: block; font-weight: 700; font-size: 0.8rem; }
+  .date-sub { display: block; font-size: 0.65rem; color: var(--color-text-dim); }
+
+  .desc-main { display: block; font-weight: 700; font-size: 0.85rem; }
+  .desc-sub { display: block; font-size: 0.75rem; color: var(--color-text-dim); }
+
+  .category-badge {
+    background: rgba(20, 24, 28, 0.05);
+    padding: 3px 8px; border-radius: 4px;
+    font-size: 0.75rem; font-weight: 700;
+    text-transform: capitalize;
+  }
+
+  .amount-danger { font-weight: 900; color: var(--color-danger); font-size: 0.9rem; }
+
+  .method-text { display: block; text-transform: capitalize; font-weight: 700; font-size: 0.8rem; }
+  .receipt-num { display: block; font-size: 0.7rem; color: var(--color-text-dim); }
+
+  .empty-state { text-align: center; padding: 2.5rem; color: var(--color-text-dim); }
+}
+
+@media (max-width: 767px) {
+  .gastos-elite-container {
+    .gastos-tabs {
+      .lbl { display: none; }
+      button { padding: 0.5rem 0.75rem; }
+    }
+  }
+}
+
+/* ═══════════════════════════════════════════════════════
+   Reversión del módulo — KPIs, cajas, rubros, modales
+   ═══════════════════════════════════════════════════════ */
+
+.gastos-elite-container {
+
+  /* ── KPIs del mes ── */
+  .kpi-row {
+    display: flex; gap: 0.6rem; flex-wrap: wrap; margin-bottom: 0.9rem;
+  }
+  .kpi-card {
+    background: rgba(20, 24, 28, 0.03);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    padding: 0.6rem 0.95rem;
+    min-width: 130px;
+    .kpi-lbl {
+      display: block; font-size: 0.64rem; text-transform: uppercase;
+      letter-spacing: 0.4px; color: var(--color-text-dim); font-weight: 800;
+    }
+    .kpi-val { font-size: 1.15rem; font-weight: 950; display: block;
+      &.warn { color: var(--alerta); }
+      &.danger { color: var(--color-danger); }
+    }
+    small { font-size: 0.66rem; color: var(--color-text-dim); }
+    &.alerta-card { border-color: rgba(245,158,11,0.4); }
+  }
+
+  /* Mini gráfico de meses */
+  .kpi-meses { min-width: 180px; }
+  .meses-barras {
+    display: flex; gap: 6px; align-items: flex-end; height: 44px; margin-top: 4px;
+    .mes {
+      display: flex; flex-direction: column; align-items: center; gap: 2px; flex: 1;
+      small { font-size: 0.58rem; color: var(--color-text-dim); }
+    }
+    .mes-barra {
+      width: 100%; max-width: 22px; height: 32px;
+      display: flex; align-items: flex-end;
+      background: rgba(20, 24, 28, 0.05); border-radius: 3px; overflow: hidden;
+    }
+    .mes-relleno { width: 100%; background: var(--color-accent-teal); border-radius: 3px; }
+  }
+
+  /* ── Las cajas ── */
+  .cajas-row {
+    display: flex; gap: 0.6rem; flex-wrap: wrap; align-items: center;
+    margin-bottom: 0.9rem;
+  }
+  .caja-chip {
+    display: flex; align-items: center; gap: 0.6rem;
+    background: rgba(14, 124, 134,0.06);
+    border: 1px solid rgba(14, 124, 134,0.25);
+    border-radius: var(--radius-sm);
+    padding: 0.5rem 0.85rem;
+    cursor: pointer;
+    transition: border-color 0.15s;
+    &:hover { border-color: var(--color-accent-teal); }
+    &.caja-neg { background: rgba(239,68,68,0.06); border-color: rgba(239,68,68,0.35); }
+
+    .caja-info { display: flex; flex-direction: column; }
+    .caja-nombre { font-size: 0.8rem; font-weight: 900; }
+    .caja-tipo { font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.4px;
+                 color: var(--color-text-dim); font-weight: 700; }
+    .caja-saldo { font-size: 0.95rem; font-weight: 950; font-variant-numeric: tabular-nums; }
+  }
+  .cajas-hint { font-size: 0.7rem; color: var(--color-text-dim); }
+
+  /* ── Rubros del mes ── */
+  .rubros-card {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+    gap: 0.7rem 1.2rem; padding: 0.85rem 1rem; margin-bottom: 0.9rem;
+  }
+  .rubro {
+    .rubro-head {
+      display: flex; justify-content: space-between; align-items: baseline;
+      font-size: 0.75rem; margin-bottom: 3px;
+      strong { font-variant-numeric: tabular-nums; }
+    }
+    .rubro-barra { height: 4px; background: rgba(20, 24, 28, 0.06); border-radius: 999px; overflow: hidden; }
+    .rubro-relleno { height: 100%; background: var(--color-accent-teal); border-radius: 999px; }
+  }
+
+  .aviso-aprobacion {
+    display: flex; align-items: center; gap: 10px;
+    background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.35);
+    border-radius: var(--radius-sm); padding: 12px 16px; margin-bottom: 16px;
+    color: var(--alerta); font-weight: 600; font-size: 0.85rem;
+  }
+
+  /* ── Filtros ── */
+  .filtros-card { margin-bottom: 16px; padding: 14px 16px; }
+  .filtros-fila { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; }
+  .filtro {
+    display: flex; flex-direction: column; gap: 4px;
+    span { font-size: 0.72rem; font-weight: 700; color: var(--color-text-dim); }
+    select, input { min-width: 130px; }
+  }
+  .filtro-check {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 0.8rem; cursor: pointer; padding-bottom: 8px;
+  }
+  .filtros-totales {
+    display: flex; gap: 24px; margin-top: 12px; padding-top: 12px;
+    border-top: 1px solid var(--color-border); font-size: 0.85rem; flex-wrap: wrap;
+    em { font-style: normal; color: var(--color-text-dim); }
+  }
+
+  /* ── Tabla ── */
+  .num { text-align: right; font-variant-numeric: tabular-nums; }
+  .danger { color: var(--color-danger); }
+  .fila-gasto { cursor: pointer; }
+
+  .badge-espera  { background: rgba(245,158,11,0.15); color: var(--alerta); }
+  .badge-parcial { background: rgba(59,130,246,0.15); color: var(--gm-brand); }
+  .badge-neutro  { background: rgba(20, 24, 28, 0.07); color: var(--color-text-dim); }
+
+  .celda-pago {
+    .pago-barra {
+      margin-top: 4px; height: 3px; width: 90px;
+      background: rgba(20, 24, 28, 0.08); border-radius: 999px; overflow: hidden;
+    }
+    .pago-relleno { height: 100%; background: var(--gm-brand); border-radius: 999px; }
+  }
+
+  .celda-acciones {
+    white-space: nowrap;
+    .gm-btn { margin-right: 4px; }
+  }
+}
+
+/* ── Modales ── */
+.modal-overlay {
+  position: fixed; inset: 0; z-index: 1000;
+  background: rgba(0,0,0,0.6);
+  display: flex; align-items: center; justify-content: center;
+  padding: 1rem;
+}
+.modal-content {
+  position: relative;
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md, 10px);
+  padding: 1.4rem;
+  width: 100%;
+  max-height: 88vh;
+  overflow-y: auto;
+  &.modal-pago    { max-width: 480px; }
+  &.modal-rechazo { max-width: 440px; }
+  &.modal-detalle { max-width: 620px; }
+  &.modal-caja    { max-width: 640px; }
+}
+.modal-close {
+  position: absolute; top: 12px; right: 12px;
+  color: var(--color-text-dim);
+  &:hover { color: var(--color-text-secondary); }
+}
+.modal-titulo {
+  margin-bottom: 1.1rem;
+  h2 { margin: 0; font-size: 1.25rem; font-weight: 950; }
+  p { color: var(--color-text-dim); font-size: 0.85rem; margin-top: 4px; line-height: 1.45; }
+}
+.form-group {
+  margin-bottom: 1rem;
+  label {
+    display: block; margin-bottom: 6px;
+    font-weight: 700; font-size: 0.8rem; color: var(--color-text-dim);
+  }
+  input, select, textarea { width: 100%; }
+}
+.modal-actions {
+  display: flex; justify-content: flex-end; gap: 0.8rem;
+  border-top: 1px solid var(--color-border);
+  padding-top: 1.1rem; margin-top: 0.4rem;
+}
+
+/* Previsión del saldo en el modal de pago */
+.saldo-preview {
+  background: rgba(14, 124, 134,0.07);
+  border: 1px solid rgba(14, 124, 134,0.25);
+  border-radius: var(--radius-sm);
+  padding: 0.6rem 0.8rem;
+  font-size: 0.8rem;
+  margin-bottom: 1rem;
+  line-height: 1.45;
+  &--mal {
+    background: rgba(239,68,68,0.08);
+    border-color: rgba(239,68,68,0.35);
+    color: var(--peligro);
+  }
+}
+
+/* Detalle del gasto */
+.detalle-cifras {
+  display: flex; gap: 1.4rem; flex-wrap: wrap;
+  margin-bottom: 1.1rem;
+  > div { display: flex; flex-direction: column; }
+  em { font-style: normal; font-size: 0.64rem; text-transform: uppercase;
+       letter-spacing: 0.4px; color: var(--color-text-dim); font-weight: 800; }
+  strong { font-size: 0.95rem; font-weight: 900; font-variant-numeric: tabular-nums; }
+  .danger { color: var(--color-danger); }
+}
+.detalle-sub { font-size: 0.85rem; font-weight: 900; margin-bottom: 0.5rem; }
+.detalle-vacio { color: var(--color-text-dim); font-size: 0.82rem; padding: 0.4rem 0; }
+
+.tabla-pagos {
+  width: 100%; border-collapse: collapse; font-size: 0.8rem;
+  th {
+    text-align: left; font-size: 0.66rem; text-transform: uppercase;
+    letter-spacing: 0.4px; color: var(--color-text-dim);
+    padding: 6px 8px; border-bottom: 1px solid var(--color-border);
+    &.num { text-align: right; }
+  }
+  td {
+    padding: 7px 8px; border-bottom: 1px solid rgba(20, 24, 28, 0.04);
+    &.num { text-align: right; font-variant-numeric: tabular-nums; }
+  }
+  .ref { color: var(--color-text-dim); }
+  .concepto { font-size: 0.74rem; color: var(--color-text-secondary); }
+  .pago-anulado td { opacity: 0.45; text-decoration: line-through; }
+  .mov-ingreso { color: var(--ok); font-weight: 800; }
+  .mov-egreso  { color: var(--peligro); font-weight: 800; }
+  .origen-chip {
+    background: rgba(20, 24, 28, 0.06); padding: 2px 7px;
+    border-radius: 999px; font-size: 0.68rem; font-weight: 700;
+  }
+}
+
+.anular-pago-box {
+  margin-top: 0.9rem;
+  background: rgba(239,68,68,0.07);
+  border: 1px solid rgba(239,68,68,0.3);
+  border-radius: var(--radius-sm);
+  padding: 0.8rem;
+  p { font-size: 0.8rem; margin-bottom: 0.6rem; line-height: 1.45; }
+  input { width: 100%; margin-bottom: 0.4rem; }
+  .modal-actions { border-top: none; padding-top: 0.4rem; }
+}
+
+/* Chip del filtro por proveedor, puesto desde Cuentas por pagar. */
+.gastos-elite-container .chip-proveedor {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: rgba(14, 124, 134,0.12);
+  border: 1px solid rgba(14, 124, 134,0.35);
+  color: var(--color-accent-teal);
+  border-radius: 999px;
+  padding: 5px 12px;
+  font-size: 0.76rem; font-weight: 800;
+  button { font-size: 1rem; line-height: 1; color: inherit; opacity: 0.7;
+    &:hover { opacity: 1; } }
+}
+
+/* Vencimiento en la columna de fecha. */
+.gastos-elite-container .date-vence {
+  display: block; font-size: 0.64rem; font-weight: 800;
+  color: var(--color-text-dim);
+  &.vencido { color: var(--color-danger); }
+}
+
+/* Acciones dentro del chip de caja. */
+.gastos-elite-container .caja-acciones {
+  display: flex; gap: 2px; margin-left: 4px;
+  button {
+    padding: 4px; border-radius: var(--radius-sm); color: var(--color-text-dim);
+    line-height: 0;
+    &:hover { background: rgba(20,24,28,0.06); color: var(--color-text-dark); }
+  }
+}
+.gastos-elite-container .header-acciones { display: flex; gap: 8px; align-items: center; }
+
+/* Opciones del modal de destino del dinero */
+.destino-opciones { display: flex; flex-direction: column; gap: 10px; margin: 6px 0 4px; }
+.destino-opcion { display: flex; flex-direction: column; gap: 3px; text-align: left; padding: 12px 14px; border: 1px solid var(--gm-input-border); border-radius: var(--gm-radius-lg); background: var(--gm-card); cursor: pointer; }
+.destino-opcion:hover { border-color: var(--gm-brand); background: var(--gm-bg); }
+.destino-opcion strong { font-size: 0.92rem; color: var(--gm-navy); }
+.destino-opcion span { font-size: 0.8rem; color: var(--gm-muted); }
+

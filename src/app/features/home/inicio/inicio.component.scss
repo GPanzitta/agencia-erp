@@ -1,0 +1,51 @@
+@use '../autos/autos' as *;
+
+:host { display: block; max-width: 1180px; }
+@include autos-base;
+
+.saludo { margin-bottom: 1.3rem;
+  h1 { font-size: 1.9rem; font-weight: 700; letter-spacing: -0.02em; line-height: 1.15; }
+  p { color: var(--gm-muted); margin-top: 0.15rem; &::first-letter { text-transform: uppercase; } } }
+
+.dos { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 1rem; margin-bottom: 1rem; align-items: start;
+  @media (max-width: 900px) { grid-template-columns: minmax(0, 1fr); } }
+section { background: var(--gm-card); border: 1px solid var(--gm-border); border-radius: var(--gm-radius-lg); padding: 1.1rem 1.2rem;
+  h2 { font-size: 1rem; font-weight: 600; margin-bottom: 0.8rem; } }
+
+.atender ul { list-style: none; display: grid; }
+.atender a { display: grid; grid-template-columns: 3rem minmax(0, 1fr); gap: 0.9rem; align-items: center; padding: 0.7rem 0; border-top: 1px solid var(--gm-border);
+  color: var(--gm-text); text-decoration: none;
+  b { font-size: 1.7rem; font-weight: 700; line-height: 1; text-align: right; font-variant-numeric: tabular-nums; }
+  span { display: grid; gap: 0.05rem; }
+  strong { font-weight: 600; }
+  small { color: var(--gm-muted); font-size: 0.85rem; }
+  &:hover strong { text-decoration: underline; text-underline-offset: 3px; }
+  &.urgente b { color: var(--gm-error); } }
+.atender li:first-child a { border-top: 0; padding-top: 0.2rem; }
+
+/* La playa: el fondo asfalto del menú, con la cifra principal en amarillo vial. */
+.playa { background: var(--fg-asfalto); border-color: var(--fg-asfalto); color: #fff;
+  h2 { color: #C9D1D6; }
+  dl { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1.1rem 1rem; }
+  dl > div { display: grid; gap: 0.1rem; align-content: start; min-width: 0; }
+  dt { font-size: 0.82rem; color: #9AA7B0; }
+  dd { font-size: 1.35rem; font-weight: 700; line-height: 1.2; font-variant-numeric: tabular-nums; }
+  small { font-size: 0.8rem; color: #9AA7B0; }
+  .grande { grid-column: 1 / -1; padding-bottom: 1rem; border-bottom: 1px dashed rgba(255, 255, 255, 0.22);
+    dd { font-size: 3.4rem; line-height: 1; color: var(--fg-senal); letter-spacing: -0.03em; } }
+  .alerta dd { color: #FF9C8F; }
+  @media (max-width: 520px) { dl { grid-template-columns: repeat(2, minmax(0, 1fr)); } } }
+
+.autos { list-style: none; display: grid;
+  a { display: grid; grid-template-columns: 76px minmax(0, 1fr) auto; gap: 0.8rem; align-items: center; padding: 0.55rem 0; border-top: 1px solid var(--gm-border);
+    color: var(--gm-text); text-decoration: none; &:hover strong { text-decoration: underline; text-underline-offset: 3px; } }
+  li:first-child a { border-top: 0; }
+  .foto { width: 76px; aspect-ratio: 4 / 3; border-radius: 6px; overflow: hidden; background: var(--gm-col); display: grid; place-items: center;
+    img { width: 100%; height: 100%; object-fit: cover; display: block; } i { font-style: normal; font-size: 0.7rem; color: var(--gm-muted); } }
+  .quien { display: grid; gap: 0.15rem; min-width: 0; justify-items: start;
+    strong { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+    small { color: var(--gm-muted); font-size: 0.82rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; } }
+  .lado { display: grid; justify-items: end; gap: 0.1rem; font-variant-numeric: tabular-nums; small { color: var(--gm-muted); font-size: 0.82rem; } } }
+
+app-primeros-pasos { display: block; margin-bottom: 1rem; }
+.primero { text-align: left; p { color: var(--gm-text-2); margin-bottom: 0.9rem; max-width: 60ch; } }

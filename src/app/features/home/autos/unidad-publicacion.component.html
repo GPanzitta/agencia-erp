@@ -1,0 +1,123 @@
+<ng-container *ngIf="unidad() as u">
+  <nav class="migas" aria-label="Dónde estás">
+    <a routerLink="/home/autos">Stock</a><span>›</span><a [routerLink]="['/home/autos/unidad', u.id]">{{ u.titulo }}</a><span>›</span><b>Publicación</b>
+  </nav>
+
+  <header class="cab">
+    <div>
+      <h2>Publicación de {{ u.marca }} {{ u.modelo }}</h2>
+      <p>Así se ve en tu sitio. Lo que cargues acá aparece en la página del auto; lo que dejes vacío no se muestra.</p>
+    </div>
+    <div class="estado">
+      <span class="chip" [attr.data-estado]="u.publicada ? 'disponible' : 'baja'">{{ u.publicada ? 'En el sitio' : 'Sin publicar' }}</span>
+      <a *ngIf="u.publicada && sitio()" class="gm-btn gm-btn--neutral gm-btn--sm" [href]="sitio() + '/autos/' + u.id" target="_blank" rel="noopener noreferrer">Ver en el sitio</a>
+    </div>
+  </header>
+
+  <form (ngSubmit)="guardar()">
+    <div class="arriba">
+      <section class="galeria" aria-label="Fotos">
+        <div class="grande">
+          <img *ngIf="u.fotos[fotoActiva()] as f" [src]="foto(f.url)" [alt]="u.titulo">
+          <p *ngIf="!u.fotos.length">Este auto todavía no tiene fotos. Sin fotos, casi nadie consulta.</p>
+          <span class="cuenta" *ngIf="u.fotos.length">{{ fotoActiva() + 1 }} / {{ u.fotos.length }}</span>
+        </div>
+        <ul class="minis" *ngIf="u.fotos.length > 1">
+          <li *ngFor="let f of u.fotos; let i = index"><button type="button" [class.activa]="i === fotoActiva()" (click)="fotoActiva.set(i)" [attr.aria-label]="'Ver la foto ' + (i + 1)"><img [src]="foto(f.url_miniatura)" alt=""></button></li>
+        </ul>
+        <a class="enlace" [routerLink]="['/home/autos/unidad', u.id]">Agregar, quitar o cambiar la portada en la ficha del auto</a>
+      </section>
+
+      <aside class="panel">
+        <h3>{{ u.titulo }} {{ u.anio }}</h3>
+        <p class="renglon">{{ renglon(u) }}</p>
+
+        <div class="opcion">
+          <span>Precio contado</span>
+          <b>{{ plata(u.precio_venta, u.moneda) }}</b>
+          <small>Se cambia en la ficha del auto.</small>
+        </div>
+
+        <label class="opcion editable">
+          <span>Precio financiando con la agencia</span>
+          <input class="gm-input" name="financiado" inputmode="decimal" [placeholder]="'Vacío = no se ofrece'" [(ngModel)]="financiado">
+          <small>Sale como una segunda opción de compra, con enlace al simulador de cuotas si está prendido.</small>
+        </label>
+
+        <label class="opcion casilla">
+          <input type="checkbox" name="toma" [(ngModel)]="p.mostrar_toma">
+          <span><b>Entregá tu usado</b><small>Invita a cotizar su auto para entregarlo en parte de pago.</small></span>
+        </label>
+
+        <fieldset class="opcion">
+          <legend>Otras opciones de compra</legend>
+          <label class="radio"><input type="radio" name="relacion" [value]="false" [(ngModel)]="eligeRelacionadas"><span>Que el sitio elija: mismo modelo y precio parecido</span></label>
+          <label class="radio"><input type="radio" name="relacion" [value]="true" [(ngModel)]="eligeRelacionadas"><span>Las elijo yo (hasta {{ topes.relacionadas }})</span></label>
+          <ul class="otros" *ngIf="eligeRelacionadas">
+            <li *ngFor="let o of otros(); trackBy: trackPorId">
+              <label><input type="checkbox" [checked]="elegida(o.id)" (change)="alternar(o.id)"><span>{{ o.titulo }} {{ o.anio }}<small>{{ plata(o.precio_venta, o.moneda) }}</small></span></label>
+            </li>
+            <li *ngIf="!otros().length" class="vacio">No hay otros autos en stock.</li>
+          </ul>
+        </fieldset>
+      </aside>
+    </div>
+
+    <section class="bloque">
+      <h3>Equipamiento destacado <small>{{ p.destacados.length }} de {{ topes.destacados }}</small></h3>
+      <p class="ayuda">Lo que más vende de este auto. Va arriba de todo en la publicación.</p>
+      <ul class="destacados">
+        <li *ngFor="let d of p.destacados; let i = index; trackBy: trackPorIndice">
+          <span><b>{{ d.nombre }}</b><small>{{ d.categoria }}</small></span>
+          <button type="button" (click)="quitarDestacado(i)" [attr.aria-label]="'Quitar ' + d.nombre">Quitar</button>
+        </li>
+      </ul>
+      <div class="agregar">
+        <input class="gm-input" name="dNombre" maxlength="60" placeholder="Tapizado de cuero" [(ngModel)]="nuevoDestacado.nombre" (keydown.enter)="$event.preventDefault(); agregarDestacado()">
+        <select class="gm-input" name="dCategoria" [(ngModel)]="nuevoDestacado.categoria"><option *ngFor="let c of categorias" [value]="c">{{ c }}</option></select>
+        <button type="button" class="gm-btn gm-btn--neutral gm-btn--sm" (click)="agregarDestacado()">Agregar</button>
+      </div>
+    </section>
+
+    <section class="bloque">
+      <h3>Características <small>{{ p.caracteristicas.length }} de {{ topes.caracteristicas }}</small></h3>
+      <p class="ayuda">La ficha técnica, por grupos. Un renglón sin valor no se publica.
+        <button type="button" class="enlace" (click)="usarPlantilla()">Cargar los renglones más comunes</button></p>
+      <div class="grupo" *ngFor="let g of grupos(); trackBy: trackPorGrupo">
+        <h4>{{ g.grupo }}</h4>
+        <div class="renglones">
+          <div *ngFor="let c of g.items; let i = index; trackBy: trackPorIndice">
+            <input class="gm-input" [name]="'e-' + g.grupo + i" maxlength="60" placeholder="Qué" [(ngModel)]="c.etiqueta" [attr.aria-label]="'Característica de ' + g.grupo">
+            <input class="gm-input" [name]="'v-' + g.grupo + i" maxlength="60" placeholder="Valor: Sí, 6, Cuero…" [(ngModel)]="c.valor" [attr.aria-label]="'Valor de ' + (c.etiqueta || 'la característica')">
+            <button type="button" (click)="quitarCaracteristica(c)" aria-label="Quitar el renglón">Quitar</button>
+          </div>
+        </div>
+        <button type="button" class="enlace" (click)="agregarCaracteristica(g.grupo)">Agregar a {{ g.grupo }}</button>
+      </div>
+      <div class="agregar" *ngIf="!p.caracteristicas.length">
+        <button type="button" class="gm-btn gm-btn--neutral gm-btn--sm" (click)="agregarCaracteristica(primerGrupo)">Agregar una a mano</button>
+      </div>
+    </section>
+
+    <section class="bloque">
+      <h3>Colores <small>{{ p.colores.length }} de {{ topes.colores }}</small></h3>
+      <p class="ayuda">El color de este auto o, en un 0 km, los colores en que se consigue.</p>
+      <ul class="colores">
+        <li *ngFor="let c of p.colores; let i = index; trackBy: trackPorIndice">
+          <i [style.background]="c.hex"></i><span>{{ c.nombre }}</span>
+          <button type="button" (click)="quitarColor(i)" [attr.aria-label]="'Quitar ' + c.nombre">Quitar</button>
+        </li>
+      </ul>
+      <div class="agregar">
+        <input type="color" name="cHex" [(ngModel)]="nuevoColor.hex" aria-label="Color">
+        <input class="gm-input" name="cNombre" maxlength="60" placeholder="Gris plata" [(ngModel)]="nuevoColor.nombre" (keydown.enter)="$event.preventDefault(); agregarColor()">
+        <button type="button" class="gm-btn gm-btn--neutral gm-btn--sm" (click)="agregarColor()">Agregar</button>
+      </div>
+    </section>
+
+    <div class="pie">
+      <button type="submit" class="gm-btn gm-btn--brand" [disabled]="guardando()">{{ guardando() ? 'Guardando…' : 'Guardar la publicación' }}</button>
+      <a class="gm-btn gm-btn--neutral" [routerLink]="['/home/autos/unidad', u.id]">Volver a la ficha</a>
+    </div>
+  </form>
+</ng-container>

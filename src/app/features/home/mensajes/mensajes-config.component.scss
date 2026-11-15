@@ -1,0 +1,39 @@
+:host { display: block; }
+.cab { margin-bottom: 1rem; h2 { margin: 0 0 0.2rem; } p { color: var(--gm-muted); max-width: 72ch; }
+  .correo { margin-top: 0.5rem; font-size: 0.88rem; color: var(--gm-text-2); &.falta { color: var(--gm-error); } } }
+.vacio, .ayuda { color: var(--gm-muted); font-size: 0.86rem; }
+.enlace { border: 0; background: none; padding: 0; margin-left: 0.5rem; font: inherit; color: var(--gm-brand); cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+
+.dos { display: grid; grid-template-columns: 260px minmax(0, 1.2fr) minmax(0, 1fr); gap: 1.2rem; align-items: start;
+  @media (max-width: 1150px) { grid-template-columns: 240px minmax(0, 1fr); .previa { grid-column: 2; } }
+  @media (max-width: 760px) { grid-template-columns: minmax(0, 1fr); .previa { grid-column: auto; } } }
+
+.lista { display: grid; gap: 1.1rem;
+  h3 { font-size: 0.86rem; font-weight: 600; color: var(--gm-muted); margin-bottom: 0.4rem; }
+  ul { list-style: none; display: grid; gap: 2px; }
+  li button { width: 100%; display: grid; gap: 1px; text-align: left; padding: 0.5rem 0.7rem; border: 0; border-left: 4px solid transparent; border-radius: 0 8px 8px 0; background: none; font: inherit; cursor: pointer;
+    small { color: var(--gm-muted); font-size: 0.78rem; }
+    &:hover { background: var(--gm-col); }
+    &.activa { background: var(--gm-card); border-left-color: var(--fg-senal); span { font-weight: 600; } }
+    &.apagada span { color: var(--gm-muted); text-decoration: line-through; } }
+  .nuevos { margin-top: 0.4rem; padding-left: 0.7rem; font-size: 0.82rem; color: var(--gm-muted); } }
+
+.editor { background: var(--gm-card); border: 1px solid var(--gm-border); border-radius: var(--gm-radius-lg); padding: 1.1rem 1.2rem; display: grid; gap: 0.8rem;
+  .donde { font-size: 0.85rem; color: var(--gm-muted); }
+  label { display: grid; gap: 0.25rem; > span { font-size: 0.82rem; color: var(--gm-muted); small { margin-left: 0.4rem; } } }
+  textarea { resize: vertical; line-height: 1.5; font-family: inherit; height: auto; min-height: 250px; }
+  .mal { color: var(--gm-error); font-size: 0.88rem; }
+  .pie { display: flex; gap: 0.5rem; flex-wrap: wrap; } }
+.variables { display: flex; flex-wrap: wrap; gap: 0.35rem; align-items: center;
+  > span { font-size: 0.82rem; color: var(--gm-muted); width: 100%; }
+  button { border: 1px solid var(--gm-input-border); background: var(--gm-bg); border-radius: 6px; padding: 0.2rem 0.5rem; font-family: var(--fuente-datos); font-size: 0.8rem; cursor: pointer;
+    &:hover { border-color: var(--gm-text); background: var(--gm-card); } &:focus-visible { outline: 2px solid var(--gm-text); } } }
+
+.previa { position: sticky; top: 0; display: grid; gap: 0.5rem;
+  h3 { font-size: 0.86rem; font-weight: 600; color: var(--gm-muted); }
+  small { color: var(--gm-muted); font-size: 0.8rem; } }
+/* WhatsApp se ve como su globo; el correo, como una hoja con el asunto arriba. */
+.globo { padding: 0.8rem 0.9rem; border-radius: 12px 12px 12px 2px; background: #DFF5D8; color: #111; font-size: 0.92rem; line-height: 1.5; max-width: 420px;
+  p { white-space: pre-line; overflow-wrap: anywhere; }
+  &[data-canal='email'] { background: var(--gm-card); border: 1px solid var(--gm-border); border-top: 4px solid var(--fg-asfalto); border-radius: 8px;
+    b { display: block; padding-bottom: 0.5rem; margin-bottom: 0.6rem; border-bottom: 1px solid var(--gm-border); } } }

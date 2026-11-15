@@ -1,0 +1,32 @@
+<div class="login-page">
+  <div class="login-brand">
+    <span class="login-tile">{{ iniciales }}</span>
+    <span class="login-word">{{ marca }}</span>
+  </div>
+  <div class="login-card">
+    <ng-container *ngIf="estado() === 'pidiendo'">
+      <h1 class="registro-titulo">Elegí una clave nueva</h1>
+      <form [formGroup]="form" (ngSubmit)="enviar()" novalidate>
+        <div class="campo">
+          <label for="clave">Clave nueva</label>
+          <input id="clave" type="password" class="gm-input" formControlName="clave" autocomplete="new-password" />
+          <small class="registro-error" *ngIf="form.controls.clave.touched && form.controls.clave.invalid">Tiene que tener al menos {{ largoMinimo }} caracteres.</small>
+        </div>
+        <div class="campo">
+          <label for="repetir">Repetila</label>
+          <input id="repetir" type="password" class="gm-input" formControlName="repetir" autocomplete="new-password" />
+          <small class="registro-error" *ngIf="distintas()">Las dos claves no coinciden.</small>
+        </div>
+        <button type="submit" class="gm-btn gm-btn--brand login-btn">Guardar la clave</button>
+      </form>
+    </ng-container>
+    <ng-container *ngIf="estado() === 'ok'">
+      <h1 class="registro-titulo">Listo, ya podés entrar</h1>
+      <a routerLink="/auth/login" class="gm-btn gm-btn--brand login-btn">Entrar</a>
+    </ng-container>
+    <ng-container *ngIf="estado() === 'invalido'">
+      <h1 class="registro-titulo">El link no es válido o venció</h1>
+      <a routerLink="/auth/recuperar" class="gm-btn gm-btn--neutral login-btn">Pedir otro link</a>
+    </ng-container>
+  </div>
+</div>

@@ -1,0 +1,68 @@
+<a routerLink="/home/autos" class="volver">Volver al stock</a>
+<h2>Cargar un auto</h2>
+<p class="bajada">El número de unidad lo pone el sistema. Los papeles y los gastos de alistaje se cargan después, en su ficha.</p>
+
+<form class="alta" (ngSubmit)="guardar()">
+  <section>
+    <h3>El auto</h3>
+    <div class="opciones" role="radiogroup" aria-label="Cómo entra">
+      <label [class.elegida]="n.origen === 'compra'"><input type="radio" name="origen" value="compra" [(ngModel)]="n.origen"><b>Lo compra la agencia</b><small>Se paga y queda en stock propio</small></label>
+      <label [class.elegida]="n.origen === 'consignacion'"><input type="radio" name="origen" value="consignacion" [(ngModel)]="n.origen"><b>Queda en consignación</b><small>Es de su dueño hasta que se vende</small></label>
+    </div>
+    <div class="campos">
+      <label><span>Condición</span>
+        <select class="gm-input" name="condicion" [(ngModel)]="n.condicion"><option value="usado">Usado</option><option value="0km">0 km</option></select></label>
+      <label><span>Dominio (patente){{ n.condicion === 'usado' ? '' : ', si ya tiene' }}</span><input class="gm-input dominio" name="dominio" maxlength="12" placeholder="AB 123 CD" [(ngModel)]="n.dominio"></label>
+      <label><span>Marca</span><input class="gm-input" name="marca" maxlength="60" placeholder="Toyota" [(ngModel)]="n.marca"></label>
+      <label><span>Modelo</span><input class="gm-input" name="modelo" maxlength="80" placeholder="Corolla" [(ngModel)]="n.modelo"></label>
+      <label><span>Versión (opcional)</span><input class="gm-input" name="version" maxlength="120" placeholder="XEI 2.0 CVT" [(ngModel)]="n.version"></label>
+      <label><span>Año</span><input class="gm-input" name="anio" inputmode="numeric" maxlength="4" placeholder="2021" [(ngModel)]="n.anio"></label>
+      <label><span>Kilómetros</span><input class="gm-input" name="km" inputmode="numeric" placeholder="65.000" [(ngModel)]="n.km"></label>
+      <label><span>Color (opcional)</span><input class="gm-input" name="color" maxlength="40" [(ngModel)]="n.color"></label>
+      <label><span>Combustible</span>
+        <select class="gm-input" name="combustible" [(ngModel)]="n.combustible"><option value="">Sin indicar</option><option *ngFor="let o of combustibles" [value]="o[0]">{{ o[1] }}</option></select></label>
+      <label><span>Caja</span>
+        <select class="gm-input" name="transmision" [(ngModel)]="n.transmision"><option value="">Sin indicar</option><option *ngFor="let o of cajas" [value]="o[0]">{{ o[1] }}</option></select></label>
+      <label><span>Carrocería</span>
+        <select class="gm-input" name="carroceria" [(ngModel)]="n.carroceria"><option value="">Sin indicar</option><option *ngFor="let o of carrocerias" [value]="o[0]">{{ o[1] }}</option></select></label>
+    </div>
+  </section>
+
+  <section>
+    <h3>La plata</h3>
+    <div class="campos">
+      <label><span>Moneda del auto</span>
+        <select class="gm-input" name="moneda" [(ngModel)]="n.moneda"><option value="USD">Dólares</option><option value="ARS">Pesos</option></select></label>
+      <label *ngIf="n.origen === 'compra'"><span>Cuánto se pagó</span><input class="gm-input" name="costo" inputmode="decimal" placeholder="12.000" [(ngModel)]="n.costo"></label>
+      <label *ngIf="n.origen === 'consignacion'"><span>Precio piso del dueño</span><input class="gm-input" name="piso" inputmode="decimal" [(ngModel)]="n.piso"></label>
+      <label><span>Precio de venta</span><input class="gm-input" name="precio" inputmode="decimal" placeholder="14.500" [(ngModel)]="n.precio"></label>
+      <label><span>{{ n.origen === 'consignacion' ? 'Dueño del auto' : 'A quién se le compró (opcional)' }}</span><input class="gm-input" name="titular" maxlength="120" [(ngModel)]="n.titular_nombre"></label>
+      <label><span>Su teléfono (opcional)</span><input class="gm-input" name="tel" maxlength="40" inputmode="tel" [(ngModel)]="n.titular_telefono"></label>
+    </div>
+    <p class="ayuda">Un usado que se toma en parte de pago no se carga acá: entra solo cuando se anota en la venta.</p>
+  </section>
+
+  <section>
+    <h3>Fotos y sitio</h3>
+    <ul class="fotos" *ngIf="fotos().length">
+      <li *ngFor="let f of fotos(); let i = index">
+        <img [src]="f.vista" [alt]="'Foto ' + (i + 1)">
+        <span *ngIf="i === 0" class="portada">Portada</span>
+        <button type="button" (click)="quitarFoto(f)" [attr.aria-label]="'Quitar la foto ' + (i + 1)">Quitar</button>
+      </li>
+    </ul>
+    <label class="agregar" *ngIf="fotos().length < maximoFotos">
+      <input type="file" accept="image/jpeg,image/png,image/webp" multiple (change)="elegirFotos($event)">
+      <span>{{ fotos().length ? 'Agregar más fotos' : 'Elegir fotos' }}</span>
+      <small>Hasta {{ maximoFotos }}. La primera queda de portada; después se puede cambiar.</small>
+    </label>
+    <label class="descripcion"><span>Descripción para el sitio (opcional)</span>
+      <textarea class="gm-input" name="descripcion" rows="3" maxlength="2000" placeholder="Único dueño, service oficial al día, cubiertas nuevas…" [(ngModel)]="n.descripcion"></textarea></label>
+    <label class="casilla"><input type="checkbox" name="publicar" [(ngModel)]="n.publicar"><span>Ya está listo para vender: publicarlo en el sitio apenas se cargue</span></label>
+  </section>
+
+  <div class="pie">
+    <button type="submit" class="gm-btn gm-btn--brand" [disabled]="guardando()">{{ guardando() ? paso() : 'Cargar el auto' }}</button>
+    <a routerLink="/home/autos" class="gm-btn gm-btn--neutral">Cancelar</a>
+  </div>
+</form>

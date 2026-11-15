@@ -1,0 +1,58 @@
+<header class="cab">
+  <h2>Mensajes</h2>
+  <p>Lo que la agencia le escribe a sus clientes por WhatsApp y por correo. Entre llaves van los datos que el sistema completa solo.</p>
+  <p class="correo" *ngIf="catalogo() as c" [class.falta]="!c.correo.configurado">
+    <ng-container *ngIf="!c.correo.configurado">El envío de correos todavía no está configurado en el servidor: WhatsApp funciona igual.</ng-container>
+    <ng-container *ngIf="c.correo.configurado && c.correo.pruebas">Correo en modo de prueba: los envíos quedan registrados pero no salen de verdad.</ng-container>
+    <ng-container *ngIf="c.correo.configurado && !c.correo.pruebas">Los correos salen desde {{ c.correo.remitente }}, a nombre de tu agencia.</ng-container>
+  </p>
+</header>
+
+<p class="vacio" *ngIf="!catalogo()">Cargando…</p>
+
+<div class="dos" *ngIf="catalogo()">
+  <nav class="lista" aria-label="Mensajes">
+    <section *ngFor="let g of grupos()">
+      <h3>{{ rotuloContexto[g.contexto] }}</h3>
+      <ul>
+        <li *ngFor="let p of g.items; trackBy: trackPorId">
+          <button type="button" [class.activa]="b?.id === p.id" [class.apagada]="!p.activa" (click)="abrir(p)">
+            <span>{{ p.nombre }}</span><small>{{ rotuloCanal[p.canal] }}{{ p.activa ? '' : ', apagado' }}{{ p.clave ? '' : ', propio' }}</small>
+          </button>
+        </li>
+      </ul>
+      <p class="nuevos">Agregar uno propio:
+        <button type="button" class="enlace" *ngFor="let c of canales" (click)="nuevo(g.contexto, c)">{{ rotuloCanal[c] }}</button></p>
+    </section>
+  </nav>
+
+  <form class="editor" *ngIf="b as m" (ngSubmit)="guardar()">
+    <p class="donde">{{ rotuloContexto[m.contexto] }}, por {{ rotuloCanal[m.canal] }}{{ m.id ? '' : ' (nuevo)' }}</p>
+    <label><span>Nombre <small>Con este nombre aparece al elegirlo</small></span><input class="gm-input" name="nombre" maxlength="80" [(ngModel)]="m.nombre"></label>
+    <label *ngIf="m.canal === 'email'"><span>Asunto</span><input class="gm-input" name="asunto" maxlength="150" [(ngModel)]="m.asunto"></label>
+    <label><span>Texto</span><textarea #campo class="gm-input" name="texto" rows="11" maxlength="2000" [(ngModel)]="m.texto"></textarea></label>
+
+    <div class="variables">
+      <span>Tocá un dato para meterlo en el texto:</span>
+      <button type="button" *ngFor="let v of variables()" [title]="ayuda(v)" (click)="insertar(v, campo)">{{ '{' + v + '}' }}</button>
+    </div>
+    <p class="mal" *ngIf="malas().length" role="alert">Este tipo de mensaje no tiene {{ malas().join(', ') }}: quitalo o elegí otro dato.</p>
+    <p class="ayuda">Un renglón cuyo dato esté vacío no se manda: «Saldo: {{ '{saldo}' }}» desaparece si no debe nada.</p>
+
+    <div class="pie">
+      <button type="submit" class="gm-btn gm-btn--brand" [disabled]="guardando()">{{ guardando() ? 'Guardando…' : 'Guardar' }}</button>
+      <button type="button" *ngIf="m.id" class="gm-btn gm-btn--neutral" (click)="alternar()">{{ m.activa ? 'Dejar de ofrecerlo' : 'Volver a ofrecerlo' }}</button>
+      <button type="button" *ngIf="m.id && m.clave" class="gm-btn gm-btn--neutral" (click)="restaurar()">Volver al original</button>
+      <button type="button" *ngIf="m.id && !m.clave" class="gm-btn gm-btn--neutral" (click)="borrar()">Borrar</button>
+    </div>
+  </form>
+
+  <aside class="previa" *ngIf="b as m" aria-label="Cómo le llega">
+    <h3>Cómo le llega</h3>
+    <div class="globo" [attr.data-canal]="m.canal">
+      <b *ngIf="m.canal === 'email'">{{ asuntoPrevio() || 'Sin asunto' }}</b>
+      <p>{{ vistaPrevia() }}</p>
+    </div>
+    <small>Con datos de ejemplo. Al escribirle a alguien se completan con los suyos.</small>
+  </aside>
+</div>

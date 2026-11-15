@@ -1,0 +1,80 @@
+<div class="rep-sel" [class.rep-sel--compacto]="compacto">
+
+  <!-- ═══ Pedido pendiente: elegir y despachar ═══ -->
+  <ng-container *ngIf="esPendiente">
+    <div class="rep-fila">
+      <select class="rep-select"
+              [value]="elegido()"
+              [disabled]="guardando()"
+              (change)="alElegir($any($event.target).value)">
+        <option value="" [selected]="!elegido()">Sin asignar</option>
+        <option *ngFor="let r of repartidores()" [value]="r.id" [selected]="r.id === elegido()">{{ r.nombre }}</option>
+      </select>
+      <button class="rep-btn rep-btn--camino"
+              [disabled]="guardando()"
+              (click)="despachar()">
+        <app-icon name="moto"></app-icon>
+        {{ guardando() ? 'Despachando…' : 'Marcar en camino' }}
+      </button>
+    </div>
+
+    <p class="rep-aviso" *ngIf="!elegido() && repartidores().length">
+      Sin repartidor asignado el pedido sale igual, pero el cliente no va a ver
+      el mapa: nadie puede reportar la posición.
+    </p>
+    <p class="rep-aviso rep-aviso--alerta" *ngIf="!repartidores().length">
+      No hay usuarios con rol <strong>repartidor</strong> dados de alta. Se pueden
+      crear desde Configuración → Empleados.
+    </p>
+  </ng-container>
+
+  <!-- ═══ Pedido en camino: ver o cambiar el asignado ═══ -->
+  <ng-container *ngIf="esEnCamino">
+    <div class="rep-fila">
+      <span class="rep-lbl"><app-icon name="moto"></app-icon> Reparte</span>
+      <select class="rep-select"
+              [value]="elegido()"
+              [disabled]="guardando()"
+              (change)="alElegir($any($event.target).value)">
+        <option value="" [selected]="!elegido()">Sin asignar</option>
+        <option *ngFor="let r of repartidores()" [value]="r.id" [selected]="r.id === elegido()">{{ r.nombre }}</option>
+      </select>
+    </div>
+
+    <p class="rep-aviso rep-aviso--alerta" *ngIf="!repartidorId && !confirmandoCambio()">
+      Este pedido salió sin repartidor, así que no tiene seguimiento. Asignale uno
+      para que pueda reportar su posición.
+    </p>
+
+    <div class="rep-confirmar" *ngIf="confirmandoCambio()">
+      <p>
+        <ng-container *ngIf="elegido()">
+          Pasa a <strong>{{ nombreDe(elegido()) }}</strong>.
+        </ng-container>
+        <ng-container *ngIf="!elegido()">
+          Queda <strong>sin repartidor</strong>.
+        </ng-container>
+        <!-- El aviso de purga solo aplica si había alguien antes: si el pedido
+             salió sin asignar no hay posición que borrar ni a quién revocarle
+             nada, y decirlo igual sonaría a que se pierde algo. -->
+        <ng-container *ngIf="repartidorId">
+          Se borra la última posición conocida y
+          {{ repartidorNombre || 'el repartidor anterior' }} deja de poder reportar.
+        </ng-container>
+        <ng-container *ngIf="!repartidorId && elegido()">
+          Desde ahora puede reportar su posición y el cliente ve el mapa.
+        </ng-container>
+      </p>
+      <div class="rep-confirmar-btns">
+        <button class="rep-btn rep-btn--ghost" (click)="cancelarCambio()" [disabled]="guardando()">
+          Cancelar
+        </button>
+        <button class="rep-btn rep-btn--camino" (click)="confirmarCambio()" [disabled]="guardando()">
+          {{ guardando() ? 'Guardando…' : 'Confirmar cambio' }}
+        </button>
+      </div>
+    </div>
+  </ng-container>
+
+  <p class="rep-error" *ngIf="error()">{{ error() }}</p>
+</div>

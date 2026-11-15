@@ -1,0 +1,229 @@
+<div class="proveedores-page">
+
+  <!-- HEADER (patrón .oh) -->
+  <header class="oh gm-card">
+    <div class="oh-fila">
+      <div class="oh-id">
+        <div class="oh-tile oh-tile--proveedores">
+          <svg width="22" height="22" viewBox="0 0 20 20" fill="none" stroke="#FFFFFF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 5.5h9v7.5h-9z"/><path d="M11.5 8h3l2.5 2.5V13h-5.5"/><circle cx="6" cy="14.8" r="1.5"/><circle cx="14.5" cy="14.8" r="1.5"/></svg>
+        </div>
+        <div class="oh-titulos">
+          <span class="oh-eyebrow">Compras</span>
+          <h1>Proveedores</h1>
+        </div>
+      </div>
+      <button class="gm-btn gm-btn--brand" (click)="openModal()">
+        <app-icon name="agregar"></app-icon> Nuevo proveedor
+      </button>
+    </div>
+    <div class="oh-fila oh-fila--meta">
+      <span class="oh-meta">{{ proveedores().length }} {{ proveedores().length === 1 ? 'proveedor' : 'proveedores' }}</span>
+      <div class="oh-herramientas">
+        <input
+          type="text"
+          class="gm-input"
+          placeholder="Buscar proveedor…"
+          [value]="searchTerm()"
+          (input)="searchTerm.set($any($event.target).value)"
+        >
+      </div>
+    </div>
+  </header>
+
+  <!-- LOADING -->
+  <div *ngIf="loading()" class="loading-state">
+    <div class="spinner"></div>
+    <span>Cargando proveedores…</span>
+  </div>
+
+  <!-- EMPTY STATE -->
+  <div *ngIf="!loading() && proveedores().length === 0" class="empty-state">
+    <div class="empty-icon"><app-icon name="proveedor"></app-icon> </div>
+    <h3>Todavía no hay proveedores</h3>
+    <p>Agregá tu primer proveedor para comenzar a gestionar tus compras</p>
+    <button class="gm-btn gm-btn--brand" (click)="openModal()"><app-icon name="agregar"></app-icon> Agregar proveedor</button>
+  </div>
+
+  <!-- NO RESULTS -->
+  <div *ngIf="!loading() && filteredProveedores.length === 0 && proveedores().length > 0" class="empty-state">
+    <div class="empty-icon"><app-icon name="buscar"></app-icon> </div>
+    <h3>Sin resultados</h3>
+    <p>No se encontraron proveedores con "{{ searchTerm() }}"</p>
+  </div>
+
+  <!-- PROVEEDORES GRID -->
+  <div *ngIf="!loading() && filteredProveedores.length > 0" class="proveedores-grid">
+    <div class="proveedor-card" *ngFor="let p of filteredProveedores">
+      <div class="card-top">
+        <div class="avatar">{{ p.nombre.charAt(0).toUpperCase() }}</div>
+        <div class="card-info">
+          <h3 class="card-name">{{ p.nombre }}</h3>
+          <p class="card-desc">{{ p.descripcion || 'Sin descripción' }}</p>
+        </div>
+        <div class="card-actions">
+          <button type="button" class="gm-btn gm-btn--neutral btn-ficha" (click)="verFicha(p)" title="Saldo y últimas compras">Ficha</button>
+          <ng-container *ngIf="puedeEditar()">
+            <button class="icon-btn edit" (click)="openModal(p)" title="Editar"><app-icon name="editar"></app-icon> </button>
+            <button class="icon-btn delete" (click)="pedirBaja(p)" title="Dar de baja"><app-icon name="borrar"></app-icon> </button>
+          </ng-container>
+        </div>
+      </div>
+
+      <div class="card-condiciones">
+        <span class="gm-pill">{{ condicionPago(p) }}</span>
+        <span class="cuit" *ngIf="p.cuit">CUIT {{ p.cuit }}</span>
+        <span class="cuit" *ngIf="p.condicion_iva && p.condicion_iva !== 'no_informada'">{{ etiquetaIva(p.condicion_iva) }}</span>
+      </div>
+
+      <div class="card-contact">
+        <div class="contact-item">
+          <span class="contact-icon"><app-icon name="telefono"></app-icon> </span>
+          <span>{{ p.telefono }}</span>
+        </div>
+        <div class="contact-item">
+          <span class="contact-icon"><app-icon name="mail"></app-icon> </span>
+          <span>{{ p.correo }}</span>
+        </div>
+        <div class="contact-item">
+          <span class="contact-icon"><app-icon name="ubicacion"></app-icon> </span>
+          <span>{{ p.direccion }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- MODAL -->
+<div class="modal-overlay" *ngIf="showModal()" (click)="$event.stopPropagation()">
+  <div class="modal-card gm-form-ancho">
+    <div class="modal-header">
+      <div>
+        <h2>{{ isEditing() ? 'Editar proveedor' : 'Nuevo proveedor' }}</h2>
+        <p>{{ isEditing() ? 'Actualizá los datos del proveedor' : 'Completá los datos del nuevo proveedor' }}</p>
+      </div>
+      <button class="close-btn" (click)="closeModal()"><app-icon name="cerrar"></app-icon> </button>
+    </div>
+
+    <form [formGroup]="form" (ngSubmit)="save()" class="modal-form">
+      <!-- Grilla ancha compartida: tres columnas en escritorio, sin scroll. -->
+      <div class="gm-campos-3">
+        <div class="field-group">
+          <label>Nombre / Razón social *</label>
+          <input type="text" formControlName="nombre" class="gm-input" placeholder="Ej: Distribuidora Norte">
+          <span class="field-error" *ngIf="form.get('nombre')?.touched && form.get('nombre')?.invalid">Nombre requerido</span>
+        </div>
+        <div class="field-group">
+          <label>Dirección *</label>
+          <input type="text" formControlName="direccion" class="gm-input" placeholder="Ej: Av. Rivadavia 1234">
+          <span class="field-error" *ngIf="form.get('direccion')?.touched && form.get('direccion')?.invalid">Dirección requerida</span>
+        </div>
+        <div class="field-group">
+          <label>Teléfono *</label>
+          <input type="text" formControlName="telefono" class="gm-input" placeholder="Ej: 11 1234-5678">
+          <span class="field-error" *ngIf="form.get('telefono')?.touched && form.get('telefono')?.invalid">Teléfono requerido</span>
+        </div>
+        <div class="field-group">
+          <label>Correo electrónico *</label>
+          <input type="email" formControlName="correo" class="gm-input" placeholder="Ej: ventas@proveedor.com">
+          <span class="field-error" *ngIf="form.get('correo')?.touched && form.get('correo')?.invalid">Correo inválido</span>
+        </div>
+      </div>
+
+      <div class="field-group">
+        <label>Descripción / Notas</label>
+        <textarea formControlName="descripcion" class="gm-input field-textarea" rows="2"
+          placeholder="Ej: Entrega los martes y viernes. Acepta transferencias."></textarea>
+      </div>
+
+      <!-- Condición comercial: alimenta vencimientos y la condición de pago de OC -->
+      <div class="gm-campos-3 condicion-grid">
+        <div class="field-group">
+          <label>CUIT</label>
+          <input type="text" formControlName="cuit" class="gm-input" placeholder="30-12345678-9">
+        </div>
+        <div class="field-group">
+          <label>Condición IVA</label>
+          <select formControlName="condicion_iva" class="gm-input">
+            <option *ngFor="let c of condicionesIva" [value]="c.valor">{{ c.etiqueta }}</option>
+          </select>
+        </div>
+        <div class="field-group">
+          <label>Días de pago</label>
+          <input type="number" min="0" formControlName="dias_pago" class="gm-input" placeholder="0 = contado">
+        </div>
+        <div class="field-group">
+          <label>Días de entrega</label>
+          <input type="number" min="0" formControlName="dias_entrega" class="gm-input">
+        </div>
+        <div class="field-group">
+          <label>Límite de crédito ($)</label>
+          <input type="number" min="0" formControlName="limite_credito" class="gm-input">
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="gm-btn gm-btn--neutral" (click)="closeModal()">Cancelar</button>
+        <button type="submit" class="gm-btn gm-btn--brand" [disabled]="form.invalid">
+          {{ isEditing() ? 'Guardar cambios' : 'Crear proveedor' }}
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- MODAL CONFIRMACIÓN DE BAJA -->
+<div class="modal-overlay" *ngIf="confirmandoBaja()">
+  <div class="modal-content" style="max-width: 420px;">
+    <h2 style="margin: 0 0 0.5rem; color: var(--color-text-dark); font-size: 1.2rem;">Dar de baja al proveedor</h2>
+    <p style="color: var(--color-text-muted); font-size: 0.9rem; margin: 0 0 1.5rem;">
+      "{{ confirmandoBaja()?.nombre }}" no se borra: se da de baja. Deja de aparecer en los listados y no se va a poder elegir en órdenes de compra nuevas. Las órdenes de compra históricas se conservan.
+    </p>
+    <div class="modal-actions" style="display: flex; justify-content: flex-end; gap: 1rem;">
+      <button type="button" class="gm-btn gm-btn--neutral" (click)="cancelarBaja()">Cancelar</button>
+      <button type="button" class="gm-btn gm-btn--danger" (click)="confirmarBaja()">Dar de baja</button>
+    </div>
+  </div>
+</div>
+
+<!-- FICHA DEL PROVEEDOR (spec C §2.7) -->
+<div class="ficha-overlay" *ngIf="fichaAbierta() as f" (click)="cerrarFicha()">
+  <aside class="ficha-panel" (click)="$event.stopPropagation()">
+    <header class="ficha-head">
+      <div>
+        <h2>{{ f.proveedor.nombre }}</h2>
+        <p class="ficha-sub">{{ etiquetaIva(f.proveedor.condicion_iva) }}<span *ngIf="f.proveedor.cuit"> · CUIT {{ f.proveedor.cuit }}</span> · {{ condicionPago(f.proveedor) }}</p>
+      </div>
+      <button type="button" class="close-btn" (click)="cerrarFicha()"><app-icon name="cerrar"></app-icon></button>
+    </header>
+
+    <section class="ficha-bloque">
+      <h4>Saldo</h4>
+      <div class="ficha-saldo">
+        <div><span class="lbl">Deuda</span><strong>{{ f.saldo.deuda | currency:'ARS':'symbol-narrow':'1.0-0' }}</strong></div>
+        <div><span class="lbl">Vencido</span><strong [class.rojo]="f.saldo.vencido > 0">{{ f.saldo.vencido | currency:'ARS':'symbol-narrow':'1.0-0' }}</strong></div>
+        <div><span class="lbl">A cuenta</span><strong>{{ f.saldo.a_cuenta | currency:'ARS':'symbol-narrow':'1.0-0' }}</strong></div>
+      </div>
+      <a class="ficha-link" routerLink="/home/gastos" [queryParams]="{ proveedor: f.proveedor.id }">Ver cuentas por pagar</a>
+    </section>
+
+    <section class="ficha-bloque">
+      <h4>Últimas órdenes de compra</h4>
+      <p class="vacio" *ngIf="!f.ultimas_oc.length">Todavía no se le compró nada.</p>
+      <table class="ficha-tabla" *ngIf="f.ultimas_oc.length">
+        <tr *ngFor="let o of f.ultimas_oc">
+          <td>{{ o.numero_orden }}</td>
+          <td><span class="gm-pill">{{ o.estado }}</span></td>
+          <td class="muted">{{ o.fecha_creacion | date:'dd/MM/yy' }}</td>
+          <td class="muted"><span *ngIf="o.fecha_entrega_estimada && estadoOcVivo(o)">Llega el {{ o.fecha_entrega_estimada | date:'dd/MM' }}</span></td>
+          <td class="num">{{ o.monto_estimado | currency:'ARS':'symbol-narrow':'1.0-0' }}</td>
+        </tr>
+      </table>
+      <p class="ficha-lead">Lead time promedio:
+        <strong>{{ f.lead_time_promedio_dias === null ? 'sin datos todavía' : (f.lead_time_promedio_dias + ' días') }}</strong>
+        <span class="muted"> (cargado: {{ f.dias_entrega_cargado }} días)</span>
+      </p>
+    </section>
+
+  </aside>
+</div>

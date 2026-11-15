@@ -1,0 +1,203 @@
+<div class="empleados-container">
+  <div class="filters-bar">
+    <p class="descripcion">
+      Cada empleado entra con su propio usuario y ve solo lo que le corresponde a su rol.
+      Las anulaciones y los movimientos de caja quedan registrados a su nombre.
+    </p>
+    <div class="btn-group">
+      <button class="gm-btn gm-btn--neutral" (click)="cargar()"><app-icon name="recargar"></app-icon> Actualizar</button>
+      <button class="gm-btn gm-btn--brand" (click)="abrirModal()"><app-icon name="agregar"></app-icon> Nuevo empleado</button>
+    </div>
+  </div>
+
+  <div class="global-card">
+    <div class="table-responsive">
+      <table class="modern-table">
+        <thead>
+          <tr>
+            <th>Nombre</th>
+            <th>Email</th>
+            <th>Rol</th>
+            <th>Estado</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngIf="isLoading()">
+            <td colspan="5" style="text-align: center; padding: 2rem;">
+              <div class="neon-spinner" style="margin: 0 auto;"></div>
+            </td>
+          </tr>
+          <tr *ngIf="!isLoading() && empleados().length === 0">
+            <td colspan="5" style="text-align: center; color: var(--color-text-muted); font-style: italic; padding: 2rem;">
+              Todavía no hay empleados cargados.
+            </td>
+          </tr>
+          <tr *ngFor="let e of empleados()" [style.opacity]="e.activo ? 1 : 0.55">
+            <td>
+              <div style="font-weight: 700; color: var(--color-text-dark); display: flex; align-items: center; gap: 8px;">
+                {{ e.nombre }}
+                <span *ngIf="esUsuarioActual(e)" class="gm-pill pill-actual">Sesión actual</span>
+                <span *ngIf="e.debe_cambiar_clave" class="gm-pill pill-provisoria" title="Le reseteaste la clave y todavía no eligió una nueva">Clave provisoria</span>
+              </div>
+              <div *ngIf="e.telefono" style="font-size: 0.8rem; color: var(--color-text-muted);">{{ e.telefono }}</div>
+            </td>
+            <td>{{ e.email }}</td>
+            <td>
+              <!-- El rol se cambia acá mismo. Antes quedaba fijado en el alta
+                   para siempre: un empleado cargado con el rol equivocado no
+                   tenía arreglo desde el sistema. -->
+              <!-- #2: el rol va en cada option ([selected]); un [value] en el select
+                   se aplicaba antes de que existieran las opciones y todos decían «Admin». -->
+              <select *ngIf="!sinAcciones(e)"
+                      class="gm-input select-rol"
+                      [attr.aria-label]="'Rol de ' + e.nombre"
+                      (change)="cambiarRol(e, $any($event.target).value)">
+                <option *ngFor="let r of rolesDisponibles()" [value]="r.valor" [selected]="r.valor === e.rol">{{ r.etiqueta }}</option>
+              </select>
+              <span *ngIf="esUsuarioActual(e)" class="gm-pill">
+                {{ etiquetaRol(e.rol) }}
+              </span>
+              <span *ngIf="esSoporte(e) && !esUsuarioActual(e)" class="gm-pill" title="Cuenta de soporte de la plataforma: no es un empleado de la agencia">
+                Soporte de la plataforma
+              </span>
+            </td>
+            <td>
+              <span class="gm-pill" [ngClass]="e.activo ? 'pill-estado--activo' : 'pill-estado--inactivo'">
+                {{ e.activo ? 'Activo' : 'Dado de baja' }}
+              </span>
+            </td>
+            <td>
+              <div class="btn-group" *ngIf="!esSoporte(e)">
+                <button class="gm-btn gm-btn--neutral gm-btn--sm"
+                        [disabled]="esUsuarioActual(e)"
+                        [title]="esUsuarioActual(e) ? 'No podés cambiar tu propio estado' : (e.activo ? 'Dar de baja' : 'Reactivar')"
+                        (click)="pedirCambioEstado(e)">
+                  {{ e.activo ? 'Dar de baja' : 'Reactivar' }}
+                </button>
+                <button class="gm-btn gm-btn--neutral gm-btn--sm" *ngIf="!esUsuarioActual(e) && e.activo"
+                        title="Le genera una clave provisoria y cierra sus sesiones"
+                        (click)="pedirReseteo(e)">
+                  Resetear clave
+                </button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- MODAL ALTA -->
+  <div class="modal-overlay" *ngIf="showModal()">
+    <div class="modal-content" style="max-width: 520px;">
+      <div style="margin-bottom: 1.5rem;">
+        <h2 style="margin: 0; color: var(--color-text-dark); font-size: 1.4rem;">Nuevo empleado</h2>
+        <p style="color: var(--color-text-muted); font-size: 0.9rem; margin-top: 4px;">
+          El usuario se crea en esta agencia con la contraseña que cargues acá: pasásela vos.
+        </p>
+      </div>
+
+      <form [formGroup]="empleadoForm" (ngSubmit)="guardar()">
+        <div class="form-group" style="margin-bottom: 1.2rem;">
+          <label style="display: block; margin-bottom: 6px; font-weight: 600; font-size: 0.9rem; color: var(--color-text-muted);">Nombre y apellido</label>
+          <input type="text" class="gm-input" formControlName="nombre" style="width: 100%;" placeholder="Ej: Marina López">
+        </div>
+
+        <div class="form-group" style="margin-bottom: 1.2rem;">
+          <label style="display: block; margin-bottom: 6px; font-weight: 600; font-size: 0.9rem; color: var(--color-text-muted);">Email</label>
+          <input type="email" class="gm-input" formControlName="email" style="width: 100%;" placeholder="vendedor@tuagencia.com">
+          <small *ngIf="empleadoForm.get('email')?.touched && empleadoForm.get('email')?.invalid"
+                 style="color: var(--color-danger); font-size: 0.8rem;">Ingresá un email válido.</small>
+        </div>
+
+        <div class="form-group" style="margin-bottom: 1.2rem;">
+          <label style="display: block; margin-bottom: 6px; font-weight: 600; font-size: 0.9rem; color: var(--color-text-muted);">Contraseña inicial</label>
+          <input type="text" class="gm-input" formControlName="password" style="width: 100%;" placeholder="Mínimo {{ minimoClave }} caracteres">
+          <small style="color: var(--gm-muted); font-size: 0.8rem;">Se muestra en texto. Entregale la contraseña personalmente al empleado.</small>
+        </div>
+
+        <div class="form-group" style="margin-bottom: 1.2rem;">
+          <label style="display: block; margin-bottom: 6px; font-weight: 600; font-size: 0.9rem; color: var(--color-text-muted);">Teléfono (opcional)</label>
+          <input type="text" class="gm-input" formControlName="telefono" style="width: 100%;" placeholder="11 5555 5555">
+        </div>
+
+        <div class="form-group" style="margin-bottom: 1.5rem;">
+          <label style="display: block; margin-bottom: 6px; font-weight: 600; font-size: 0.9rem; color: var(--color-text-muted);">Rol</label>
+          <select class="gm-input" formControlName="rol" style="width: 100%;">
+            <option *ngFor="let r of rolesDisponibles()" [value]="r.valor">{{ r.etiqueta }}</option>
+          </select>
+          <small style="display: block; margin-top: 4px; color: var(--gm-muted); font-size: 0.8rem;">{{ ayudaRolSeleccionado }}</small>
+        </div>
+
+        <div class="modal-actions" style="display: flex; justify-content: flex-end; gap: 1rem; border-top: 1px solid var(--color-border); padding-top: 1.5rem;">
+          <button type="button" class="gm-btn gm-btn--neutral" (click)="cerrarModal()">Cancelar</button>
+          <button type="submit" class="gm-btn gm-btn--brand" [disabled]="empleadoForm.invalid || isSubmitting()">
+            {{ isSubmitting() ? 'Creando…' : 'Crear empleado' }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- SEG-54: CONFIRMAR EL RESETEO DE CLAVE -->
+  <div class="modal-overlay" *ngIf="confirmandoReseteo() as r">
+    <div class="modal-content" style="max-width: 440px;">
+      <h2 style="margin: 0 0 0.5rem; color: var(--color-text-dark); font-size: 1.2rem;">Resetear la clave de {{ r.nombre }}</h2>
+      <p style="color: var(--color-text-muted); font-size: 0.9rem; margin: 0 0 1.5rem;">
+        Se genera una clave provisoria, que vas a ver una sola vez. Se cierran todas sus sesiones abiertas y,
+        al entrar con la provisoria, el sistema le pide que elija una nueva.
+      </p>
+      <div class="modal-actions" style="display: flex; justify-content: flex-end; gap: 1rem;">
+        <button type="button" class="gm-btn gm-btn--neutral" (click)="cancelarReseteo()">Cancelar</button>
+        <button type="button" class="gm-btn gm-btn--danger" [disabled]="reseteando()" (click)="confirmarReseteo()">
+          {{ reseteando() ? 'Reseteando…' : 'Resetear clave' }}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SEG-54: LA PROVISORIA, UNA SOLA VEZ -->
+  <div class="modal-overlay" *ngIf="claveProvisoria() as p">
+    <div class="modal-content" style="max-width: 440px;" role="alertdialog" aria-labelledby="titulo-provisoria">
+      <h2 id="titulo-provisoria" style="margin: 0 0 0.5rem; color: var(--color-text-dark); font-size: 1.2rem;">Clave provisoria de {{ p.nombre }}</h2>
+      <p style="color: var(--color-text-muted); font-size: 0.9rem; margin: 0 0 1rem;">
+        Pasásela personalmente. <strong>No se vuelve a mostrar</strong>: si la perdés, reseteala otra vez.
+      </p>
+      <div class="clave-provisoria">{{ p.clave_provisoria }}</div>
+      <div class="modal-actions" style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 1.25rem;">
+        <button type="button" class="gm-btn gm-btn--neutral" (click)="copiarProvisoria()">Copiar</button>
+        <button type="button" class="gm-btn gm-btn--brand" (click)="cerrarProvisoria()">Listo, ya la anoté</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL CONFIRMACIÓN DE CAMBIO DE ESTADO -->
+  <div class="modal-overlay" *ngIf="confirmandoEstado()">
+    <div class="modal-content" style="max-width: 420px;">
+      <h2 style="margin: 0 0 0.5rem; color: var(--color-text-dark); font-size: 1.2rem;">
+        {{ confirmandoEstado()?.activo ? 'Dar de baja al empleado' : 'Reactivar al empleado' }}
+      </h2>
+      <p style="color: var(--color-text-muted); font-size: 0.9rem; margin: 0 0 1.5rem;">
+        <ng-container *ngIf="confirmandoEstado()?.activo; else textoReactivar">
+          {{ confirmandoEstado()?.nombre }} ya no va a poder entrar al sistema.
+          <span *ngIf="ordenesAbiertas()?.length" style="display: block; margin-top: .6rem; color: var(--gm-error);">
+            Tiene {{ ordenesAbiertas()!.length }} {{ ordenesAbiertas()!.length === 1 ? 'orden abierta asignada' : 'órdenes abiertas asignadas' }}
+            ({{ ordenesAbiertas()!.slice(0, 5).join(', ') }}{{ ordenesAbiertas()!.length > 5 ? '…' : '' }}): quedan a nombre de alguien que ya no entra. Reasignalas desde cada orden.
+          </span>
+        </ng-container>
+        <ng-template #textoReactivar>
+          {{ confirmandoEstado()?.nombre }} vuelve a tener acceso al sistema.
+        </ng-template>
+      </p>
+      <div class="modal-actions" style="display: flex; justify-content: flex-end; gap: 1rem;">
+        <button type="button" class="gm-btn gm-btn--neutral" (click)="cancelarCambioEstado()">Cancelar</button>
+        <button type="button" class="gm-btn"
+                [ngClass]="confirmandoEstado()?.activo ? 'gm-btn--danger' : 'gm-btn--brand'"
+                (click)="confirmarCambioEstado()">
+          {{ confirmandoEstado()?.activo ? 'Dar de baja' : 'Reactivar' }}
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,131 @@
+.wallets-container {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.filters-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+
+  .descripcion {
+    margin: 0;
+    color: var(--gm-muted);
+    font-size: 0.9rem;
+  }
+}
+
+.btn-group {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+}
+
+/* Pills de tipo, con tokens en lugar de paleta inline */
+.pill-cash {
+  color: var(--gm-success);
+  background: color-mix(in srgb, var(--gm-success) 12%, transparent);
+  font-weight: 700;
+}
+
+.pill-bank {
+  color: var(--gm-navy);
+  background: color-mix(in srgb, var(--gm-navy) 10%, transparent);
+  font-weight: 700;
+}
+
+.pill-digital {
+  color: var(--gm-object);
+  background: color-mix(in srgb, var(--gm-object) 12%, transparent);
+  font-weight: 700;
+}
+
+/* Toggle de estado: activa en verde suave, inactiva apagada */
+.estado-toggle {
+  border-radius: 20px;
+
+  &--activo {
+    color: var(--gm-success);
+    background: color-mix(in srgb, var(--gm-success) 14%, transparent);
+    border-color: color-mix(in srgb, var(--gm-success) 35%, transparent);
+  }
+
+  &--inactivo {
+    color: var(--gm-muted);
+    background: var(--gm-bg);
+    border-color: var(--gm-input-border);
+  }
+}
+
+/* Acordeón del libro de la billetera */
+.fila-movimientos > td {
+  background: var(--gm-bg);
+  padding: 12px 16px;
+}
+
+.movimientos-panel {
+  .movimientos-estado {
+    margin: 0;
+    color: var(--gm-muted);
+    font-size: 0.85rem;
+    font-style: italic;
+  }
+}
+
+.tabla-movimientos {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+
+  th {
+    text-align: left;
+    color: var(--gm-muted);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 4px 8px;
+    border-bottom: 1px solid var(--gm-input-border);
+  }
+
+  td {
+    padding: 5px 8px;
+    border-bottom: 1px solid color-mix(in srgb, var(--gm-input-border) 45%, transparent);
+    color: var(--gm-text);
+  }
+
+  .num {
+    text-align: right;
+    font-family: monospace;
+  }
+
+  .ingreso { color: var(--gm-success); font-weight: 600; }
+  .egreso { color: var(--gm-error); font-weight: 600; }
+}
+
+.modal-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: white;
+  padding: 2rem;
+  border-radius: 12px;
+  width: 95%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04);
+}

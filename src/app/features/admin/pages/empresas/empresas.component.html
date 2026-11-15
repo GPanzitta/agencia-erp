@@ -1,0 +1,65 @@
+<div class="empresas-container">
+  <div class="header">
+    <h1>Gestión de Empresas</h1>
+    <button class="btn-primary" (click)="openCreateModal()">+ Nueva Empresa</button>
+  </div>
+
+  <div class="table-container" *ngIf="!isLoading; else loading">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Nombre</th>
+          <th>Fecha de Creación</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let company of companies">
+          <td>{{ company.id }}</td>
+          <td>{{ company.name }}</td>
+          <td>{{ company.created_at | date:'medium' }}</td>
+        </tr>
+        <tr *ngIf="companies.length === 0">
+          <td colspan="3" class="text-center">No hay empresas registradas</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <ng-template #loading>
+    <div class="loading-state">Cargando empresas...</div>
+  </ng-template>
+
+  <!-- Modal -->
+  <div class="modal-overlay" *ngIf="showModal" (click)="closeModal()">
+    <div class="modal-content" (click)="$event.stopPropagation()">
+      <h2>Crear Nueva Empresa</h2>
+      
+      <div *ngIf="!successMessage">
+        <div class="form-group">
+          <label>Nombre de la Empresa</label>
+          <input type="text" [(ngModel)]="newCompanyName" placeholder="Ej: Burguer King" class="form-control" />
+        </div>
+        <div class="modal-actions">
+          <button class="btn-secondary" (click)="closeModal()">Cancelar</button>
+          <button class="btn-primary" (click)="createCompany()" [disabled]="isCreating || !newCompanyName.trim()">
+            {{ isCreating ? 'Creando...' : 'Crear y Generar Usuarios' }}
+          </button>
+        </div>
+      </div>
+
+      <div *ngIf="successMessage" class="success-state">
+        <div class="alert alert-success">{{ successMessage }}</div>
+        <p *ngIf="claveInicial">Clave inicial del admin (se muestra una sola vez, pasásela al dueño): <strong class="mono">{{ claveInicial }}</strong></p>
+        <p *ngIf="!claveInicial">El backend no devolvió la clave inicial: hay que restablecerla para que el dueño pueda entrar.</p>
+        <ul class="users-list">
+          <li *ngFor="let user of createdUsers">
+            <strong>{{ user.role }}:</strong> {{ user.email }}
+          </li>
+        </ul>
+        <button class="btn-primary mt-3" (click)="closeModal()">Cerrar</button>
+      </div>
+
+    </div>
+  </div>
+</div>

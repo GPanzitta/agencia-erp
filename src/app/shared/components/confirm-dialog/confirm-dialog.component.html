@@ -1,0 +1,17 @@
+<div class="modal" [class.hidden]="!isOpen">
+  <div class="modal-content" style="max-width: 400px; padding: 24px;">
+    <button class="modal-close" (click)="onCancel()"><app-icon name="cerrar"></app-icon> </button>
+    <div class="detail-header" style="margin-bottom: 15px; border-bottom: none; padding-bottom: 0;">
+      <h2 style="font-size: 1.25rem;">{{ title }}</h2>
+    </div>
+
+    <div class="dialog-body">
+      <p style="margin: 0 0 20px 0; color: var(--color-text-dark); font-size: 0.95rem; line-height: 1.5;">{{ description }}</p>
+    </div>
+
+    <div style="display: flex; justify-content: flex-end; gap: 10px;">
+      <button type="button" class="btn btn-outline" (click)="onCancel()">{{ cancelText }}</button>
+      <button type="button" class="btn" [ngClass]="danger ? 'btn-danger' : 'btn-primary'" (click)="onConfirm()">{{ confirmText }}</button>
+    </div>
+  </div>
+</div>

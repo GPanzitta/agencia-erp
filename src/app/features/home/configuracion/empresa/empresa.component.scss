@@ -1,0 +1,138 @@
+.empresa-card {
+  max-width: 700px;
+
+  .card-header {
+    margin-bottom: 1.2rem;
+    h2 { margin: 0; }
+    p { color: var(--color-text-muted); font-size: 0.9rem; margin-top: 5px; }
+  }
+
+  .fila {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 1.2rem;
+
+    @media (max-width: 640px) { grid-template-columns: 1fr; }
+  }
+
+  /* D2: las dos billeteras de cobro van lado a lado, a la par. */
+  .fila--billeteras {
+    grid-template-columns: 1fr 1fr;
+    margin-bottom: 1.2rem;
+
+    @media (max-width: 640px) { grid-template-columns: 1fr; }
+  }
+
+  .cargando { color: var(--color-text-muted); }
+  .error-carga { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+
+  /* Los gm-input son inline por defecto: acá ocupan toda la celda de la grilla. */
+  .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+
+    label { font-weight: 600; font-size: 0.9rem; color: var(--color-text-muted); }
+    .gm-input { width: 100%; }
+  }
+
+  .seccion {
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-text-muted);
+    margin: 1.4rem 0 0.8rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--color-border);
+  }
+
+  .ayuda { display: block; margin-top: 4px; color: var(--color-text-muted); font-size: 0.78rem; }
+  .ayuda.error { color: var(--gm-danger, #b91c1c); }
+
+  /* Datos legales: los tres plazos en días van a la par. */
+  .fila--plazos {
+    grid-template-columns: 1fr 1fr 1fr;
+
+    @media (max-width: 640px) { grid-template-columns: 1fr; }
+  }
+
+  .aviso-legales {
+    margin: 0 0 0.9rem; padding: 0.6rem 0.8rem; border-radius: 8px;
+    background: var(--color-background); border: 1px solid var(--color-border);
+    font-size: 0.82rem; color: var(--color-text);
+  }
+
+  textarea.gm-input { resize: vertical; font-family: inherit; }
+
+  .acciones {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--color-border);
+  }
+}
+
+/* ─── Agenda (T6) ─────────────────────────────────────────────────────────── */
+
+.seccion {
+  margin: 1.6rem 0 0.2rem;
+  font-size: 0.95rem;
+  padding-top: 1.1rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.seccion-ayuda {
+  margin: 0 0 0.9rem;
+  color: var(--color-text-muted);
+  font-size: 0.82rem;
+}
+
+.dias-semana { display: flex; flex-wrap: wrap; gap: 6px; }
+
+/* Targets de 44px: esto se toca también desde una tablet en el mostrador. */
+.dia-chip {
+  min-width: 52px; min-height: 44px;
+  border: 1px solid var(--color-border); border-radius: 8px;
+  background: var(--color-background); color: var(--color-text);
+  font-weight: 700; font-size: 0.82rem; cursor: pointer;
+
+  &--on {
+    background: var(--gm-navy, #16324f);
+    border-color: var(--gm-navy, #16324f);
+    color: #fff;
+  }
+}
+
+/* ── Rubros de equipo (T7) ──────────────────────────────────────────────── */
+.rubros {
+  margin-top: 1.6rem;
+
+  .rubro-alta {
+    display: flex; gap: 0.5rem; margin-bottom: 0.8rem; max-width: 420px;
+    input { flex: 1; }
+  }
+
+  .rubro-lista {
+    list-style: none; margin: 0; padding: 0;
+    display: flex; flex-direction: column; gap: 0.4rem; max-width: 420px;
+
+    li {
+      display: flex; gap: 0.5rem; align-items: center;
+      input { flex: 1; }
+      /* Los inactivos siguen a la vista, atenuados: no se borran nunca. */
+      &.inactivo { opacity: 0.55; }
+    }
+  }
+}
+
+/* ─── C5: la ayuda del margen es larga y no puede recortarse ──────────── */
+.fila .form-group .ayuda { line-height: 1.45; }
+
+// CLI-02: estado del token de MP (el valor no se muestra).
+.mp-estado { margin: 0 0 .3rem; font-size: .85rem; color: var(--gm-muted); }
+.mp-estado--si strong { color: var(--gm-success); }
+.ver-primeros-pasos { font-size: .85rem; }
+.mp-acciones { display: flex; flex-wrap: wrap; gap: .4rem; margin-bottom: .35rem; }
+.mp-estado--aviso { color: var(--gm-danger, #b42318); }
+.mp-confirmar { margin-bottom: .5rem; padding: .6rem .7rem; border: 1px solid var(--gm-border, #d9dee5); border-radius: 8px; p { margin: 0 0 .4rem; font-size: .88rem; } }

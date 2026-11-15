@@ -1,0 +1,14 @@
+.cuentas-por-pagar-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+// Lo que espera una firma (#18): se ve al lado de la deuda, sin sumarse.
+.sin-aprobar {
+  display: block;
+  margin-top: 2px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--alerta);
+}

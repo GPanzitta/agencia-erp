@@ -1,0 +1,141 @@
+<div class="auditoria-container">
+  <header class="oh gm-card">
+    <div class="oh-fila">
+      <div class="oh-id">
+        <div class="oh-tile" style="background: var(--gm-navy);">
+          <svg width="22" height="22" viewBox="0 0 20 20" fill="none" stroke="#FFFFFF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3 L16 5.5 V10 C16 13.5 13.5 15.8 10 17 C6.5 15.8 4 13.5 4 10 V5.5 Z"/><path d="M7.5 10 L9.5 12 L13 8.5"/></svg>
+        </div>
+        <div class="oh-titulos">
+          <span class="oh-eyebrow">Configuración y control</span>
+          <h1>Registro de auditoría</h1>
+        </div>
+      </div>
+      <div class="oh-acciones">
+        <button class="gm-btn gm-btn--neutral" type="button" (click)="cargar()">Actualizar</button>
+      </div>
+    </div>
+    <div class="oh-fila oh-fila--meta">
+      <span class="oh-meta">Acciones sensibles registradas a nombre de quien las hizo: caja, gastos, pagos y el cierre de cada orden.</span>
+    </div>
+  </header>
+
+  <!-- RESUMEN 30 DÍAS -->
+  <div class="global-card" *ngIf="resumen().length > 0">
+    <h4 style="margin: 0 0 0.75rem 0; color: var(--color-text-dark); font-size: 0.95rem;">Últimos 30 días</h4>
+    <div style="display: flex; flex-wrap: wrap; gap: 10px;">
+      <button *ngFor="let r of resumen()"
+              (click)="cambiarFiltro('accion', r.accion)"
+              [style.background]="esSensible(r.accion) ? 'var(--gm-error-bg)' : 'var(--gm-col)'"
+              [style.color]="esSensible(r.accion) ? 'var(--gm-error)' : 'var(--gm-text-2)'"
+              style="border: none; padding: 8px 14px; border-radius: var(--radius-sm); cursor: pointer; font-size: 0.85rem; font-weight: 600;">
+        {{ etiqueta(r.accion) }}
+        <strong style="margin-left: 6px;">{{ r.cantidad }}</strong>
+      </button>
+    </div>
+  </div>
+
+  <!-- FILTROS -->
+  <div class="global-card" style="padding: 14px 16px;">
+    <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end;">
+      <div>
+        <label style="display:block; margin-bottom:4px; font-size:0.8rem; font-weight:600; color:var(--color-text-muted);">Acción</label>
+        <select [value]="filtros().accion" (change)="cambiarFiltro('accion', $any($event.target).value)"
+                style="padding: 8px; border-radius: var(--radius-sm); border: 1px solid var(--color-border); background: var(--color-background); color: var(--color-text); min-width: 190px;">
+          <option value="">Todas</option>
+          <option *ngFor="let a of acciones" [value]="a">{{ etiqueta(a) }}</option>
+        </select>
+      </div>
+      <div>
+        <label style="display:block; margin-bottom:4px; font-size:0.8rem; font-weight:600; color:var(--color-text-muted);">Desde</label>
+        <input type="date" [value]="filtros().desde" (change)="cambiarFiltro('desde', $any($event.target).value)"
+               style="padding: 8px; border-radius: var(--radius-sm); border: 1px solid var(--color-border); background: var(--color-background); color: var(--color-text);">
+      </div>
+      <div>
+        <label style="display:block; margin-bottom:4px; font-size:0.8rem; font-weight:600; color:var(--color-text-muted);">Hasta</label>
+        <input type="date" [value]="filtros().hasta" (change)="cambiarFiltro('hasta', $any($event.target).value)"
+               style="padding: 8px; border-radius: var(--radius-sm); border: 1px solid var(--color-border); background: var(--color-background); color: var(--color-text);">
+      </div>
+      <button *ngIf="hayFiltros()" class="gm-btn gm-btn--neutral" style="padding: 8px 14px;" (click)="limpiarFiltros()">Limpiar</button>
+      <span style="margin-left: auto; font-size: 0.9rem; color: var(--color-text-muted);">
+        {{ total() }} registro{{ total() === 1 ? '' : 's' }}
+      </span>
+    </div>
+  </div>
+
+  <!-- TABLA -->
+  <div class="global-card">
+    <div class="table-responsive">
+      <table class="modern-table">
+        <thead>
+          <tr>
+            <th>Cuándo</th>
+            <th>Acción</th>
+            <th>Quién</th>
+            <th>Sobre</th>
+            <th>Motivo / Detalle</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngIf="isLoading()">
+            <td colspan="5" style="text-align: center; padding: 2rem;">
+              <div class="neon-spinner" style="margin: 0 auto;"></div>
+            </td>
+          </tr>
+
+          <tr *ngIf="!isLoading() && registros().length === 0">
+            <td colspan="5" style="text-align: center; color: var(--color-text-muted); padding: 2.5rem;">
+              <div>Todavía no hay acciones registradas.</div>
+              <div style="font-size: 0.85rem; margin-top: 8px;">
+                Se van a listar acá en cuanto alguien mueva la caja, apruebe o anule un gasto,
+                o cierre o anule una venta.
+              </div>
+            </td>
+          </tr>
+
+          <tr *ngFor="let r of registros()">
+            <td style="white-space: nowrap;">
+              <span style="font-weight: 600;">{{ r.created_at | date:'dd/MM/yyyy' }}</span>
+              <span style="display: block; font-size: 0.8rem; color: var(--color-text-muted);">
+                {{ r.created_at | date:'HH:mm' }}
+              </span>
+            </td>
+            <td>
+              <span style="font-size: 0.82rem; padding: 4px 10px; border-radius: 4px; font-weight: 700;"
+                    [style.background]="esSensible(r.accion) ? 'var(--gm-error-bg)' : 'var(--gm-col)'"
+                    [style.color]="esSensible(r.accion) ? 'var(--gm-error)' : 'var(--gm-text-2)'">
+                {{ etiqueta(r.accion) }}
+              </span>
+            </td>
+            <td>
+              <span style="font-weight: 600; color: var(--color-text-dark);">{{ r.usuario_email || '—' }}</span>
+              <span *ngIf="r.usuario_rol" style="display: block; font-size: 0.78rem; color: var(--color-text-muted); text-transform: capitalize;">
+                {{ r.usuario_rol }}
+              </span>
+            </td>
+            <td>
+              <span style="text-transform: capitalize;">{{ r.entidad }}</span>
+              <span *ngIf="r.ip" style="display: block; font-size: 0.75rem; color: var(--color-text-muted);">{{ r.ip }}</span>
+            </td>
+            <td>
+              <span *ngIf="r.motivo" style="display: block;">{{ r.motivo }}</span>
+              <span *ngIf="r.detalle" style="font-size: 0.8rem; color: var(--color-text-muted);">
+                {{ detalleLegible(r.detalle) }}
+              </span>
+              <span *ngIf="!r.motivo && !r.detalle" style="color: var(--color-text-muted);">—</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- PAGINACIÓN -->
+    <div *ngIf="totalPaginas() > 1"
+         style="display: flex; justify-content: center; align-items: center; gap: 12px; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--color-border);">
+      <button class="gm-btn gm-btn--neutral" [disabled]="pagina() === 1" (click)="irA(pagina() - 1)">Anterior</button>
+      <span style="font-size: 0.9rem; color: var(--color-text-muted);">
+        Página {{ pagina() }} de {{ totalPaginas() }}
+      </span>
+      <button class="gm-btn gm-btn--neutral" [disabled]="pagina() === totalPaginas()" (click)="irA(pagina() + 1)">Siguiente</button>
+    </div>
+  </div>
+</div>

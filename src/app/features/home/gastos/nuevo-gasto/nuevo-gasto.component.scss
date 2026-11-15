@@ -1,0 +1,125 @@
+/* Modals */
+.modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+
+  &.hidden { display: none; }
+
+  .modal-content {
+    background: var(--gm-card);
+    border-radius: 12px;
+    padding: 30px;
+    width: 100%;
+    max-width: 600px;
+    max-height: 85vh;
+    overflow-y: auto;
+    position: relative;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+
+    .modal-close {
+      position: absolute;
+      top: 15px;
+      right: 15px;
+      background: none;
+      border: none;
+      font-size: 1.2rem;
+      cursor: pointer;
+      color: var(--color-text-muted);
+      &:hover { color: var(--color-danger); }
+    }
+
+    .detail-header {
+      margin-bottom: 20px;
+      border-bottom: 1px solid var(--color-border);
+      padding-bottom: 15px;
+      h2 { margin: 0; color: var(--color-twilight-indigo); }
+    }
+
+    .detail-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 15px;
+
+      div {
+        display: flex;
+        flex-direction: column;
+        
+        label {
+          font-size: 0.85rem;
+          font-weight: 600;
+          color: var(--color-text-muted);
+          margin-bottom: 6px;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        }
+
+        .badge-optional {
+          font-size: 0.7rem;
+          color: var(--color-text-muted);
+          background: var(--color-bg-light);
+          padding: 3px 8px;
+          border-radius: 12px;
+          font-weight: 500;
+          border: 1px solid var(--color-border);
+          margin-left: 5px;
+          text-transform: none;
+        }
+
+        /* Los campos usan .gm-input global; acá solo el estado de error. */
+        .gm-input.invalid {
+          border-color: var(--gm-error);
+          background-color: var(--gm-error-bg);
+        }
+
+        textarea.gm-input { resize: vertical; }
+      }
+    }
+  }
+}
+
+/* Campos nuevos del form: vencimiento, comprobante, desglose fiscal. */
+.span-2 { grid-column: span 2; }
+
+.hint {
+  display: block;
+  margin-top: 4px;
+  font-size: 0.72rem;
+  color: var(--gm-muted);
+  line-height: 1.4;
+}
+
+.desglose-toggle {
+  padding: 8px 0 2px;
+  border-top: 1px dashed var(--gm-border);
+  .check {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 0.85rem; font-weight: 600; cursor: pointer;
+    input { width: auto; }
+  }
+}
+
+.fila-comprobante {
+  display: grid;
+  grid-template-columns: 90px 1fr;
+  gap: 10px;
+}
+
+.form-actions {
+  display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;
+}
+
+/* Foto del comprobante */
+.comprobante-foto {
+  .foto-fila { display: flex; flex-direction: column; gap: 4px; }
+  .foto-cargada {
+    display: flex; align-items: center; gap: 10px;
+    a { color: var(--llama); font-weight: 700; font-size: 0.85rem; }
+    button { padding: 4px 10px; font-size: 0.78rem; }
+  }
+}

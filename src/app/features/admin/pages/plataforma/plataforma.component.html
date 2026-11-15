@@ -1,0 +1,61 @@
+<div class="plataforma">
+  <h1>Agencias de FG autos</h1>
+
+  <div class="tabla">
+    <table>
+      <thead>
+        <tr>
+          <th>Agencia</th>
+          <th>Plan</th>
+          <th>Estado</th>
+          <th>Vence</th>
+          <th>Última actividad</th>
+          <th>Unidades en stock</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let t of talleres()" [class.inactivo]="inactivo(t)">
+          <td>{{ t.nombre }}</td>
+          <td>{{ nombresPlan[t.plan] }}</td>
+          <td>{{ nombresEstado[t.estado] }}</td>
+          <td>{{ fecha(t.vence_en) }}</td>
+          <td>{{ fecha(t.ultima_actividad) }}<span class="marca" *ngIf="inactivo(t)"> Sin actividad</span></td>
+          <td>{{ t.ordenes_mes }}</td>
+          <td>
+            <button *ngIf="editando() !== t.id; else edicion" type="button" class="btn" (click)="editar(t)">Cambiar plan</button>
+            <ng-template #edicion>
+              <div class="edicion">
+                <select aria-label="Plan" [ngModel]="planElegido()" (ngModelChange)="planElegido.set($event)">
+                  <option value="gratis">Gratis</option>
+                  <option value="pago">Pago</option>
+                  <option value="interno">Interno</option>
+                </select>
+                <input *ngIf="planElegido() === 'pago'" aria-label="Pagado hasta" type="date" [ngModel]="fechaElegida()" (ngModelChange)="fechaElegida.set($event)">
+                <button type="button" class="btn btn--principal" (click)="guardarPlan()">Guardar</button>
+                <button type="button" class="btn" (click)="editando.set(null)">Cancelar</button>
+                <p class="error" *ngIf="aviso()" role="alert">{{ aviso() }}</p>
+              </div>
+            </ng-template>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <section class="valores">
+    <h2>Valores del abono</h2>
+    <label>Precio por mes
+      <input type="number" min="1" [ngModel]="precio()" (ngModelChange)="precio.set($event)">
+      <small>Vale para las suscripciones nuevas: Mercado Pago sigue cobrando el monto de las que ya existen.</small>
+    </label>
+    <label>Órdenes por mes del plan gratis
+      <input type="number" min="1" step="1" [ngModel]="tope()" (ngModelChange)="tope.set($event)">
+    </label>
+    <label>Días de gracia
+      <input type="number" min="0" max="60" step="1" [ngModel]="gracia()" (ngModelChange)="gracia.set($event)">
+    </label>
+    <button type="button" class="btn btn--principal" (click)="guardarConfig()">Guardar valores</button>
+    <span *ngIf="guardado()" role="status">Guardado.</span>
+  </section>
+</div>

@@ -1,0 +1,117 @@
+:host { display: block; }
+
+.sitio-web { display: grid; gap: 1rem; grid-template-columns: minmax(0, 1fr); }
+@media (min-width: 1024px) {
+  .sitio-web { grid-template-columns: minmax(0, 1fr) 380px; align-items: start; }
+  .columna-previa { position: sticky; top: 1rem; }
+}
+
+.card-header { position: relative; .gm-btn { position: absolute; right: 0; top: 0; } }
+
+.bloque {
+  border: 1px solid var(--gm-border); border-radius: 8px; margin-bottom: .75rem; padding: 0 1rem;
+  summary { cursor: pointer; font-weight: 600; padding: .8rem 0; list-style: none; min-height: 44px; display: flex; align-items: center; &::before { content: '▸'; margin-right: .5rem; color: var(--gm-muted); } }
+  &[open] > summary::before { content: '▾'; }
+  > :not(summary) { margin-bottom: .9rem; }
+}
+
+.fila { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: .8rem; }
+.form-group {
+  display: flex; flex-direction: column; gap: 4px; min-width: 0;
+  label { font-weight: 600; font-size: .9rem; color: var(--gm-muted); }
+  .gm-input { width: 100%; }
+}
+
+.contador { color: var(--gm-muted); font-weight: 400; margin-left: .4rem; }
+.ayuda { display: block; margin-top: .4rem; color: var(--gm-muted); font-size: .78rem; }
+.cargando { color: var(--gm-muted); }
+
+// I1 (revisión final): error a nivel de campo. `--gm-error` ya es la tinta
+// de peligro global (la usan `.gm-btn--danger`, `.gm-pill--error`, etc.),
+// así que se reutiliza en vez de inventar un color nuevo. `overflow-wrap`
+// evita que un mensaje largo ensanche una celda angosta del grid (regla
+// responsive del proyecto: nada de desborde a 360px).
+.error { display: block; margin-top: .25rem; color: var(--gm-error); font-size: .78rem; overflow-wrap: anywhere; }
+.gm-input.ng-invalid.ng-touched { border-color: var(--gm-error); }
+
+.subida { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; }
+.miniatura { border: 1px solid var(--gm-border); border-radius: 6px; object-fit: cover; background: #0e1620;
+  &.logo { width: 56px; height: 56px; object-fit: contain; }
+  &.ancha { width: 160px; height: 90px; }
+}
+video.miniatura { width: 160px; height: 90px; object-fit: cover; border: 1px solid var(--gm-border); border-radius: 6px; background: #0e1620; }
+label.gm-btn { cursor: pointer; &.deshabilitado { opacity: .5; pointer-events: none; } }
+
+.acentos { display: flex; gap: .6rem; flex-wrap: wrap; }
+.acento {
+  width: 40px; height: 40px; border-radius: 50%; border: 3px solid transparent; cursor: pointer;
+  font-weight: 700; display: grid; place-items: center;
+  &.elegido { border-color: var(--gm-brand); box-shadow: 0 0 0 2px #fff inset; }
+}
+
+.lista { display: grid; gap: .5rem; margin-bottom: .6rem; }
+// Envuelve un input que puede mostrar `.error` debajo sin romper el grid del
+// `.servicio`/`.horario`: el wrapper ocupa la celda entera y apila adentro.
+.campo { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.servicio { display: grid; grid-template-columns: 150px minmax(0, 1fr) minmax(0, 1.4fr) auto; gap: .4rem; align-items: start;
+  .orden { display: flex; gap: .25rem; align-items: center; height: 40px; .gm-btn { min-width: 40px; min-height: 40px; } }
+}
+.horario { display: grid; grid-template-columns: minmax(0, 1fr) 110px 110px auto; gap: .4rem; align-items: start; .gm-btn { min-width: 40px; min-height: 40px; } }
+.video { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr) auto; gap: .4rem; align-items: start;
+  .orden { display: flex; gap: .25rem; align-items: center; height: 40px; .gm-btn { min-width: 40px; min-height: 40px; } }
+}
+.titulo-yt { color: var(--gm-muted); font-size: .78rem; overflow-wrap: anywhere; }
+@media (max-width: 767px) {
+  // En mobile el botón "Ver sitio" ya no queda flotando encima del título:
+  // pasa a formar parte del flujo, con el texto de la bajada ocupando su
+  // propia fila para no competir por ancho con el título ni el botón.
+  .card-header {
+    display: flex; flex-wrap: wrap; align-items: center; gap: .4rem .75rem;
+    h2 { margin: 0; }
+    p { flex: 1 1 100%; margin: 0; }
+    .gm-btn { position: static; min-height: 40px; }
+  }
+  .fila { grid-template-columns: 1fr; }
+  .servicio { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); .orden { grid-column: 1 / -1; justify-content: flex-end; } }
+  .horario { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); .gm-btn { grid-column: 2; justify-self: end; } }
+  .video { grid-template-columns: minmax(0, 1fr); .orden { justify-content: flex-end; } }
+}
+
+.chips { display: flex; flex-wrap: wrap; gap: .4rem; margin-bottom: .5rem; }
+.chip { display: inline-flex; align-items: center; gap: .3rem; border: 1px solid var(--gm-border); border-radius: 999px; padding: .25rem .3rem .25rem .7rem; font-size: .85rem;
+  button {
+    border: none; background: none; cursor: pointer; color: var(--gm-muted);
+    min-width: 40px; min-height: 40px; padding: 0; display: inline-flex; align-items: center; justify-content: center;
+    &:hover { background: var(--gm-border); border-radius: 50%; }
+  }
+}
+
+.galeria { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: .6rem; margin-bottom: .6rem;
+  figure { margin: 0; position: relative; display: grid; gap: .3rem;
+    img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 6px; border: 1px solid var(--gm-border); }
+    .gm-btn { position: absolute; top: 4px; right: 4px; min-width: 40px; min-height: 40px; }
+  }
+}
+
+.acciones-form { display: flex; justify-content: flex-end; padding-top: .5rem; }
+.previa .ayuda { display: block; margin-top: .5rem; color: var(--gm-muted); font-size: .78rem; }
+
+.probar { display: flex; gap: .4rem; align-items: center; flex-wrap: wrap;
+  .gm-input { flex: 1 1 200px; min-width: 0; }
+  .gm-btn { min-height: 40px; }
+}
+.prueba { display: block; margin-top: .25rem; color: var(--gm-success); font-weight: 600; font-size: .82rem; overflow-wrap: anywhere;
+  &.mal { color: var(--gm-error); font-weight: 400; }
+}
+// «Te lo instalamos»: un interruptor de verdad (checkbox con role=switch), con el rótulo clickeable.
+.instalacion-interruptor {
+  position: relative; display: inline-flex; align-items: center; gap: .6rem; min-height: 44px; cursor: pointer; font-weight: 600;
+  input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+  .instalacion-pista {
+    flex: none; position: relative; width: 42px; height: 24px; border-radius: 999px; background: var(--gm-border); transition: background .15s;
+    &::after { content: ''; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0, 0, 0, .3); transition: transform .15s; }
+  }
+  input:checked + .instalacion-pista { background: var(--gm-success, #2e844a); &::after { transform: translateX(18px); } }
+  input:focus-visible + .instalacion-pista { outline: 2px solid var(--gm-brand); outline-offset: 2px; }
+}
+@media (prefers-reduced-motion: reduce) { .instalacion-interruptor .instalacion-pista, .instalacion-interruptor .instalacion-pista::after { transition: none; } }
