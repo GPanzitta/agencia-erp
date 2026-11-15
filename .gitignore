@@ -47,7 +47,6 @@ skills-lock.json
 # FG autos: no se publica
 .env
 .env.*
-!.env.example
 uploads/
 .claude/
 *.bak
