@@ -8,11 +8,11 @@
 // taller-backend). Si cambia el servicio, cambian acá.
 export const environment = {
   production: true,
-  apiUrl: 'https://REEMPLAZAR-backend-agencia.example/api',
-  wsUrl: 'https://REEMPLAZAR-backend-agencia.example', // mismo host, sin /api (socket.io)
+  apiUrl: 'https://fg-autos-backend.onrender.com/api',
+  wsUrl: 'https://fg-autos-backend.onrender.com', // mismo host, sin /api (socket.io)
   // Marcador: reemplazar por el dominio real de Vercel una vez deployado el
   // portal (docs/deploy-demo.md de taller-backend no lo lista todavía).
-  portalUrl: 'https://REEMPLAZAR-sitio-agencia.example',
+  portalUrl: 'https://agencia-portal-nu.vercel.app',
   // DAT-05: horas sin tocar nada (en ninguna pestaña) hasta cerrar la sesión.
   // Un turno largo del mostrador; menos, si el dueño lo pide.
   inactividadHoras: 8,
