@@ -75,6 +75,7 @@ export function armarGruposNav(p: PermisosNav): GrupoNav[] {
       items: p.esAdmin
         ? [
             { rotulo: 'Configuración', link: '/home/configuracion', icono: 'config' },
+            { rotulo: 'Documentos A4', link: '/home/configuracion/documentos', icono: 'nota' },
             { rotulo: 'Vendedores', link: '/home/configuracion/empleados', icono: 'personas' },
             { rotulo: 'Auditoría', link: '/home/auditoria', icono: 'buscar' },
           ]

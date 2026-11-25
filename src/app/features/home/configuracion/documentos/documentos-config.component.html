@@ -1,0 +1,135 @@
+<div class="doc-editor-wrap">
+  <!-- Columna izquierda: Catálogo de los 11 documentos de la agencia -->
+  <aside class="doc-lista">
+    <div class="doc-lista-cab">
+      <h3>Documentos A4 ({{ plantillas().length }})</h3>
+      <p>Elegí cualquier documento del sistema para personalizar su título, cláusulas legales, firmas y color de marca.</p>
+    </div>
+
+    <div class="doc-grupo" *ngFor="let g of grupos()">
+      <h4>{{ g.categoria }}</h4>
+      <ul>
+        <li *ngFor="let p of g.items">
+          <button type="button" class="doc-item" [class.activo]="elegidaClave() === p.clave" (click)="seleccionar(p.clave)">
+            <div>
+              <b>{{ p.nombre }}</b>
+              <small>{{ p.titulo }} · {{ p.subtitulo }}</small>
+            </div>
+            <span class="chip-custom" *ngIf="fueModificada(p.clave)">Editado</span>
+          </button>
+        </li>
+      </ul>
+    </div>
+  </aside>
+
+  <!-- Columna central: Formulario de edición de la plantilla -->
+  <section class="doc-form gm-card" *ngIf="borrador as b">
+    <header class="df-cab">
+      <div>
+        <span class="df-cat">{{ b.categoria }}</span>
+        <h2>{{ b.nombre }}</h2>
+        <p>{{ b.descripcion }}</p>
+      </div>
+      <div class="df-acciones">
+        <button type="button" class="gm-btn gm-btn--neutral gm-btn--sm" (click)="abrirVentanaPrueba()">
+          🖨️ Abrir hoja A4 de prueba
+        </button>
+        <button type="button" class="gm-btn gm-btn--neutral gm-btn--sm" *ngIf="fueModificada(b.clave)" (click)="restaurarOriginal()">
+          ↺ Restaurar original
+        </button>
+        <button type="button" class="gm-btn gm-btn--brand gm-btn--sm" (click)="guardar()">
+          ✓ Guardar plantilla
+        </button>
+      </div>
+    </header>
+
+    <div class="df-campos">
+      <label>
+        <span>Título principal (encabezado A4) *</span>
+        <input class="gm-input" type="text" maxlength="80" [(ngModel)]="b.titulo" (ngModelChange)="actualizarVistaPrevia()">
+      </label>
+      <label>
+        <span>Subtítulo bajo el encabezado</span>
+        <input class="gm-input" type="text" maxlength="100" [(ngModel)]="b.subtitulo" (ngModelChange)="actualizarVistaPrevia()">
+      </label>
+      <label>
+        <span>Leyenda de ejemplar / copia (al pie de página)</span>
+        <input class="gm-input" type="text" maxlength="80" placeholder="Ej: Original para el comprador" [(ngModel)]="b.copia" (ngModelChange)="actualizarVistaPrevia()">
+      </label>
+      <label>
+        <span>Color de acento del documento</span>
+        <div class="colores-fila">
+          <input type="color" [(ngModel)]="b.color_acento" (ngModelChange)="actualizarVistaPrevia()" class="input-color">
+          <button type="button" *ngFor="let c of coloresSugeridos" class="swatch-btn"
+                  [style.background]="c.hex" [class.activo]="b.color_acento.toUpperCase() === c.hex"
+                  [title]="c.nombre" (click)="b.color_acento = c.hex; actualizarVistaPrevia()"></button>
+        </div>
+      </label>
+    </div>
+
+    <!-- Editor de cláusulas con inserción de variables dinámicas -->
+    <div class="df-bloque">
+      <div class="df-bloque-cab">
+        <label for="txt-clausulas">
+          <b>Cláusulas legales / Cuerpo de condiciones del documento</b>
+          <small>Cada renglón es un párrafo. Si empieza con <code>1. Objeto.</code> o <code>Título:</code>, sale en negrita automáticamente.</small>
+        </label>
+      </div>
+
+      <div class="variables-barra">
+        <span>Insertar dato automático:</span>
+        <button type="button" *ngFor="let v of variables" class="var-chip"
+                [title]="v.descripcion + ' (Ej: ' + v.ejemplo + ')'"
+                (click)="insertarVariable(v.clave, areaClausulas)">
+          + &#123;{{ v.clave }}&#125;
+        </button>
+      </div>
+
+      <textarea #areaClausulas id="txt-clausulas" class="gm-input area-clausulas" rows="9"
+                [(ngModel)]="b.clausulas" (ngModelChange)="actualizarVistaPrevia()"
+                placeholder="Escribí las cláusulas o condiciones que saldrán impresas en este documento…"></textarea>
+    </div>
+
+    <div class="df-campos">
+      <label class="ancho-completo">
+        <span>Observación o nota fija adicional al pie (opcional)</span>
+        <input class="gm-input" type="text" maxlength="300" placeholder="Ej: Documento sujeto a revisión de gestoría…"
+               [(ngModel)]="b.observaciones_pie" (ngModelChange)="actualizarVistaPrevia()">
+      </label>
+      <label class="ancho-completo">
+        <span>Texto de la barra de conformidad sobre las firmas</span>
+        <input class="gm-input" type="text" maxlength="220" placeholder="Ej: En conformidad, a los {fecha}, se firman dos ejemplares."
+               [(ngModel)]="b.texto_conformidad" (ngModelChange)="actualizarVistaPrevia()">
+      </label>
+      <label>
+        <span>Rótulo Firma 1 (izquierda)</span>
+        <input class="gm-input" type="text" maxlength="60" [(ngModel)]="b.firmas[0]" (ngModelChange)="actualizarVistaPrevia()">
+      </label>
+      <label>
+        <span>Rótulo Firma 2 (centro)</span>
+        <input class="gm-input" type="text" maxlength="60" [(ngModel)]="b.firmas[1]" (ngModelChange)="actualizarVistaPrevia()">
+      </label>
+      <label>
+        <span>Rótulo Firma 3 (derecha)</span>
+        <input class="gm-input" type="text" maxlength="60" [(ngModel)]="b.firmas[2]" (ngModelChange)="actualizarVistaPrevia()">
+      </label>
+    </div>
+
+    <div class="df-tip">
+      💡 <b>Tip:</b> Además de esta plantilla general, cada vez que abras un documento para imprimirle a un cliente vas a ver arriba el botón <b>«✏️ Editar texto en la hoja»</b> para retocar cualquier palabra directamente sobre la hoja A4 antes de imprimir.
+    </div>
+  </section>
+
+  <!-- Columna derecha: Vista previa A4 en vivo -->
+  <section class="doc-preview gm-card">
+    <header class="dp-cab">
+      <b>Vista previa A4 en vivo (con datos de ejemplo)</b>
+      <button type="button" class="gm-btn gm-btn--neutral gm-btn--sm" (click)="abrirVentanaPrueba()">
+        🔍 Ver tamaño real / Imprimir
+      </button>
+    </header>
+    <div class="dp-hoja-contenedor">
+      <iframe class="dp-iframe" title="Vista previa A4 del documento" [srcdoc]="vistaPreviaHtml()"></iframe>
+    </div>
+  </section>
+</div>

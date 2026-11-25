@@ -17,6 +17,7 @@ import {
   armarOrdenDeVenta,
   armarPropuestaComercial,
   armarReciboDePago,
+  armarVistaPreviaPlantillaDoc,
   OrdenAlistajeDoc,
   PagoDoc,
   PeritajeTomaDoc,
@@ -24,6 +25,7 @@ import {
   UnidadDoc,
   VentaAutoDoc,
 } from './documentos/boleto-auto.doc';
+import { PlantillaDocumentoAgencia } from './documentos/plantillas-doc.util';
 import { urlFoto } from '../utils/foto-url.util';
 import * as QRCode from 'qrcode';
 
@@ -139,6 +141,16 @@ export class DocumentosService {
       }
     }
     this.abrirHtml(armarEtiquetaDeLlave(unidad, await this.membrete(), { qr, url: urlFicha ?? null }));
+  }
+
+  /** Abre una ventana de prueba A4 con datos de ejemplo para la plantilla que se está editando. */
+  async probarPlantillaDocumento(tpl: PlantillaDocumentoAgencia): Promise<void> {
+    this.abrirHtml(armarVistaPreviaPlantillaDoc(tpl, await this.membrete()));
+  }
+
+  /** Devuelve el HTML A4 renderizado de una plantilla con datos de ejemplo (para el iframe de vista previa). */
+  async htmlVistaPreviaPlantilla(tpl: PlantillaDocumentoAgencia): Promise<string> {
+    return armarVistaPreviaPlantillaDoc(tpl, await this.membrete());
   }
 
   private async membrete(): Promise<EmpresaDoc | null> {

@@ -27,6 +27,9 @@
       <a *ngIf="esAdmin()" routerLink="mensajes" routerLinkActive="active" class="tab-item">
         <app-icon class="icon" name="mail"></app-icon> Mensajes
       </a>
+      <a *ngIf="esAdmin()" routerLink="documentos" routerLinkActive="active" class="tab-item">
+        <app-icon class="icon" name="nota"></app-icon> Documentos A4
+      </a>
       <a routerLink="wallets" routerLinkActive="active" class="tab-item">
         <app-icon class="icon" name="dinero"></app-icon> Cajas y cuentas
       </a>

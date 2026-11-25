@@ -24,6 +24,8 @@ const routes: Routes = [
       { path: 'wallets', component: WalletsComponent },
       // Los textos de WhatsApp y correo: los reescribe el dueño.
       { path: 'mensajes', canActivate: [rolGuard(Rol.ADMIN)], loadComponent: () => import('../mensajes/mensajes-config.component').then((m) => m.MensajesConfigComponent) },
+      // Las plantillas de los 11 documentos A4 de la agencia (boletos, OV, recibos, actas, consignación, taller).
+      { path: 'documentos', canActivate: [rolGuard(Rol.ADMIN)], loadComponent: () => import('./documentos/documentos-config.component').then((m) => m.DocumentosConfigComponent) },
       // Alta y baja de empleados: solo el admin del taller.
       {
         path: 'empleados',

@@ -424,8 +424,9 @@ export function documento(titulo: string, paginas: string[]): string {
 <body>
 ${paginas.join('\n')}
 <div class="no-print">
-  <p>Imprimí al 100 % (sin «Ajustar a la página») para que las medidas legales se respeten.</p>
-  <button data-accion="imprimir">Imprimir / Guardar PDF</button>
+  <p>Imprimí al 100 % (sin «Ajustar a la página»). Podés tocar <b>«Editar texto en la hoja»</b> para retocar cualquier párrafo o dato antes de imprimir.</p>
+  <button data-accion="imprimir">🖨️ Imprimir / Guardar PDF</button>
+  <button class="secundario" data-accion="editar">✏️ Editar texto en la hoja</button>
   <button class="secundario" data-accion="cerrar">Cerrar</button>
 </div>
 ${scriptDocumento()}
@@ -551,6 +552,7 @@ td small, .chico-gris { font-size: 8.5pt; color: var(--rot); }
 .no-print p { margin: 0 0 10px; }
 .no-print button { background: var(--ant); color: #fff; border: none; border-radius: 6px; padding: 9px 20px; font: 600 12px 'Figtree', Arial, sans-serif; cursor: pointer; margin: 0 4px; }
 .no-print button.secundario { background: #6b6f73; }
+body.modo-edicion .page { outline: 2.5px dashed var(--nar); outline-offset: -4px; cursor: text; }
 @media print {
   body { background: #fff; }
   .page { margin: 0; box-shadow: none; min-height: 296.5mm; break-after: page; page-break-after: always; }

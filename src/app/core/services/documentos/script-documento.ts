@@ -48,12 +48,19 @@ export const SCRIPT_DOCUMENTO = `
     else if (a === 'cerrar') window.close();
     else if (a === 'imprimir-fotos') window.imprimirFotos();
     else if (a === 'no-fotos') window.cerrarPreguntaDeFotos();
+    else if (a === 'editar') {
+      var activo = d.body.classList.toggle('modo-edicion');
+      Array.prototype.forEach.call(d.querySelectorAll('.page'), function (p) {
+        p.contentEditable = activo ? 'true' : 'false';
+      });
+      b.textContent = activo ? '✓ Terminar edición en hoja' : '✏️ Editar texto en la hoja';
+    }
   });
 })();
 `;
 
 /** El hash CSP de `SCRIPT_DOCUMENTO` (el mismo que va en `vercel.json`). */
-export const HASH_SCRIPT_DOCUMENTO = "'sha256-fFsUKj/czN3B627z3raUPagBItV8rqGtVcXHmIVvB+o='";
+export const HASH_SCRIPT_DOCUMENTO = "'sha256-FUcH+myye6EEi3MpCHFx6IOkRRN2/PfpcVJBhH2c63E='";
 
 /** La etiqueta lista para pegar antes de `</body>`. */
 export function scriptDocumento(): string {

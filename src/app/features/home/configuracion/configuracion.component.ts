@@ -21,6 +21,7 @@ export class ConfiguracionComponent {
     if (url.includes('wallets')) return 'Billeteras';
     if (url.includes('empleados')) return 'Empleados';
     if (url.includes('mensajes')) return 'Mensajes';
+    if (url.includes('documentos')) return 'Documentos A4';
     if (url.includes('sintomas')) return 'Síntomas';
     if (url.includes('sinonimos')) return 'Sinónimos';
     if (url.includes('vidriera')) return 'Vidriera';

@@ -9,6 +9,17 @@
  */
 import { bloque, cards, checks, destacado, documento, esc, fechaCorta, firma, hero, hoja, hora, kv, legal, plata, qrLinea, tabla, talonRetiro, totales, unaHoja } from './plantilla.util';
 import { EmpresaDoc, ExtrasDoc, urlCorta } from './comun';
+import {
+  obtenerPlantillaDoc,
+  PlantillaDocumentoAgencia,
+  renderizarClausulasHtml,
+  renderizarFirmasDoc,
+} from './plantillas-doc.util';
+
+function aplicarColorAcento(html: string, color?: string): string {
+  if (!color || !/^#[0-9a-f]{6}$/i.test(color) || color.toUpperCase() === '#FF7F00') return html;
+  return html.replace('--nar: #FF7F00;', `--nar: ${color};`);
+}
 
 export interface PagoDoc {
   medio: string;
@@ -63,31 +74,76 @@ function filaDePago(p: PagoDoc, moneda: 'ARS' | 'USD'): string[] {
 }
 
 /** Recibo de un pago de la operación (la seña es el primero). */
-export function armarReciboDePago(v: VentaAutoDoc, pago: PagoDoc, empresa: EmpresaDoc | null, extras: ExtrasDoc = {}): string {
+export function armarReciboDePago(v: VentaAutoDoc, pago: PagoDoc, empresa: EmpresaDoc | null, extras: ExtrasDoc = {}, tplOverride?: PlantillaDocumentoAgencia): string {
   const hoy = extras.hoy ?? new Date();
+  const tpl = tplOverride ?? obtenerPlantillaDoc('recibo');
   const agencia = empresa?.name || 'la agencia';
   const esSena = v.pagos.length > 0 && v.pagos[0] === pago;
+  const vars = {
+    agencia,
+    cuit_agencia: empresa?.cuit ?? '—',
+    domicilio_agencia: empresa?.direccion ?? '—',
+    cliente: v.cliente_nombre,
+    dni_cliente: v.cliente_documento ?? '—',
+    telefono_cliente: v.cliente_telefono ?? '—',
+    vehiculo: `${v.unidad.titulo} ${v.unidad.anio}`,
+    dominio: v.unidad.dominio ?? 'S/D',
+    anio: v.unidad.anio,
+    km: v.unidad.condicion === '0km' ? '0 km' : `${v.unidad.km.toLocaleString('es-AR')} km`,
+    motor: v.unidad.nro_motor ?? '—',
+    chasis: v.unidad.nro_chasis ?? '—',
+    numero: v.numero,
+    precio: monto(v.precio, v.moneda),
+    pagado: monto(v.pagado, v.moneda),
+    saldo: monto(Math.max(v.saldo, 0), v.moneda),
+    fecha: fechaCorta(hoy),
+    hora: hora(hoy) || '10:00',
+  };
+  const { acepto, rotulos } = renderizarFirmasDoc(tpl, vars);
   const cuerpo = `
 ${cards(
   bloque('Recibimos de', kv([['Nombre', v.cliente_nombre], ['DNI / CUIT', blanco(v.cliente_documento)], ['Teléfono', v.cliente_telefono ?? '']])),
   bloque('Por el vehículo', kv(paresDelAuto(v).slice(0, 3))),
 )}
 ${tabla([{ texto: 'Fecha' }, { texto: 'Concepto' }, { texto: 'Importe', alinear: 'der' }], [filaDePago(pago, v.moneda)])}
-${legal(`<p><b>${esc(agencia)}</b> recibe el importe detallado en concepto de <b>${esSena ? 'seña y reserva' : 'pago a cuenta'}</b> de la operación <b>${esc(v.numero)}</b>, por un precio total acordado de <b>${esc(monto(v.precio, v.moneda))}</b>.</p>
-<p>Con este pago lleva abonado ${esc(monto(v.pagado, v.moneda))} y resta un saldo de <b>${esc(monto(Math.max(v.saldo, 0), v.moneda))}</b>.${
-  v.reserva_vence ? ` La unidad queda reservada hasta el ${esc(fechaCorta(v.reserva_vence))}.` : ''
-}</p>`)}
-${firma('', ['Firma del cliente', 'Aclaración y DNI', `Recibió por ${agencia}`])}`;
+${renderizarClausulasHtml(tpl.clausulas, vars, tpl.observaciones_pie)}
+${rotulos.length ? firma(acepto, rotulos) : ''}`;
 
-  return documento(`Recibo ${v.numero}`, [
-    hoja({ titulo: esSena ? 'Recibo de seña' : 'Recibo de pago', subtitulo: 'Compra de un vehículo', numero: v.numero, meta: fechaCorta(hoy), copia: 'Original para el cliente', cuerpo }, empresa),
-  ]);
+  const tituloDoc = tplOverride ? tpl.titulo : (esSena && tpl.titulo === 'Recibo de pago' ? 'Recibo de seña' : tpl.titulo);
+  return aplicarColorAcento(
+    documento(`Recibo ${v.numero}`, [
+      hoja({ titulo: tituloDoc, subtitulo: tpl.subtitulo, numero: v.numero, meta: fechaCorta(hoy), copia: tpl.copia, cuerpo }, empresa),
+    ]),
+    tpl.color_acento,
+  );
 }
 
 /** Boleto de compraventa, con los datos del auto, las partes y los pagos ya cargados. MODELO a revisar. */
-export function armarBoletoDeCompraventa(v: VentaAutoDoc, empresa: EmpresaDoc | null, extras: ExtrasDoc = {}): string {
+export function armarBoletoDeCompraventa(v: VentaAutoDoc, empresa: EmpresaDoc | null, extras: ExtrasDoc = {}, tplOverride?: PlantillaDocumentoAgencia): string {
   const hoy = extras.hoy ?? new Date();
+  const tpl = tplOverride ?? obtenerPlantillaDoc('boleto');
   const agencia = empresa?.name || 'la agencia';
+  const vars = {
+    agencia,
+    cuit_agencia: empresa?.cuit ?? '—',
+    domicilio_agencia: empresa?.direccion ?? '—',
+    cliente: v.cliente_nombre,
+    dni_cliente: v.cliente_documento ?? '—',
+    telefono_cliente: v.cliente_telefono ?? '—',
+    vehiculo: `${v.unidad.titulo} ${v.unidad.anio}`,
+    dominio: v.unidad.dominio ?? 'S/D',
+    anio: v.unidad.anio,
+    km: v.unidad.condicion === '0km' ? '0 km' : `${v.unidad.km.toLocaleString('es-AR')} km`,
+    motor: v.unidad.nro_motor ?? '—',
+    chasis: v.unidad.nro_chasis ?? '—',
+    numero: v.numero,
+    precio: monto(v.precio, v.moneda),
+    pagado: monto(v.pagado, v.moneda),
+    saldo: monto(Math.max(v.saldo, 0), v.moneda),
+    fecha: fechaCorta(hoy),
+    hora: hora(hoy) || '10:00',
+  };
+  const { acepto, rotulos } = renderizarFirmasDoc(tpl, vars);
   const pagos = v.pagos.length
     ? tabla([{ texto: 'Fecha' }, { texto: 'Forma de pago' }, { texto: 'Importe', alinear: 'der' }], v.pagos.map((p) => filaDePago(p, v.moneda)))
     : '';
@@ -97,20 +153,16 @@ ${cards(
   bloque('Comprador', kv([['Nombre', v.cliente_nombre], ['DNI / CUIT', blanco(v.cliente_documento)], ['Domicilio', blanco(null, 30)], ['Teléfono', v.cliente_telefono ?? '']])),
 )}
 ${bloque('Vehículo', kv(paresDelAuto(v)))}
-${legal(`<p><b>1. Objeto.</b> El vendedor vende al comprador, y este compra, el vehículo descripto, en el estado en que se encuentra, que el comprador declara haber revisado y probado a su conformidad.</p>
-<p><b>2. Precio.</b> El precio total es de <b>${esc(monto(v.precio, v.moneda))}</b>. A la fecha se abonaron ${esc(monto(v.pagado, v.moneda))}${
-  v.saldo > 0 ? ` y queda un saldo de <b>${esc(monto(v.saldo, v.moneda))}</b>, que el comprador abonará antes de la entrega` : ', quedando el precio íntegramente cancelado'
-}.</p>
-<p><b>3. Entrega.</b> El vehículo se entrega con el precio cancelado, junto con la documentación necesaria para su transferencia.</p>
-<p><b>4. Transferencia.</b> Las partes se obligan a firmar la documentación registral (formulario 08 y demás) para inscribir la transferencia en el Registro de la Propiedad del Automotor. Los gastos de transferencia quedan a cargo de: ________________________.</p>
-<p><b>5. Deudas e infracciones.</b> Las deudas de patentes e infracciones anteriores a la entrega son a cargo del vendedor; las posteriores, del comprador, que se hace responsable del uso del vehículo desde que lo recibe.</p>
-<p><b>6. Observaciones.</b> ______________________________________________________________________________</p>`)}
+${renderizarClausulasHtml(tpl.clausulas, vars, tpl.observaciones_pie)}
 ${pagos}
-${firma(`En ${blanco(null, 18)}, a los ${hoy.getDate()} días del mes de ${hoy.toLocaleDateString('es-AR', { month: 'long' })} de ${hoy.getFullYear()}, se firman dos ejemplares de un mismo tenor.`, ['Firma del comprador', 'Aclaración y DNI', `Por ${agencia}`])}`;
+${rotulos.length ? firma(acepto, rotulos) : ''}`;
 
-  return documento(`Boleto ${v.numero}`, [
-    hoja({ titulo: 'Boleto de compraventa', subtitulo: 'Vehículo automotor', numero: v.numero, meta: fechaCorta(hoy), copia: 'Ejemplar para el comprador', cuerpo }, empresa),
-  ]);
+  return aplicarColorAcento(
+    documento(`Boleto ${v.numero}`, [
+      hoja({ titulo: tpl.titulo, subtitulo: tpl.subtitulo, numero: v.numero, meta: fechaCorta(hoy), copia: tpl.copia, cuerpo }, empresa),
+    ]),
+    tpl.color_acento,
+  );
 }
 
 export interface UnidadDoc {
@@ -158,7 +210,9 @@ const CARROCERIA_DOC: Record<string, string> = {
 };
 
 /** Cartel A4 para el parabrisas / vidriera con código QR a la publicación online. */
-export function armarCartelDeVidriera(u: UnidadDoc, empresa: EmpresaDoc | null, extras: ExtrasDoc = {}): string {
+export function armarCartelDeVidriera(u: UnidadDoc, empresa: EmpresaDoc | null, extras: ExtrasDoc = {}, tplOverride?: PlantillaDocumentoAgencia): string {
+  const tpl = tplOverride ?? obtenerPlantillaDoc('cartel_vidriera');
+  const agencia = empresa?.name || 'la agencia';
   const kmTexto = u.condicion === '0km' ? '0 km' : `${u.km.toLocaleString('es-AR')} km`;
   const cajaTexto = CAJA_DOC[u.transmision ?? ''] ?? '—';
   const combTexto = COMBUSTIBLE_DOC[u.combustible ?? ''] ?? '—';
@@ -206,6 +260,16 @@ export function armarCartelDeVidriera(u: UnidadDoc, empresa: EmpresaDoc | null, 
     u.mostrar_toma !== false ? 'Tomamos tu usado en parte de pago' : null,
   ].filter(Boolean).join(' · ');
 
+  const vars = {
+    agencia,
+    vehiculo: `${u.titulo} ${u.anio}`,
+    dominio: u.dominio ?? '—',
+    anio: u.anio,
+    km: kmTexto,
+    numero: u.numero,
+    precio: precioTexto,
+  };
+
   const pieQr = extras.qr && extras.url
     ? qrLinea(extras.qr, `<b>Mirá la galería de fotos, papeles y simulador de cuotas desde tu celular</b><br>${esc(urlCorta(extras.url))}`)
     : '';
@@ -216,30 +280,56 @@ ${ficha}
 ${equip}
 ${desc}
 ${destacado(esc(ventajas))}
+${renderizarClausulasHtml(tpl.clausulas, vars, tpl.observaciones_pie)}
 ${pieQr}`;
 
-  return unaHoja(
-    {
-      titulo: `${u.marca} ${u.modelo}`,
-      subtitulo: u.version ?? `Modelo ${u.anio}`,
-      numero: u.numero,
-      leyenda: { interno: 'FICHA DE EXPOSICIÓN' },
-      cuerpo,
-    },
-    empresa,
-    `Cartel ${u.numero}`,
+  return aplicarColorAcento(
+    unaHoja(
+      {
+        titulo: tplOverride ? tpl.titulo : `${u.marca} ${u.modelo}`,
+        subtitulo: tplOverride ? tpl.subtitulo : (u.version ?? `Modelo ${u.anio}`),
+        numero: u.numero,
+        leyenda: { interno: tpl.copia || 'FICHA DE EXPOSICIÓN' },
+        cuerpo,
+      },
+      empresa,
+      `Cartel ${u.numero}`,
+    ),
+    tpl.color_acento,
   );
 }
 
 /** Contrato / autorización de venta en consignación con estado de documentación entregada. */
-export function armarContratoDeConsignacion(u: UnidadDoc, empresa: EmpresaDoc | null, extras: ExtrasDoc = {}): string {
+export function armarContratoDeConsignacion(u: UnidadDoc, empresa: EmpresaDoc | null, extras: ExtrasDoc = {}, tplOverride?: PlantillaDocumentoAgencia): string {
   const hoy = extras.hoy ?? new Date();
+  const tpl = tplOverride ?? obtenerPlantillaDoc('consignacion_contrato');
   const agencia = empresa?.name || 'la agencia';
   const piso = u.precio_piso !== null ? monto(u.precio_piso, u.moneda) : blanco(null, 16);
   const lista = u.precio_venta !== null ? monto(u.precio_venta, u.moneda) : 'A convenir';
   const papelesRecibidos = u.papeles
     .filter((p) => p.tipo !== 'contrato_consignacion')
     .map((p) => ({ texto: p.nombre, ok: p.estado === 'ok' }));
+
+  const vars = {
+    agencia,
+    cuit_agencia: empresa?.cuit ?? '—',
+    domicilio_agencia: empresa?.direccion ?? '—',
+    cliente: u.titular_nombre ?? 'Propietario',
+    dni_cliente: u.titular_documento ?? '—',
+    telefono_cliente: u.titular_telefono ?? '—',
+    vehiculo: `${u.titulo} ${u.anio}`,
+    dominio: u.dominio ?? 'S/D',
+    anio: u.anio,
+    km: `${u.km.toLocaleString('es-AR')} km`,
+    motor: u.nro_motor ?? '—',
+    chasis: u.nro_chasis ?? '—',
+    numero: u.numero,
+    precio: lista,
+    piso,
+    fecha: fechaCorta(hoy),
+    hora: hora(hoy) || '10:00',
+  };
+  const { acepto, rotulos } = renderizarFirmasDoc(tpl, vars);
 
   const cuerpo = `
 ${cards(
@@ -273,24 +363,45 @@ ${cards(
   ])),
 )}
 ${papelesRecibidos.length ? bloque('Estado de la documentación al ingreso', checks(papelesRecibidos)) : ''}
-${legal(`<p><b>1. Autorización de venta.</b> El propietario entrega a <b>${esc(agencia)}</b> el vehículo descripto en carácter de consignación, autorizándola a exhibirlo en su salón y canales digitales, realizar pruebas de manejo supervisadas y recibir señas o reservas de interesados.</p>
-<p><b>2. Precio piso y retribución.</b> El propietario fija como valor neto de liquidación a su favor la suma de <b>${esc(piso)}</b>. Todo importe obtenido por encima de dicho valor piso, o la comisión acordada entre las partes, corresponderá a la agencia en concepto de gestión comercial y publicidad.</p>
-<p><b>3. Situación registral y deudas.</b> El propietario declara bajo juramento que el vehículo no registra prendas, embargos ni inhibiciones, y asume a su exclusivo cargo todas las deudas de patentes, infracciones de tránsito y gravámenes devengados hasta el día de la entrega efectiva al comprador.</p>
-<p><b>4. Guarda y retiro.</b> En caso de que el propietario decida retirar la unidad antes de concretarse la venta, deberá notificarlo fehacientemente y abonar los gastos de alistaje, gestoría o preparación que hubiese autorizado previamente.</p>`)}
-${firma(`En ${blanco(null, 18)}, a los ${hoy.getDate()} días del mes de ${hoy.toLocaleDateString('es-AR', { month: 'long' })} de ${hoy.getFullYear()}, se firman dos ejemplares.`, ['Firma del propietario', 'Aclaración y DNI', `Recibió por ${agencia}`])}`;
+${renderizarClausulasHtml(tpl.clausulas, vars, tpl.observaciones_pie)}
+${rotulos.length ? firma(acepto, rotulos) : ''}`;
 
-  return documento(`Consignación ${u.numero}`, [
-    hoja({ titulo: 'Contrato de consignación', subtitulo: 'Autorización de venta de vehículo', numero: u.numero, meta: fechaCorta(hoy), copia: 'Original para el propietario', cuerpo }, empresa),
-  ]);
+  return aplicarColorAcento(
+    documento(`Consignación ${u.numero}`, [
+      hoja({ titulo: tpl.titulo, subtitulo: tpl.subtitulo, numero: u.numero, meta: fechaCorta(hoy), copia: tpl.copia, cuerpo }, empresa),
+    ]),
+    tpl.color_acento,
+  );
 }
 
 /** Liquidación final al dueño de un auto dejado en consignación. */
-export function armarLiquidacionConsignacion(u: UnidadDoc, empresa: EmpresaDoc | null, extras: ExtrasDoc = {}): string {
+export function armarLiquidacionConsignacion(u: UnidadDoc, empresa: EmpresaDoc | null, extras: ExtrasDoc = {}, tplOverride?: PlantillaDocumentoAgencia): string {
   const hoy = extras.hoy ?? new Date();
+  const tpl = tplOverride ?? obtenerPlantillaDoc('consignacion_liquidacion');
   const agencia = empresa?.name || 'la agencia';
   const piso = Number(u.precio_piso ?? 0);
   const gastosEnMoneda = Number(u.total_gastos ?? 0);
   const neto = Math.max(0, Math.round((piso - gastosEnMoneda) * 100) / 100);
+
+  const vars = {
+    agencia,
+    cuit_agencia: empresa?.cuit ?? '—',
+    domicilio_agencia: empresa?.direccion ?? '—',
+    cliente: u.titular_nombre ?? 'Propietario',
+    dni_cliente: u.titular_documento ?? '—',
+    telefono_cliente: u.titular_telefono ?? '—',
+    vehiculo: `${u.titulo} ${u.anio}`,
+    dominio: u.dominio ?? 'S/D',
+    anio: u.anio,
+    km: `${u.km.toLocaleString('es-AR')} km`,
+    numero: u.numero,
+    piso: monto(piso, u.moneda),
+    neto_liquidar: monto(neto, u.moneda),
+    precio: u.precio_venta !== null ? monto(u.precio_venta, u.moneda) : monto(piso, u.moneda),
+    fecha: fechaCorta(hoy),
+    hora: hora(hoy) || '10:00',
+  };
+  const { acepto, rotulos } = renderizarFirmasDoc(tpl, vars);
 
   const filasGastos = u.gastos.map((g) => {
     const imp = g.moneda === u.moneda
@@ -327,12 +438,15 @@ ${cards(
 )}
 ${tablaGastos}
 ${resumenTotales}
-${legal(`<p>Recibí de <b>${esc(agencia)}</b> la suma neta de <b>${esc(monto(neto, u.moneda))}</b> en concepto de liquidación total y definitiva por la venta del vehículo en consignación descripto en este documento, no teniendo nada más que reclamar por ningún concepto derivado de dicha operación.</p>`)}
-${firma('', ['Recibí conforme (Propietario)', 'Aclaración y DNI', `Liquidó por ${agencia}`])}`;
+${renderizarClausulasHtml(tpl.clausulas, vars, tpl.observaciones_pie)}
+${rotulos.length ? firma(acepto, rotulos) : ''}`;
 
-  return documento(`Liquidación ${u.numero}`, [
-    hoja({ titulo: 'Liquidación de consignación', subtitulo: 'Rendición al propietario', numero: u.numero, meta: fechaCorta(hoy), copia: 'Comprobante de liquidación', cuerpo }, empresa),
-  ]);
+  return aplicarColorAcento(
+    documento(`Liquidación ${u.numero}`, [
+      hoja({ titulo: tpl.titulo, subtitulo: tpl.subtitulo, numero: u.numero, meta: fechaCorta(hoy), copia: tpl.copia, cuerpo }, empresa),
+    ]),
+    tpl.color_acento,
+  );
 }
 
 export interface PropuestaAutoDoc {
@@ -353,11 +467,31 @@ export interface PropuestaAutoDoc {
 }
 
 /** Hoja de presupuesto / propuesta comercial llave por llave (Permuta + Efectivo + Cuotas). */
-export function armarPropuestaComercial(p: PropuestaAutoDoc, empresa: EmpresaDoc | null, extras: ExtrasDoc = {}): string {
+export function armarPropuestaComercial(p: PropuestaAutoDoc, empresa: EmpresaDoc | null, extras: ExtrasDoc = {}, tplOverride?: PlantillaDocumentoAgencia): string {
   const hoy = extras.hoy ?? new Date();
+  const tpl = tplOverride ?? obtenerPlantillaDoc('propuesta');
   const u = p.unidad;
   const agencia = empresa?.name || 'la agencia';
   const kmTexto = u.condicion === '0km' ? '0 km' : `${u.km.toLocaleString('es-AR')} km`;
+
+  const vars = {
+    agencia,
+    cuit_agencia: empresa?.cuit ?? '—',
+    domicilio_agencia: empresa?.direccion ?? '—',
+    cliente: p.cliente_nombre || 'Cliente',
+    telefono_cliente: p.cliente_telefono ?? '—',
+    vehiculo: `${u.titulo} ${u.anio}`,
+    dominio: u.dominio ?? 'S/D',
+    anio: u.anio,
+    km: kmTexto,
+    numero: u.numero,
+    precio: monto(p.precio_unidad, u.moneda),
+    saldo: monto(p.saldo_financiar, u.moneda),
+    validez_horas: p.validez_horas,
+    fecha: fechaCorta(hoy),
+    hora: hora(hoy) || '10:00',
+  };
+  const { acepto, rotulos } = renderizarFirmasDoc(tpl, vars);
 
   const encabezadoHero = hero({
     etiqueta: `PROPUESTA COMERCIAL · ${u.numero}`,
@@ -423,20 +557,25 @@ ${bloque('Esquema de la operación (Llave por llave)', totales(
 ))}
 ${detalleFinanciacion}
 ${p.notas ? bloque('Observaciones', `<p style="margin:0;font-size:10pt">${esc(p.notas)}</p>`) : ''}
-${legal(`<p>Presupuesto informativo emitido por <b>${esc(agencia)}</b> con validez de <b>${p.validez_horas} horas</b>, sujeto a disponibilidad de la unidad y, en caso de permuta o financiación, a la revisión física y registral del vehículo entregado y aprobación crediticia.</p>`)}
+${renderizarClausulasHtml(tpl.clausulas, vars, tpl.observaciones_pie)}
+${rotulos.length ? firma(acepto, rotulos) : ''}
 ${pieQr}`;
 
-  return unaHoja(
-    {
-      titulo: 'Propuesta comercial',
-      subtitulo: 'Presupuesto de compra y permuta',
-      numero: u.numero,
-      meta: fechaCorta(hoy),
-      leyenda: { interno: 'PRESUPUESTO COMERCIAL' },
-      cuerpo,
-    },
-    empresa,
-    `Propuesta ${u.numero}`,
+  return aplicarColorAcento(
+    unaHoja(
+      {
+        titulo: tpl.titulo,
+        subtitulo: tpl.subtitulo,
+        numero: u.numero,
+        meta: fechaCorta(hoy),
+        copia: tpl.copia,
+        leyenda: { interno: 'PRESUPUESTO COMERCIAL' },
+        cuerpo,
+      },
+      empresa,
+      `Propuesta ${u.numero}`,
+    ),
+    tpl.color_acento,
   );
 }
 
@@ -457,10 +596,28 @@ export interface PeritajeTomaDoc {
 }
 
 /** Hoja de tasación y peritaje técnico de toma de usado para defender el valor frente al cliente. */
-export function armarHojaDePeritaje(p: PeritajeTomaDoc, empresa: EmpresaDoc | null, extras: ExtrasDoc = {}): string {
+export function armarHojaDePeritaje(p: PeritajeTomaDoc, empresa: EmpresaDoc | null, extras: ExtrasDoc = {}, tplOverride?: PlantillaDocumentoAgencia): string {
   const hoy = extras.hoy ?? new Date();
+  const tpl = tplOverride ?? obtenerPlantillaDoc('peritaje');
   const agencia = empresa?.name || 'la agencia';
   const totalReparaciones = p.rubros.reduce((acc, r) => acc + r.descuento, 0);
+
+  const vars = {
+    agencia,
+    cuit_agencia: empresa?.cuit ?? '—',
+    domicilio_agencia: empresa?.direccion ?? '—',
+    cliente: p.cliente_nombre || 'Titular',
+    telefono_cliente: p.cliente_telefono ?? '—',
+    vehiculo: p.vehiculo,
+    dominio: p.dominio ?? 'S/D',
+    anio: p.anio ?? '—',
+    km: p.km !== null ? `${p.km.toLocaleString('es-AR')} km` : '—',
+    numero: p.dominio || 'S/D',
+    precio: monto(p.valor_toma, p.moneda),
+    fecha: fechaCorta(hoy),
+    hora: hora(hoy) || '10:00',
+  };
+  const { acepto, rotulos } = renderizarFirmasDoc(tpl, vars);
 
   const encabezadoHero = hero({
     etiqueta: 'TASACIÓN Y PERITAJE DE TOMA',
@@ -507,20 +664,24 @@ ${cards(
 )}
 ${bloque('Desglose técnico de inspección por rubro', tabla([{ texto: 'Rubro evaluado' }, { texto: 'Ajuste estimado', alinear: 'der' }], filasRubros))}
 ${totales(lineasTotales, p.observaciones ? esc(p.observaciones) : 'Cotización sujeta a verificación física final en taller y libre deuda registral.')}
-${legal(`<p>La presente tasación refleja el valor de toma ofrecido por <b>${esc(agencia)}</b> contemplando los costos de reacondicionamiento necesarios para dejar la unidad en condiciones de venta con garantía al próximo comprador.</p>`)}
-${firma('', ['Conformidad del titular', 'Aclaración y DNI', `Tasador por ${agencia}`])}`;
+${renderizarClausulasHtml(tpl.clausulas, vars, tpl.observaciones_pie)}
+${rotulos.length ? firma(acepto, rotulos) : ''}`;
 
-  return unaHoja(
-    {
-      titulo: 'Peritaje de toma',
-      subtitulo: 'Tasación técnica de vehículo usado',
-      numero: p.dominio || 'S/D',
-      meta: fechaCorta(hoy),
-      leyenda: { interno: 'TASACIÓN DE USADO' },
-      cuerpo,
-    },
-    empresa,
-    `Peritaje ${p.vehiculo}`,
+  return aplicarColorAcento(
+    unaHoja(
+      {
+        titulo: tpl.titulo,
+        subtitulo: tpl.subtitulo,
+        numero: p.dominio || 'S/D',
+        meta: fechaCorta(hoy),
+        copia: tpl.copia,
+        leyenda: { interno: 'TASACIÓN DE USADO' },
+        cuerpo,
+      },
+      empresa,
+      `Peritaje ${p.vehiculo}`,
+    ),
+    tpl.color_acento,
   );
 }
 
@@ -529,11 +690,34 @@ ${firma('', ['Conformidad del titular', 'Aclaración y DNI', `Tasador por ${agen
  * online (estilo Orden de Servicio de Taller: hero con QR, estado de cuenta, pagos,
  * pasos de cómo sigue y talón recortable con QR).
  */
-export function armarOrdenDeVenta(v: VentaAutoDoc, empresa: EmpresaDoc | null, extras: ExtrasDoc = {}): string {
+export function armarOrdenDeVenta(v: VentaAutoDoc, empresa: EmpresaDoc | null, extras: ExtrasDoc = {}, tplOverride?: PlantillaDocumentoAgencia): string {
   const hoy = extras.hoy ?? new Date();
+  const tpl = tplOverride ?? obtenerPlantillaDoc('orden_venta');
   const agencia = empresa?.name || 'la agencia';
   const u = v.unidad;
   const kmTexto = u.condicion === '0km' ? '0 km' : `${u.km.toLocaleString('es-AR')} km`;
+
+  const vars = {
+    agencia,
+    cuit_agencia: empresa?.cuit ?? '—',
+    domicilio_agencia: empresa?.direccion ?? '—',
+    cliente: v.cliente_nombre,
+    dni_cliente: v.cliente_documento ?? '—',
+    telefono_cliente: v.cliente_telefono ?? '—',
+    vehiculo: `${u.titulo} ${u.anio}`,
+    dominio: u.dominio ?? 'A patentar',
+    anio: u.anio,
+    km: kmTexto,
+    motor: u.nro_motor ?? '—',
+    chasis: u.nro_chasis ?? '—',
+    numero: v.numero,
+    precio: monto(v.precio, v.moneda),
+    pagado: monto(v.pagado, v.moneda),
+    saldo: v.saldo <= 0 ? 'Saldada' : monto(v.saldo, v.moneda),
+    fecha: fechaCorta(hoy),
+    hora: hora(hoy) || '10:00',
+  };
+  const { acepto, rotulos } = renderizarFirmasDoc(tpl, vars);
 
   const encabezadoHero = hero({
     etiqueta: `ORDEN DE VENTA (OV) · ${v.numero}`,
@@ -584,21 +768,24 @@ ${cards(
   ])),
 )}
 ${tablaPagos}
-${legal(`<p><b>Constancia de Orden de Venta (${esc(v.numero)}).</b> <b>${esc(agencia)}</b> emite la presente constancia de operación sobre el vehículo detallado. El comprador puede consultar en todo momento el avance de la documentación, el trámite de transferencia en el Registro Automotor y las fotos de la operación escaneando el código QR impreso en esta hoja.</p>`)}
-${firma('', ['Firma del comprador', 'Aclaración y DNI', `Por ${agencia}`])}
+${renderizarClausulasHtml(tpl.clausulas, vars, tpl.observaciones_pie)}
+${rotulos.length ? firma(acepto, rotulos) : ''}
 ${talon}`;
 
-  return unaHoja(
-    {
-      titulo: 'Orden de Venta (OV)',
-      subtitulo: 'Constancia de operación y seguimiento online',
-      numero: v.numero,
-      meta: fechaCorta(hoy),
-      copia: 'Original para el cliente',
-      cuerpo,
-    },
-    empresa,
-    `Orden de Venta ${v.numero}`,
+  return aplicarColorAcento(
+    unaHoja(
+      {
+        titulo: tpl.titulo,
+        subtitulo: tpl.subtitulo,
+        numero: v.numero,
+        meta: fechaCorta(hoy),
+        copia: tpl.copia,
+        cuerpo,
+      },
+      empresa,
+      `Orden de Venta ${v.numero}`,
+    ),
+    tpl.color_acento,
   );
 }
 
@@ -639,11 +826,30 @@ export interface OrdenAlistajeDoc {
  * Orden de Alistaje y Taller (OA-2026-XXXX) A4 con QR, checklist de 12 puntos,
  * repuestos del pañol y talón para dejar en el parabrisas / carpeta de taller.
  */
-export function armarOrdenDeAlistaje(o: OrdenAlistajeDoc, empresa: EmpresaDoc | null, extras: ExtrasDoc = {}): string {
+export function armarOrdenDeAlistaje(o: OrdenAlistajeDoc, empresa: EmpresaDoc | null, extras: ExtrasDoc = {}, tplOverride?: PlantillaDocumentoAgencia): string {
   const hoy = extras.hoy ?? new Date();
+  const tpl = tplOverride ?? obtenerPlantillaDoc('orden_alistaje');
   const agencia = empresa?.name || 'la agencia';
   const u = o.unidad;
   const kmTexto = `${u.km.toLocaleString('es-AR')} km`;
+
+  const vars = {
+    agencia,
+    cuit_agencia: empresa?.cuit ?? '—',
+    domicilio_agencia: empresa?.direccion ?? '—',
+    cliente: o.cliente?.nombre ?? agencia,
+    dni_cliente: o.cliente?.documento ?? '—',
+    telefono_cliente: o.cliente?.telefono ?? '—',
+    vehiculo: `${u.titulo} ${u.anio}`,
+    dominio: u.dominio ?? 'S/D',
+    anio: u.anio,
+    km: kmTexto,
+    numero: o.numero,
+    precio: monto(o.total_orden, o.moneda),
+    fecha: fechaCorta(o.created_at || hoy),
+    hora: hora(hoy) || '10:00',
+  };
+  const { acepto, rotulos } = renderizarFirmasDoc(tpl, vars);
 
   const encabezadoHero = hero({
     etiqueta: `${o.cliente ? 'ORDEN DE SERVICIO DE TALLER' : 'ORDEN DE ALISTAJE Y TALLER'} · ${o.numero}`,
@@ -726,20 +932,25 @@ ${o.diagnostico || o.trabajo_realizado ? cards(
 ) : ''}
 ${bloque('Checklist multipunto de inspección y control de calidad (QA)', checksHtml)}
 ${tablaRep}
-${firma('', [o.cliente ? 'Conformidad del cliente' : 'Responsable técnico / Taller', 'Control de calidad (QA)', `Autorizó por ${agencia}`])}
+${renderizarClausulasHtml(tpl.clausulas, vars, tpl.observaciones_pie)}
+${rotulos.length ? firma(acepto, rotulos) : ''}
 ${talon}`;
 
-  return unaHoja(
-    {
-      titulo: 'Orden de Alistaje',
-      subtitulo: 'Preparación mecánica, estética y repuestos',
-      numero: o.numero,
-      meta: fechaCorta(hoy),
-      leyenda: { interno: 'ORDEN INTERNA DE TALLER' },
-      cuerpo,
-    },
-    empresa,
-    `Orden Alistaje ${o.numero}`,
+  return aplicarColorAcento(
+    unaHoja(
+      {
+        titulo: tpl.titulo,
+        subtitulo: tpl.subtitulo,
+        numero: o.numero,
+        meta: fechaCorta(hoy),
+        copia: tpl.copia,
+        leyenda: { interno: 'ORDEN INTERNA DE TALLER' },
+        cuerpo,
+      },
+      empresa,
+      `Orden Alistaje ${o.numero}`,
+    ),
+    tpl.color_acento,
   );
 }
 
@@ -747,11 +958,34 @@ ${talon}`;
  * Acta de entrega de unidad y deslinde de responsabilidad civil, penal y de
  * infracciones de tránsito a partir del día y hora exacta de retiro.
  */
-export function armarActaDeEntrega(v: VentaAutoDoc, empresa: EmpresaDoc | null, extras: ExtrasDoc = {}): string {
+export function armarActaDeEntrega(v: VentaAutoDoc, empresa: EmpresaDoc | null, extras: ExtrasDoc = {}, tplOverride?: PlantillaDocumentoAgencia): string {
   const hoy = extras.hoy ?? new Date();
+  const tpl = tplOverride ?? obtenerPlantillaDoc('acta_entrega');
   const agencia = empresa?.name || 'la agencia';
   const fechaTexto = fechaCorta(hoy);
-  const horaTexto = hora(hoy) || '___:___';
+  const horaTexto = hora(hoy) || '10:30';
+
+  const vars = {
+    agencia,
+    cuit_agencia: empresa?.cuit ?? '—',
+    domicilio_agencia: empresa?.direccion ?? '—',
+    cliente: v.cliente_nombre,
+    dni_cliente: v.cliente_documento ?? '—',
+    telefono_cliente: v.cliente_telefono ?? '—',
+    vehiculo: `${v.unidad.titulo} ${v.unidad.anio}`,
+    dominio: v.unidad.dominio ?? 'S/D',
+    anio: v.unidad.anio,
+    km: v.unidad.condicion === '0km' ? '0 km' : `${v.unidad.km.toLocaleString('es-AR')} km`,
+    motor: v.unidad.nro_motor ?? '—',
+    chasis: v.unidad.nro_chasis ?? '—',
+    numero: v.numero,
+    precio: monto(v.precio, v.moneda),
+    pagado: monto(v.pagado, v.moneda),
+    saldo: monto(Math.max(v.saldo, 0), v.moneda),
+    fecha: fechaTexto,
+    hora: horaTexto,
+  };
+  const { acepto, rotulos } = renderizarFirmasDoc(tpl, vars);
 
   const accesorios = checks([
     { texto: 'Llave principal de arranque', ok: true },
@@ -781,25 +1015,37 @@ ${cards(
 )}
 ${bloque('Vehículo entregado', kv(paresDelAuto(v)))}
 ${bloque('Elementos y accesorios verificados en la entrega (tachar lo que no corresponda)', accesorios)}
-${legal(`<p><b>1. Recepción y conformidad.</b> En el lugar, fecha y hora exacta indicados arriba, el comprador recibe de conformidad de <b>${esc(agencia)}</b> la posesión física de la unidad descripta, habiendo verificado su funcionamiento mecánico, estado de carrocería, neumáticos, instrumental y los accesorios detallados.</p>
-<p><b>2. Deslinde de responsabilidad civil, penal y administrativa.</b> A partir de la hora exacta consignada en la presente acta (<b>${esc(horaTexto)} hs del ${esc(fechaTexto)}</b>), el comprador asume en forma exclusiva toda responsabilidad civil, penal, contravencional y administrativa derivada de la tenencia, guarda, conducción y circulación del vehículo, quedando el vendedor y la agencia eximidos de cualquier siniestro, daño a terceros, peaje o infracción de tránsito posterior a dicho instante.</p>
-<p><b>3. Seguro obligatorio.</b> El comprador declara contar con cobertura de seguro de responsabilidad civil vigente para retirar y circular con la unidad desde este momento (Compañía / Póliza: _____________________________________).</p>
-<p><b>4. Observaciones adicionales al retiro:</b> ________________________________________________________________________</p>`)}
-${firma(`Se firman dos ejemplares de un mismo tenor y a un solo efecto el ${fechaTexto} a las ${horaTexto} hs.`, ['Recibí conforme (Comprador)', 'Aclaración y DNI', `Entregó por ${agencia}`])}`;
+${renderizarClausulasHtml(tpl.clausulas, vars, tpl.observaciones_pie)}
+${rotulos.length ? firma(acepto, rotulos) : ''}`;
 
-  return documento(`Acta de entrega ${v.numero}`, [
-    hoja({ titulo: 'Acta de entrega', subtitulo: 'Recepción de vehículo y deslinde de responsabilidad', numero: v.numero, meta: `${fechaTexto} · ${horaTexto} hs`, copia: 'Original para la agencia', cuerpo }, empresa),
-  ]);
+  return aplicarColorAcento(
+    documento(`Acta de entrega ${v.numero}`, [
+      hoja({ titulo: tpl.titulo, subtitulo: tpl.subtitulo, numero: v.numero, meta: `${fechaTexto} · ${horaTexto} hs`, copia: tpl.copia, cuerpo }, empresa),
+    ]),
+    tpl.color_acento,
+  );
 }
 
 /**
  * Etiqueta recortable para el llavero del tablero de llaves de la agencia,
  * más ficha de control interno de guantera con código QR.
  */
-export function armarEtiquetaDeLlave(u: UnidadDoc, empresa: EmpresaDoc | null, extras: ExtrasDoc = {}): string {
+export function armarEtiquetaDeLlave(u: UnidadDoc, empresa: EmpresaDoc | null, extras: ExtrasDoc = {}, tplOverride?: PlantillaDocumentoAgencia): string {
   const hoy = extras.hoy ?? new Date();
+  const tpl = tplOverride ?? obtenerPlantillaDoc('etiqueta_llave');
+  const agencia = empresa?.name || 'la agencia';
   const kmTexto = u.condicion === '0km' ? '0 km' : `${u.km.toLocaleString('es-AR')} km`;
   const domTexto = u.dominio || 'SIN DOM';
+
+  const vars = {
+    agencia,
+    vehiculo: `${u.titulo} ${u.anio}`,
+    dominio: domTexto,
+    anio: u.anio,
+    km: kmTexto,
+    numero: u.numero,
+    fecha: fechaCorta(hoy),
+  };
 
   const etiquetaLlavero1 = talonRetiro({
     numero: `${u.numero} · ${domTexto}`,
@@ -824,19 +1070,209 @@ ${bloque('Control interno de unidad y llaves', kv([
   ['Color', u.color ?? '—'],
   ['Motor / Chasis', `${u.nro_motor ?? '—'} / ${u.nro_chasis ?? '—'}`],
 ]))}
+${renderizarClausulasHtml(tpl.clausulas, vars, tpl.observaciones_pie)}
 ${etiquetaLlavero1}
 ${etiquetaLlavero2}`;
 
-  return unaHoja(
-    {
-      titulo: 'Etiquetas de llave',
-      subtitulo: 'Identificación para tablero de llaves y carpeta',
-      numero: u.numero,
-      meta: domTexto,
-      leyenda: { interno: 'USO INTERNO AGENCIA' },
-      cuerpo,
-    },
-    empresa,
-    `Llave ${u.numero}`,
+  return aplicarColorAcento(
+    unaHoja(
+      {
+        titulo: tpl.titulo,
+        subtitulo: tpl.subtitulo,
+        numero: u.numero,
+        meta: domTexto,
+        copia: tpl.copia,
+        leyenda: { interno: 'USO INTERNO AGENCIA' },
+        cuerpo,
+      },
+      empresa,
+      `Llave ${u.numero}`,
+    ),
+    tpl.color_acento,
   );
+}
+
+/**
+ * Genera el HTML A4 completo de ejemplo para cualquiera de las 11 plantillas,
+ * ideal para la vista previa en vivo en el Editor de Documentos A4.
+ */
+export function armarVistaPreviaPlantillaDoc(tpl: PlantillaDocumentoAgencia, empresa: EmpresaDoc | null): string {
+  const ventaEjemplo: VentaAutoDoc = {
+    numero: 'OP-2026-0014',
+    cliente_nombre: 'Martín Pereyra',
+    cliente_telefono: '11 5544-3322',
+    cliente_documento: '32.451.890',
+    precio: 24500,
+    moneda: 'USD',
+    pagado: 5000,
+    saldo: 19500,
+    reserva_vence: '2026-12-05',
+    pagos: [
+      {
+        medio: 'transferencia',
+        monto: 5000,
+        moneda: 'USD',
+        tipo_cambio: null,
+        equivalente: 5000,
+        toma: null,
+        detalle: 'Seña y reserva bancaria',
+        fecha: '2026-11-25',
+      },
+    ],
+    unidad: {
+      titulo: 'Volkswagen Nivus 200 TSI Highline',
+      anio: 2022,
+      km: 34500,
+      dominio: 'AF 482 KL',
+      color: 'Gris Platino',
+      nro_motor: 'DHS294810',
+      nro_chasis: '9BWAA45U2NP049182',
+      condicion: 'usado',
+    },
+  };
+
+  const unidadEjemplo: UnidadDoc = {
+    id: '00000000-0000-0000-0000-000000000001',
+    numero: 'UN-0014',
+    titulo: 'Volkswagen Nivus 200 TSI Highline',
+    marca: 'Volkswagen',
+    modelo: 'Nivus',
+    version: '200 TSI Highline AT',
+    anio: 2022,
+    km: 34500,
+    dominio: 'AF 482 KL',
+    color: 'Gris Platino',
+    combustible: 'nafta',
+    transmision: 'automatica',
+    carroceria: 'suv',
+    nro_motor: 'DHS294810',
+    nro_chasis: '9BWAA45U2NP049182',
+    condicion: 'usado',
+    origen: 'consignacion',
+    moneda: 'USD',
+    precio_piso: 21000,
+    precio_venta: 24500,
+    total_gastos: 350,
+    gastos: [
+      { descripcion: 'Service de aceite, filtros y alineación', monto: 220, moneda: 'USD', tipo_cambio: null, fecha: '2026-11-18' },
+      { descripcion: 'Abrillantado y limpieza de tapizados', monto: 130, moneda: 'USD', tipo_cambio: null, fecha: '2026-11-20' },
+    ],
+    papeles: [
+      { tipo: 'titulo', nombre: 'Título del automotor', estado: 'ok' },
+      { tipo: 'cedula', nombre: 'Cédula verde', estado: 'ok' },
+      { tipo: 'form_08', nombre: 'Formulario 08 firmado', estado: 'ok' },
+      { tipo: 'verificacion_policial', nombre: 'Verificación policial', estado: 'ok' },
+    ],
+    titular_nombre: 'Carlos Alberto Gómez',
+    titular_telefono: '11 4433-2211',
+    titular_documento: '24.889.102',
+    descripcion: 'Única mano, services oficiales al día, cubiertas nuevas.',
+    destacados: ['Caja automática Tiptronic', 'Tablero Active Info Display', 'Control crucero adaptativo ACC', 'Cámara de retroceso'],
+    precio_financiado: 25200,
+    mostrar_toma: true,
+  };
+
+  switch (tpl.clave) {
+    case 'boleto':
+      return armarBoletoDeCompraventa(ventaEjemplo, empresa, {}, tpl);
+    case 'orden_venta':
+      return armarOrdenDeVenta(ventaEjemplo, empresa, { url: 'https://fgautos.com/ov/demo' }, tpl);
+    case 'recibo':
+      return armarReciboDePago(ventaEjemplo, ventaEjemplo.pagos[0], empresa, {}, tpl);
+    case 'acta_entrega':
+      return armarActaDeEntrega(ventaEjemplo, empresa, {}, tpl);
+    case 'consignacion_contrato':
+      return armarContratoDeConsignacion(unidadEjemplo, empresa, {}, tpl);
+    case 'consignacion_liquidacion':
+      return armarLiquidacionConsignacion(unidadEjemplo, empresa, {}, tpl);
+    case 'propuesta':
+      return armarPropuestaComercial(
+        {
+          unidad: unidadEjemplo,
+          cliente_nombre: 'Martín Pereyra',
+          cliente_telefono: '11 5544-3322',
+          precio_unidad: 24500,
+          usado_titulo: 'Ford Fiesta Kinetic Titanium 2017',
+          usado_valor: 12500,
+          efectivo_anticipo: 6000,
+          saldo_financiar: 6000,
+          cuotas_meses: 24,
+          cuota_valor: 340,
+          tna: 39,
+          gastos_transferencia: 950,
+          validez_horas: 48,
+          notas: 'Incluye tanque lleno y kit de seguridad.',
+        },
+        empresa,
+        {},
+        tpl,
+      );
+    case 'peritaje':
+      return armarHojaDePeritaje(
+        {
+          cliente_nombre: 'Martín Pereyra',
+          cliente_telefono: '11 5544-3322',
+          vehiculo: 'Ford Fiesta Kinetic Titanium 2017',
+          dominio: 'AB 192 CD',
+          anio: 2017,
+          km: 84000,
+          moneda: 'USD',
+          valor_referencia: 14200,
+          rubros: [
+            { concepto: 'Motor, embrague y transmisión', descuento: 0 },
+            { concepto: 'Neumáticos (2 delanteros a reemplazar)', descuento: 350 },
+            { concepto: 'Chapa y pintura (paragolpes trasero)', descuento: 230 },
+          ],
+          margen_agencia: 1120,
+          margen_pct: 8,
+          valor_toma: 12500,
+          observaciones: 'Unidad en muy buen estado general de mecánica e interior.',
+        },
+        empresa,
+        {},
+        tpl,
+      );
+    case 'orden_alistaje':
+      return armarOrdenDeAlistaje(
+        {
+          numero: 'OA-2026-0008',
+          tipo_origen: 'stock',
+          estado: 'en_trabajo',
+          prioridad: 'alta',
+          sector: 'Service y alistaje de ingreso',
+          responsable: 'Taller Bosch',
+          unidad: {
+            numero: 'UN-0014',
+            titulo: 'Volkswagen Nivus 200 TSI Highline',
+            dominio: 'AF 482 KL',
+            anio: 2022,
+            km: 34500,
+          },
+          falla_motivo: 'Service completo de ingreso + control de frenos y batería',
+          diagnostico: 'Aceite próximo a cambio y pastillas delanteras al 30%',
+          trabajo_realizado: 'Cambio de aceite sintético 5W40 + 3 filtros y pastillas Bosch',
+          moneda: 'ARS',
+          costo_mano_obra: 95000,
+          total_repuestos: 148000,
+          total_orden: 243000,
+          checklist: [
+            { grupo: 'Mecanica', nombre: 'Aceite de motor y filtro', estado: 'ok', observacion: '5W40 Sintético' },
+            { grupo: 'Seguridad', nombre: 'Pastillas y discos de freno', estado: 'ok', observacion: 'Nuevas Bosch' },
+            { grupo: 'Estetica', nombre: 'Limpieza de interior y motor', estado: 'ok', observacion: null },
+          ],
+          repuestos: [
+            { codigo: 'FIL-VW-200', nombre: 'Kit Service Aceite 5W40 + Filtros', cantidad: 1, moneda: 'ARS', costo_unitario: 88000, subtotal: 88000 },
+            { codigo: 'FRE-BOS-19', nombre: 'Juego Pastillas Freno Delanteras Bosch', cantidad: 1, moneda: 'ARS', costo_unitario: 60000, subtotal: 60000 },
+          ],
+          created_at: '2026-11-25',
+        },
+        empresa,
+        {},
+        tpl,
+      );
+    case 'cartel_vidriera':
+      return armarCartelDeVidriera(unidadEjemplo, empresa, {}, tpl);
+    case 'etiqueta_llave':
+      return armarEtiquetaDeLlave(unidadEjemplo, empresa, {}, tpl);
+  }
 }

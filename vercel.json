@@ -10,7 +10,7 @@
     {
       "source": "/(.*)",
       "headers": [
-        { "key": "Content-Security-Policy", "value": "default-src 'self'; script-src 'self' 'sha256-fFsUKj/czN3B627z3raUPagBItV8rqGtVcXHmIVvB+o='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; media-src 'self' blob: https:; connect-src 'self' https://fg-autos-backend.onrender.com wss://fg-autos-backend.onrender.com https://REEMPLAZAR-backend-agencia-staging.example wss://REEMPLAZAR-backend-agencia-staging.example https://res.cloudinary.com; frame-src 'self' blob:; worker-src 'self' blob:; manifest-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'self'; object-src 'none'" },
+        { "key": "Content-Security-Policy", "value": "default-src 'self'; script-src 'self' 'sha256-FUcH+myye6EEi3MpCHFx6IOkRRN2/PfpcVJBhH2c63E='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; media-src 'self' blob: https:; connect-src 'self' https://fg-autos-backend.onrender.com wss://fg-autos-backend.onrender.com https://REEMPLAZAR-backend-agencia-staging.example wss://REEMPLAZAR-backend-agencia-staging.example https://res.cloudinary.com; frame-src 'self' blob:; worker-src 'self' blob:; manifest-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'self'; object-src 'none'" },
         { "key": "X-Frame-Options", "value": "DENY" },
         { "key": "X-Content-Type-Options", "value": "nosniff" },
         { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
