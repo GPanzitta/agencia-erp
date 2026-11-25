@@ -29,8 +29,13 @@ export class GlobalHeaderComponent implements OnInit {
   private url = signal(this.router.url);
   sitio = signal<string | null>(null);
 
-  private esAdmin = computed(() => [Rol.ADMIN, Rol.SUPERADMIN].includes(this.auth.rol() as Rol));
+  esAdmin = computed(() => [Rol.ADMIN, Rol.SUPERADMIN].includes(this.auth.rol() as Rol));
+  modoCliente = this.auth.modoCliente;
   puedeCargar = computed(() => this.esAdmin() || this.auth.rol() === Rol.MOSTRADOR);
+
+  alternarModoCliente(): void {
+    this.auth.alternarModoCliente();
+  }
 
   /** El nombre de la pantalla actual, tomado del mismo menú. */
   donde = computed(() => {

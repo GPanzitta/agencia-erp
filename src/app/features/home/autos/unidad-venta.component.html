@@ -37,8 +37,63 @@
         <button type="button" class="quitar" *ngIf="esDuenio && o.estado === 'reservada'" (click)="quitarPago.emit(p.id)" [disabled]="ocupado">Quitar</button></span>
     </li>
   </ul>
-  <p class="papeles-venta"><button type="button" class="gm-btn gm-btn--neutral gm-btn--sm" (click)="boleto.emit()">Boleto de compraventa</button>
-    <small>Es un modelo con los datos ya cargados: hacelo revisar por tu abogado o tu gestor antes de usarlo.</small></p>
+  <p class="papeles-venta">
+    <button type="button" class="gm-btn gm-btn--brand gm-btn--sm" (click)="ordenVenta.emit()">📄 Imprimir OV con QR</button>
+    <button type="button" class="gm-btn gm-btn--neutral gm-btn--sm" (click)="verQrOv.emit()">📱 QR seguimiento OV</button>
+    <button type="button" class="gm-btn gm-btn--neutral gm-btn--sm" (click)="boleto.emit()">Boleto de compraventa</button>
+    <button type="button" class="gm-btn gm-btn--neutral gm-btn--sm" (click)="actaEntrega.emit()">Acta de entrega y conformidad</button>
+    <small>La Orden de Venta (OV) sale con código QR para que el cliente siga papeles, gestoría y fotos online (igual que en Taller).</small>
+  </p>
+
+  <!-- Fotos y comprobantes de la Orden de Venta (OV) -->
+  <div class="ov-fotos" style="margin: 0.75rem 0; padding: 0.75rem; border: 1px solid var(--gm-border); border-radius: 8px; background: var(--gm-bg);">
+    <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+      <h5 style="margin: 0; font-size: 0.88rem;">📷 Fotos y constancias de la OV {{ o.numero }} ({{ o.fotos.length }}/20)</h5>
+      <div style="display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center;">
+        <select class="gm-input" style="height: 30px; padding: 2px 8px; font-size: 0.8rem; width: auto;" [(ngModel)]="etapaFotoOv" name="etFotoOv">
+          <option value="reserva">Reserva / Seña</option>
+          <option value="peritaje">Peritaje / Estado</option>
+          <option value="documentacion">Documentación / 08</option>
+          <option value="entrega">Entrega de unidad</option>
+        </select>
+        <input class="gm-input" type="text" maxlength="200" placeholder="Nota de la foto (ej: Comprobante seña, estado entrega…)"
+               style="height: 30px; padding: 2px 8px; font-size: 0.8rem; min-width: 210px;" [(ngModel)]="notaFotoOv" name="ntFotoOv">
+        <label class="gm-btn gm-btn--brand gm-btn--sm" style="cursor: pointer;">
+          {{ ocupado ? 'Subiendo…' : '📷 Agregar fotos a la OV' }}
+          <input type="file" accept="image/*" multiple hidden [disabled]="ocupado" (change)="alElegirFotosOv($event)">
+        </label>
+      </div>
+    </div>
+    <p class="vacio" *ngIf="!o.fotos.length" style="margin: 0; font-size: 0.8rem;">
+      Todavía no hay fotos adjuntas a esta Orden de Venta. Subí fotos del estado al reservar, comprobantes de seña, firma del 08 o fotos de la entrega.
+    </p>
+    <ul *ngIf="o.fotos.length" style="list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 0.5rem;">
+      <li *ngFor="let f of o.fotos; trackBy: trackPorId" style="position: relative; border: 1px solid var(--gm-border); border-radius: 6px; overflow: hidden; background: var(--gm-card);">
+        <button type="button" (click)="fotoOvAmpliada.set(f)" style="display: block; width: 100%; padding: 0; border: 0; background: none; cursor: pointer;">
+          <img [src]="foto(f.url_miniatura)" [alt]="f.nota || 'Foto OV'" style="width: 100%; aspect-ratio: 4 / 3; object-fit: cover; display: block;">
+        </button>
+        <div style="padding: 4px 6px; font-size: 0.72rem; line-height: 1.25;">
+          <b style="display: block; text-transform: capitalize; color: var(--gm-brand);">{{ f.etapa }}</b>
+          <span *ngIf="f.nota" style="display: block; color: var(--gm-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ f.nota }}</span>
+          <small style="color: var(--gm-muted);">{{ fecha(f.fecha) }}</small>
+        </div>
+        <button type="button" (click)="borrarFotoOv.emit(f.id)" [disabled]="ocupado" title="Eliminar foto de la OV"
+                style="position: absolute; top: 3px; right: 3px; width: 20px; height: 20px; border-radius: 50%; border: 0; background: rgba(0,0,0,0.68); color: #fff; font-weight: 700; font-size: 12px; line-height: 20px; padding: 0; cursor: pointer;">×</button>
+      </li>
+    </ul>
+  </div>
+
+  <div *ngIf="fotoOvAmpliada() as fa" (click)="fotoOvAmpliada.set(null)"
+       style="position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 1200; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 1.5rem;">
+    <div style="margin-bottom: 0.75rem; display: flex; gap: 0.5rem;" (click)="$event.stopPropagation()">
+      <a [href]="foto(fa.url)" target="_blank" rel="noopener noreferrer" class="gm-btn gm-btn--brand gm-btn--sm">Abrir original</a>
+      <button type="button" class="gm-btn gm-btn--neutral gm-btn--sm" (click)="fotoOvAmpliada.set(null)">Cerrar</button>
+    </div>
+    <img [src]="foto(fa.url)" [alt]="fa.nota || 'Foto OV'" style="max-width: 92vw; max-height: 78vh; border-radius: 8px; object-fit: contain;">
+    <p style="color: #fff; margin-top: 0.5rem; font-size: 0.9rem;">
+      <b>{{ fa.etapa | titlecase }}</b><ng-container *ngIf="fa.nota"> · {{ fa.nota }}</ng-container> · {{ fecha(fa.fecha) }}<ng-container *ngIf="fa.autor"> ({{ fa.autor }})</ng-container>
+    </p>
+  </div>
 
   <ng-container *ngIf="o.estado === 'reservada'">
     <p class="aviso" *ngIf="freno as f">Para entregarla: {{ f }}</p>

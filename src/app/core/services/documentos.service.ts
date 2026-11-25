@@ -5,8 +5,27 @@ import { EmpresaService } from './empresa.service';
 import { environment } from '../../../environments/environment';
 import { SIN_AVISO_DE_ERROR } from '../interceptors/error.interceptor';
 import { EmpresaDoc } from './documentos/comun';
-import { armarBoletoDeCompraventa, armarReciboDePago, PagoDoc, VentaAutoDoc } from './documentos/boleto-auto.doc';
+import {
+  armarActaDeEntrega,
+  armarBoletoDeCompraventa,
+  armarCartelDeVidriera,
+  armarContratoDeConsignacion,
+  armarEtiquetaDeLlave,
+  armarHojaDePeritaje,
+  armarLiquidacionConsignacion,
+  armarOrdenDeAlistaje,
+  armarOrdenDeVenta,
+  armarPropuestaComercial,
+  armarReciboDePago,
+  OrdenAlistajeDoc,
+  PagoDoc,
+  PeritajeTomaDoc,
+  PropuestaAutoDoc,
+  UnidadDoc,
+  VentaAutoDoc,
+} from './documentos/boleto-auto.doc';
 import { urlFoto } from '../utils/foto-url.util';
+import * as QRCode from 'qrcode';
 
 /**
  * Los papeles de la agencia: se arma el HTML, se abre en una ventana aparte
@@ -35,6 +54,91 @@ export class DocumentosService {
   /** Boleto de compraventa (modelo a revisar por el abogado o el gestor de la agencia). */
   async boletoAuto(venta: VentaAutoDoc): Promise<void> {
     this.abrirHtml(armarBoletoDeCompraventa(venta, await this.membrete()));
+  }
+
+  /** Cartel A4 de parabrisas / vidriera con QR a la publicación online. */
+  async cartelDeVidrieraAuto(unidad: UnidadDoc, urlPublica?: string | null): Promise<void> {
+    let qr: string | null = null;
+    if (urlPublica) {
+      try {
+        qr = await QRCode.toString(urlPublica, { type: 'svg', margin: 1, width: 136 });
+      } catch {
+        qr = null;
+      }
+    }
+    this.abrirHtml(armarCartelDeVidriera(unidad, await this.membrete(), { qr, url: urlPublica ?? null }));
+  }
+
+  /** Contrato de autorización de venta en consignación. */
+  async contratoDeConsignacionAuto(unidad: UnidadDoc): Promise<void> {
+    this.abrirHtml(armarContratoDeConsignacion(unidad, await this.membrete()));
+  }
+
+  /** Liquidación final para el propietario de un vehículo en consignación. */
+  async liquidacionConsignacionAuto(unidad: UnidadDoc): Promise<void> {
+    this.abrirHtml(armarLiquidacionConsignacion(unidad, await this.membrete()));
+  }
+
+  /** Hoja de propuesta comercial llave por llave (Permuta + Efectivo + Cuotas) con QR al auto. */
+  async propuestaComercialAuto(propuesta: PropuestaAutoDoc, urlPublica?: string | null): Promise<void> {
+    let qr: string | null = null;
+    if (urlPublica) {
+      try {
+        qr = await QRCode.toString(urlPublica, { type: 'svg', margin: 1, width: 136 });
+      } catch {
+        qr = null;
+      }
+    }
+    this.abrirHtml(armarPropuestaComercial(propuesta, await this.membrete(), { qr, url: urlPublica ?? null }));
+  }
+
+  /** Hoja A4 de tasación y peritaje técnico de toma de un usado. */
+  async hojaDePeritajeAuto(peritaje: PeritajeTomaDoc): Promise<void> {
+    this.abrirHtml(armarHojaDePeritaje(peritaje, await this.membrete()));
+  }
+
+  /** Acta de entrega de unidad con fecha/hora exacta y checklist de accesorios. */
+  async actaDeEntregaAuto(venta: VentaAutoDoc): Promise<void> {
+    this.abrirHtml(armarActaDeEntrega(venta, await this.membrete()));
+  }
+
+  /** Orden de Venta (OV) A4 con código QR de seguimiento online en el portal. */
+  async ordenDeVentaAuto(venta: VentaAutoDoc, urlSeguimiento?: string | null): Promise<void> {
+    let qr: string | null = null;
+    if (urlSeguimiento) {
+      try {
+        qr = await QRCode.toString(urlSeguimiento, { type: 'svg', margin: 1, width: 136 });
+      } catch {
+        qr = null;
+      }
+    }
+    this.abrirHtml(armarOrdenDeVenta(venta, await this.membrete(), { qr, url: urlSeguimiento ?? null }));
+  }
+
+  /** Orden de Alistaje y Taller (OA-2026-XXXX) A4 con QR y checklist de 12 puntos. */
+  async ordenDeAlistajeAuto(orden: OrdenAlistajeDoc, urlOrden?: string | null): Promise<void> {
+    let qr: string | null = null;
+    if (urlOrden) {
+      try {
+        qr = await QRCode.toString(urlOrden, { type: 'svg', margin: 1, width: 132 });
+      } catch {
+        qr = null;
+      }
+    }
+    this.abrirHtml(armarOrdenDeAlistaje(orden, await this.membrete(), { qr, url: urlOrden ?? null }));
+  }
+
+  /** Etiqueta recortable con QR para el llavero del tablero y la carpeta de la unidad. */
+  async etiquetaDeLlaveAuto(unidad: UnidadDoc, urlFicha?: string | null): Promise<void> {
+    let qr: string | null = null;
+    if (urlFicha) {
+      try {
+        qr = await QRCode.toString(urlFicha, { type: 'svg', margin: 1, width: 112 });
+      } catch {
+        qr = null;
+      }
+    }
+    this.abrirHtml(armarEtiquetaDeLlave(unidad, await this.membrete(), { qr, url: urlFicha ?? null }));
   }
 
   private async membrete(): Promise<EmpresaDoc | null> {

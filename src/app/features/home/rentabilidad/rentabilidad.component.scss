@@ -1,0 +1,111 @@
+@use '../autos/autos' as *;
+
+:host { display: block; }
+@include autos-base;
+
+.cab { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem;
+  h2 { margin: 0 0 0.15rem; }
+  .ayuda { margin: 0; font-size: 0.85rem; } }
+
+.periodo { display: flex; flex-direction: column; gap: 0.5rem; align-items: flex-end; }
+.fechas { display: flex; gap: 0.5rem; align-items: flex-end; flex-wrap: wrap;
+  label { display: grid; gap: 0.15rem; span { font-size: 0.72rem; color: var(--gm-muted); } }
+  .gm-input { padding: 0.35rem 0.5rem; font-size: 0.86rem; } }
+
+// ── Los cinco números del período ──────────────────────────────────────────
+.numeros { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 0.6rem; margin-bottom: 1.2rem;
+  > div { background: var(--gm-card); border: 1px solid var(--gm-border); border-left: 4px solid var(--gm-brand); border-radius: var(--gm-radius-lg);
+    padding: 0.6rem 0.8rem; display: flex; flex-direction: column; gap: 0.1rem; min-width: 0;
+    span { font-size: 0.75rem; color: var(--gm-muted); }
+    b { font-size: 1.3rem; line-height: 1.2; font-variant-numeric: tabular-nums; }
+    small { font-size: 0.74rem; color: var(--gm-text-2); } }
+  .alerta { border-left-color: var(--gm-error); b { color: var(--gm-error); } } }
+
+// ── Bloques ────────────────────────────────────────────────────────────────
+.bloque { background: var(--gm-card); border: 1px solid var(--gm-border); border-radius: var(--gm-radius-lg);
+  padding: 0.8rem 1rem 0.9rem; margin-bottom: 1.2rem; min-width: 0;
+  h3 { margin: 0 0 0.6rem; font-size: 1rem; } }
+
+.bloque-cab { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.4rem;
+  h3 { margin: 0; }
+  .cuenta { background: var(--gm-error); color: #fff; font-size: 0.72rem; font-weight: 700; border-radius: 999px; padding: 1px 8px; } }
+
+.dos { display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: 1.2rem;
+  .bloque { margin-bottom: 1.2rem; }
+  @media (max-width: 860px) { grid-template-columns: 1fr; gap: 0; } }
+
+// ── Riesgos ────────────────────────────────────────────────────────────────
+.riesgos { list-style: none; margin: 0; padding: 0;
+  > li { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) minmax(0, 1.6fr) auto; gap: 0.2rem 0.9rem;
+    align-items: center; padding: 0.55rem 0 0.55rem 0.7rem; border-top: 1px solid var(--gm-border);
+    border-left: 3px solid var(--gm-object);
+    &[data-sev='3'] { border-left-color: var(--gm-error); }
+    &[data-sev='1'] { border-left-color: var(--gm-muted); }
+    &:first-child { border-top: 0; } } }
+
+.quien { display: flex; flex-direction: column; gap: 0.15rem; min-width: 0;
+  b { font-size: 0.92rem; }
+  small { color: var(--gm-muted); font-size: 0.76rem; }
+  b, small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } }
+
+.motivos { display: flex; flex-wrap: wrap; gap: 0.25rem; }
+.motivo { font-size: 0.7rem; font-weight: 600; padding: 1px 7px; border-radius: 999px;
+  background: #FFF1D6; color: #8a5a00;
+  li[data-sev='3'] & { background: #FBE3E1; color: var(--gm-error); } }
+
+.detalle { margin: 0; font-size: 0.82rem; color: var(--gm-text-2); min-width: 0; }
+
+.cifras { display: flex; gap: 0.9rem; margin: 0; justify-content: flex-end;
+  > div { display: flex; flex-direction: column; align-items: flex-end; gap: 0; }
+  dt { font-size: 0.68rem; color: var(--gm-muted); text-transform: uppercase; letter-spacing: 0.03em; }
+  dd { margin: 0; font-size: 0.85rem; font-variant-numeric: tabular-nums; white-space: nowrap; } }
+
+@media (max-width: 1080px) {
+  .riesgos > li { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: 'quien cifras' 'motivos motivos' 'detalle detalle';
+    gap: 0.3rem 0.7rem; }
+  .quien { grid-area: quien; }
+  .motivos { grid-area: motivos; }
+  .detalle { grid-area: detalle; }
+  .cifras { grid-area: cifras; gap: 0.6rem; }
+}
+
+// ── Tablas ─────────────────────────────────────────────────────────────────
+.tabla { width: 100%; border-collapse: collapse; font-size: 0.86rem;
+  th { text-align: left; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.03em; color: var(--gm-muted);
+    font-weight: 600; padding: 0 0 0.35rem; border-bottom: 1px solid var(--gm-border); }
+  td { padding: 0.4rem 0; border-bottom: 1px solid var(--gm-border); vertical-align: top; }
+  tbody tr:last-child td { border-bottom: 0; }
+  .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; padding-left: 0.6rem; }
+  td small { display: block; color: var(--gm-muted); font-size: 0.72rem; font-weight: 400; }
+  td a { color: var(--gm-text); text-decoration: none; font-weight: 600; &:hover { text-decoration: underline; } }
+  tr.sin-datos { color: var(--gm-muted); } }
+
+// ── Antigüedad del stock ───────────────────────────────────────────────────
+.tramos { display: flex; flex-direction: column; gap: 0.45rem;
+  .tramo { display: grid; grid-template-columns: 110px minmax(0, 1fr) 28px 96px; align-items: center; gap: 0.5rem;
+    font-size: 0.84rem; }
+  .rotulo { color: var(--gm-text-2); }
+  .barra { height: 10px; border-radius: 999px; background: var(--gm-col); overflow: hidden;
+    i { display: block; height: 100%; background: var(--gm-brand); border-radius: 999px; min-width: 2px; } }
+  .tramo:nth-child(3) .barra i { background: var(--gm-object); }
+  .tramo:nth-child(4) .barra i { background: var(--gm-error); }
+  b { text-align: right; font-variant-numeric: tabular-nums; }
+  small { text-align: right; color: var(--gm-muted); font-variant-numeric: tabular-nums; } }
+
+@media (max-width: 480px) {
+  .tramos .tramo { grid-template-columns: 96px minmax(0, 1fr) 24px; }
+  .tramos small { display: none; }
+}
+
+// ── Textos de apoyo ────────────────────────────────────────────────────────
+.nota { margin: 0.6rem 0 0; font-size: 0.76rem; color: var(--gm-muted); }
+.ok { margin: 0; font-size: 0.88rem; color: var(--gm-success); }
+
+.criterio { margin: 0.2rem 0 0; padding-left: 1.1rem; font-size: 0.82rem; color: var(--gm-text-2);
+  li { margin-bottom: 0.3rem; }
+  b { color: var(--gm-text); } }
+
+.primero, .fallo { background: var(--gm-card); border: 1px dashed var(--gm-border); border-radius: var(--gm-radius-lg);
+  padding: 1.2rem; margin-bottom: 1.2rem;
+  h3 { margin: 0 0 0.4rem; }
+  p { margin: 0 0 0.8rem; color: var(--gm-text-2); max-width: 60ch; } }

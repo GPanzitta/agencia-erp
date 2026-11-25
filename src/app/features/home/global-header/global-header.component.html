@@ -7,6 +7,15 @@
     <input #campo type="search" name="q" placeholder="Buscar un auto: marca, modelo o patente" aria-label="Buscar un auto en el stock">
   </form>
 
+  <button *ngIf="esAdmin()"
+          type="button"
+          class="bs-modo"
+          [class.activo]="modoCliente()"
+          [attr.aria-pressed]="modoCliente()"
+          (click)="alternarModoCliente()"
+          [title]="modoCliente() ? 'Costos y márgenes ocultos. Tocar para volver a mostrarlos.' : 'Ocultar costos, pisos y márgenes en pantalla para atender a un cliente'">
+    <span>{{ modoCliente() ? 'Modo cliente (costos ocultos)' : 'Modo cliente' }}</span>
+  </button>
   <a *ngIf="sitio()" class="bs-sitio" [href]="sitio()" target="_blank" rel="noopener noreferrer">Ver mi sitio</a>
   <a *ngIf="puedeCargar()" class="bs-cargar" routerLink="/home/autos/nueva"><app-icon name="agregar" [size]="16"></app-icon><span>Cargar un auto</span></a>
 </header>

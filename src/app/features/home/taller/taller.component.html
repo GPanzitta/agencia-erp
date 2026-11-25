@@ -1,0 +1,965 @@
+<header class="cab">
+  <div>
+    <h2>Taller, Órdenes de Servicio, Compras y Pañol de Repuestos</h2>
+    <p class="sub">Órdenes de preparación y taller (unidades del stock o clientes externos), compras atadas a orden con descuento automático de stock y catálogo fotográfico de repuestos.</p>
+  </div>
+  <div class="botones">
+    <button type="button" class="gm-btn gm-btn--sm" [ngClass]="seccion() === 'ordenes' ? 'gm-btn--brand' : 'gm-btn--neutral'" (click)="seccion.set('ordenes')">
+      🔧 Órdenes de Servicio ({{ kpis().enCurso }})
+    </button>
+    <button type="button" class="gm-btn gm-btn--sm" [ngClass]="seccion() === 'compras' ? 'gm-btn--brand' : 'gm-btn--neutral'" (click)="seccion.set('compras')">
+      🛒 Órdenes de Compra / OC ({{ compras().length }})
+      <span class="insignia-alerta" *ngIf="kpis().comprasPendientes > 0">{{ kpis().comprasPendientes }}</span>
+    </button>
+    <button type="button" class="gm-btn gm-btn--sm" [ngClass]="seccion() === 'repuestos' ? 'gm-btn--brand' : 'gm-btn--neutral'" (click)="seccion.set('repuestos')">
+      ⚙️ Pañol de Repuestos ({{ kpis().totalSkus }})
+      <span class="insignia-alerta" *ngIf="kpis().bajoStock > 0">{{ kpis().bajoStock }}</span>
+    </button>
+  </div>
+</header>
+
+<section class="numeros" aria-label="Resumen de taller y pañol">
+  <div><span>Órdenes en curso</span><b>{{ kpis().enCurso }}</b><small>unidades en taller hoy</small></div>
+  <div [class.alerta]="kpis().urgentes > 0"><span>Urgentes para entrega</span><b>{{ kpis().urgentes }}</b><small>prioridad alta</small></div>
+  <div><span>Compras (OC) pendientes</span><b>{{ kpis().comprasPendientes }}</b><small>esperando recepción de proveedor</small></div>
+  <div [class.alerta]="kpis().bajoStock > 0"><span>Repuestos a reponer</span><b>{{ kpis().bajoStock }}</b><small>en o por debajo del stock mínimo</small></div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     SECCIÓN 1: ÓRDENES DE ALISTAJE Y TALLER (OA-2026-XXXX)
+     ═══════════════════════════════════════════════════════════════════════════ -->
+<ng-container *ngIf="seccion() === 'ordenes'">
+  <div class="barra-acciones">
+    <div class="vistas" role="tablist">
+      <button type="button" role="tab" [class.activa]="vistaOrden() === 'activas'" (click)="cambiarVistaOrden('activas')">En curso</button>
+      <button type="button" role="tab" [class.activa]="vistaOrden() === 'listas'" (click)="cambiarVistaOrden('listas')">Finalizadas (Listas)</button>
+      <button type="button" role="tab" [class.activa]="vistaOrden() === 'anuladas'" (click)="cambiarVistaOrden('anuladas')">Anuladas</button>
+      <button type="button" role="tab" [class.activa]="vistaOrden() === 'todas'" (click)="cambiarVistaOrden('todas')">Todas</button>
+    </div>
+    <button type="button" class="gm-btn gm-btn--brand gm-btn--sm" (click)="nuevaOrdenAbierta.set(!nuevaOrdenAbierta())">
+      {{ nuevaOrdenAbierta() ? 'Cerrar formulario' : '+ Nueva Orden de Alistaje' }}
+    </button>
+  </div>
+
+  <datalist id="dl-marcas-taller"><option *ngFor="let m of marcasSugeridas" [value]="m"></option></datalist>
+  <datalist id="dl-modelos-taller"><option *ngFor="let mod of modelosVehiculoCliente" [value]="mod"></option></datalist>
+
+  <form class="panel-form" *ngIf="nuevaOrdenAbierta()" (ngSubmit)="crearOrden()">
+    <h4>Abrir nueva Orden de Alistaje / Taller</h4>
+
+    <div style="display: flex; gap: 0.6rem; flex-wrap: wrap; margin-bottom: 0.85rem;" role="radiogroup" aria-label="De quién es el vehículo">
+      <button type="button" class="gm-btn gm-btn--sm" [ngClass]="nuevaOrden.tipo_origen === 'stock' ? 'gm-btn--brand' : 'gm-btn--neutral'"
+              (click)="nuevaOrden.tipo_origen = 'stock'">
+        🏢 Unidad del Stock de la agencia
+      </button>
+      <button type="button" class="gm-btn gm-btn--sm" [ngClass]="nuevaOrden.tipo_origen === 'cliente' ? 'gm-btn--brand' : 'gm-btn--neutral'"
+              (click)="nuevaOrden.tipo_origen = 'cliente'">
+        👤 Auto de un cliente nuevo / externo (reparación o service)
+      </button>
+    </div>
+
+    <!-- Opción A: Vehículo que ya está en el Stock -->
+    <div class="campos" *ngIf="nuevaOrden.tipo_origen === 'stock'" style="margin-bottom: 0.6rem;">
+      <label class="ancho2"><span>Vehículo del stock *</span>
+        <select class="gm-input" name="noUnid" [(ngModel)]="nuevaOrden.unidad_id">
+          <option value="">Seleccioná la unidad…</option>
+          <option *ngFor="let u of unidadesStock(); trackBy: trackPorId" [value]="u.id">
+            {{ u.numero }} · {{ u.titulo }} {{ u.anio }} ({{ dominio(u.dominio) }}) — {{ u.estado | uppercase }}
+          </option>
+        </select>
+      </label>
+    </div>
+
+    <!-- Opción B: Crear registro nuevo de Cliente + su Vehículo -->
+    <div *ngIf="nuevaOrden.tipo_origen === 'cliente'" style="background: var(--gm-bg); border: 1px solid var(--gm-border); border-radius: 8px; padding: 0.85rem; margin-bottom: 0.8rem;">
+      <h5 style="margin: 0 0 0.45rem; font-size: 0.86rem; color: var(--gm-brand);">1. Datos del cliente</h5>
+      <div class="campos" style="margin-bottom: 0.7rem;">
+        <label class="ancho2"><span>Nombre y apellido *</span>
+          <input class="gm-input" name="clNom" maxlength="120" placeholder="Ej: Roberto Sánchez" [(ngModel)]="nuevaOrden.cliente.nombre">
+        </label>
+        <label><span>Teléfono / WhatsApp</span>
+          <input class="gm-input" name="clTel" maxlength="40" inputmode="tel" placeholder="11 5555-1234" [(ngModel)]="nuevaOrden.cliente.telefono">
+        </label>
+        <label><span>DNI / CUIT</span>
+          <input class="gm-input" name="clDoc" maxlength="20" placeholder="29.441.800" [(ngModel)]="nuevaOrden.cliente.documento">
+        </label>
+        <label><span>Correo electrónico</span>
+          <input class="gm-input" name="clMail" type="email" maxlength="120" placeholder="cliente@correo.com" [(ngModel)]="nuevaOrden.cliente.email">
+        </label>
+      </div>
+
+      <h5 style="margin: 0 0 0.45rem; font-size: 0.86rem; color: var(--gm-brand);">2. Datos del vehículo del cliente</h5>
+      <div class="campos">
+        <label><span>Dominio (Patente)</span>
+          <input class="gm-input dominio" name="vhDom" maxlength="12" placeholder="AE 852 RA" [ngModel]="nuevaOrden.vehiculo.dominio" (ngModelChange)="alCambiarDominioCliente($event)">
+        </label>
+        <label><span>Marca *</span>
+          <input class="gm-input" name="vhMar" list="dl-marcas-taller" maxlength="60" placeholder="Volkswagen" [(ngModel)]="nuevaOrden.vehiculo.marca">
+        </label>
+        <label><span>Modelo *</span>
+          <input class="gm-input" name="vhMod" list="dl-modelos-taller" maxlength="80" placeholder="Golf" [(ngModel)]="nuevaOrden.vehiculo.modelo">
+        </label>
+        <label><span>Versión</span>
+          <input class="gm-input" name="vhVer" maxlength="100" placeholder="1.4 TSI Comfortline DSG" [(ngModel)]="nuevaOrden.vehiculo.version">
+        </label>
+        <label><span>Año *</span>
+          <input class="gm-input" name="vhAnio" inputmode="numeric" maxlength="4" placeholder="2019" [(ngModel)]="nuevaOrden.vehiculo.anio">
+        </label>
+        <label><span>Kilómetros actuales</span>
+          <input class="gm-input" name="vhKm" inputmode="numeric" placeholder="72.000" [(ngModel)]="nuevaOrden.vehiculo.km">
+        </label>
+        <label><span>Color</span>
+          <input class="gm-input" name="vhCol" maxlength="40" placeholder="Blanco" [(ngModel)]="nuevaOrden.vehiculo.color">
+        </label>
+        <label><span>Combustible</span>
+          <select class="gm-input" name="vhComb" [(ngModel)]="nuevaOrden.vehiculo.combustible">
+            <option value="">Sin indicar</option>
+            <option *ngFor="let c of combustibles" [value]="c[0]">{{ c[1] }}</option>
+          </select>
+        </label>
+        <label><span>Caja</span>
+          <select class="gm-input" name="vhCaja" [(ngModel)]="nuevaOrden.vehiculo.transmision">
+            <option value="">Sin indicar</option>
+            <option *ngFor="let cj of cajas" [value]="cj[0]">{{ cj[1] }}</option>
+          </select>
+        </label>
+      </div>
+    </div>
+
+    <div class="campos">
+      <label><span>Sector / Rubro</span>
+        <select class="gm-input" name="noSec" [(ngModel)]="nuevaOrden.sector">
+          <option *ngFor="let s of sectores" [value]="s">{{ s }}</option>
+        </select>
+      </label>
+      <label><span>Mecánico / Taller responsable</span>
+        <input class="gm-input" name="noResp" maxlength="120" placeholder="Ej: Taller Bosch / Chapista Gómez" [(ngModel)]="nuevaOrden.responsable">
+      </label>
+      <label><span>Prioridad</span>
+        <select class="gm-input" name="noPrio" [(ngModel)]="nuevaOrden.prioridad">
+          <option value="normal">Normal</option>
+          <option value="alta">Alta</option>
+          <option value="urgente_entrega">Urgente</option>
+        </select>
+      </label>
+      <label><span>Moneda de la orden</span>
+        <select class="gm-input" name="noMon" [(ngModel)]="nuevaOrden.moneda">
+          <option value="ARS">Pesos (ARS)</option>
+          <option value="USD">Dólares (USD)</option>
+        </select>
+      </label>
+      <label class="ancho2"><span>Falla declarada / Trabajos solicitados *</span>
+        <input class="gm-input" name="noMot" maxlength="2000" placeholder="Ej: Service de aceite y filtros, revisar ruido tren delantero, pulido ópticas y cambio batería…" [(ngModel)]="nuevaOrden.falla_motivo">
+      </label>
+    </div>
+    <p class="ayuda">
+      {{ nuevaOrden.tipo_origen === 'cliente'
+        ? 'Se abre la Orden de Servicio de Taller con los datos del cliente y de su auto, el checklist de 12 puntos y la constancia imprimible A4 con QR.'
+        : 'Al abrir la orden se genera el checklist de inspección de 12 puntos y, si la unidad estaba «Recién ingresada», pasa automáticamente a «En alistaje».' }}
+    </p>
+    <div class="botones">
+      <button type="submit" class="gm-btn gm-btn--brand gm-btn--sm" [disabled]="ocupado()">Abrir Orden de Taller</button>
+      <button type="button" class="gm-btn gm-btn--neutral gm-btn--sm" (click)="nuevaOrdenAbierta.set(false)">Cancelar</button>
+    </div>
+  </form>
+
+  <p class="vacio" *ngIf="cargando() && !ordenes().length">Cargando órdenes…</p>
+  <p class="vacio" *ngIf="!cargando() && !ordenes().length">No hay órdenes de alistaje en esta vista.</p>
+
+  <div class="mesa-taller" [class.con-ficha]="elegida()" *ngIf="ordenes().length">
+    <!-- Lista izquierda de Órdenes -->
+    <ul class="lista-ordenes">
+      <li *ngFor="let o of ordenes(); trackBy: trackPorId">
+        <button type="button" class="tarjeta-orden" [class.activa]="elegidaId() === o.id" (click)="elegirOrden(o)">
+          <div class="to-cab">
+            <b>{{ o.numero }}</b>
+            <span class="chip-estado" [attr.data-estado]="o.estado">{{ rotuloEstado[o.estado] }}</span>
+          </div>
+          <div class="to-auto">
+            <strong>{{ o.unidad.titulo }} {{ o.unidad.anio }}</strong>
+            <small>
+              <span class="patente">{{ dominio(o.unidad.dominio) }}</span>
+              <ng-container *ngIf="o.cliente"> · 👤 {{ o.cliente.nombre }}</ng-container>
+              <ng-container *ngIf="!o.cliente"> · {{ o.unidad.numero }}</ng-container>
+            </small>
+          </div>
+          <p class="to-sector">{{ o.sector }}<ng-container *ngIf="o.responsable"> · {{ o.responsable }}</ng-container></p>
+          <p class="to-motivo">{{ o.falla_motivo }}</p>
+          <div class="to-pie">
+            <span>Checklist: <b>{{ o.checklist_progreso.ok }}/{{ o.checklist_progreso.total }} OK</b><ng-container *ngIf="o.checklist_progreso.reparar"> · <b class="alerta-txt">{{ o.checklist_progreso.reparar }} a reparar</b></ng-container></span>
+            <b>{{ plata(o.total_orden, o.moneda) }}</b>
+          </div>
+        </button>
+      </li>
+    </ul>
+
+    <!-- Ficha completa derecha de la Orden de Alistaje (Estilo Ficha OS de Taller) -->
+    <article class="ficha-orden" *ngIf="elegida() as o">
+      <header class="fo-cab">
+        <div>
+          <div class="fo-tit-linea">
+            <span class="fo-num">{{ o.numero }}</span>
+            <span class="chip-estado" [attr.data-estado]="o.estado">{{ rotuloEstado[o.estado] }}</span>
+            <span class="chip-prio" *ngIf="o.prioridad === 'urgente_entrega'">🔥 URGENTE</span>
+            <span class="chip-imputado" *ngIf="o.cliente">👤 Cliente: {{ o.cliente.nombre }}</span>
+            <span class="chip-imputado" *ngIf="o.gasto_imputado">✓ Imputado al costo de {{ o.unidad.numero }}</span>
+          </div>
+          <h3>
+            <a *ngIf="o.unidad.id" [routerLink]="['/home/autos/unidad', o.unidad.id]">{{ o.unidad.titulo }} {{ o.unidad.anio }}</a>
+            <span *ngIf="!o.unidad.id">{{ o.unidad.titulo }} {{ o.unidad.anio }}</span>
+            <small> · <span class="patente">{{ dominio(o.unidad.dominio) }}</span> · {{ o.unidad.id ? o.unidad.numero : 'Auto de cliente' }} · {{ km(o.km_ingreso || o.unidad.km) }}</small>
+          </h3>
+          <p *ngIf="o.cliente as cl" style="margin: 0.25rem 0 0; font-size: 0.84rem; color: var(--gm-text-2);">
+            <b>Titular / Cliente:</b> {{ cl.nombre }}
+            <ng-container *ngIf="cl.telefono"> · Tel: <b>{{ cl.telefono }}</b></ng-container>
+            <ng-container *ngIf="cl.documento"> · DNI/CUIT: {{ cl.documento }}</ng-container>
+            <ng-container *ngIf="cl.email"> · {{ cl.email }}</ng-container>
+          </p>
+        </div>
+        <div class="botones">
+          <a *ngIf="whatsappClienteOrden(o) as wa" [href]="wa" target="_blank" rel="noopener noreferrer" class="gm-btn gm-btn--neutral gm-btn--sm">💬 WhatsApp al cliente</a>
+          <button type="button" *ngIf="!o.unidad.id" class="gm-btn gm-btn--neutral gm-btn--sm" (click)="pasarAutoDeClienteAlStock(o)">🚗 Tomar / Cargar al Stock</button>
+          <button type="button" class="gm-btn gm-btn--neutral gm-btn--sm" (click)="mostrarQrOrden(o)">📱 QR</button>
+          <button type="button" class="gm-btn gm-btn--brand gm-btn--sm" (click)="imprimirOrden(o)">🖨️ Imprimir OA A4</button>
+        </div>
+      </header>
+
+      <!-- Barra de etapas de la Orden (Stepper como en Taller) -->
+      <div class="stepper-etapas" *ngIf="o.estado !== 'anulada'">
+        <div *ngFor="let et of etapasOrden.slice(0, 5)" class="paso-etapa" [class.actual]="o.estado === et.valor">
+          <span>{{ et.rotulo }}</span>
+        </div>
+      </div>
+
+      <!-- Resumen económico de la Orden -->
+      <div class="cuentas-orden">
+        <div><span>Repuestos del pañol ({{ o.repuestos.length }})</span><b>{{ plata(o.total_repuestos, o.moneda) }}</b></div>
+        <div><span>Mano de obra / Taller</span><b>{{ plata(o.costo_mano_obra, o.moneda) }}</b></div>
+        <div class="destacada"><span>Costo total de la Orden</span><b>{{ plata(o.total_orden, o.moneda) }}</b></div>
+      </div>
+
+      <!-- Bloque 1: Diagnóstico, Trabajo realizado y Mano de obra -->
+      <section class="bloque-fo">
+        <h4>1. Diagnóstico técnico, trabajos y mano de obra</h4>
+        <div class="campos">
+          <label><span>Sector</span>
+            <select class="gm-input" name="edSec" [(ngModel)]="edicionOrden.sector" [disabled]="o.estado === 'lista' || o.estado === 'anulada'">
+              <option *ngFor="let s of sectores" [value]="s">{{ s }}</option>
+            </select>
+          </label>
+          <label><span>Responsable / Mecánico</span>
+            <input class="gm-input" name="edResp" [(ngModel)]="edicionOrden.responsable" [disabled]="o.estado === 'lista' || o.estado === 'anulada'">
+          </label>
+          <label><span>Mano de obra ({{ edicionOrden.moneda }})</span>
+            <input class="gm-input" name="edMo" inputmode="decimal" [(ngModel)]="edicionOrden.costo_mano_obra" [disabled]="o.estado === 'lista' || o.estado === 'anulada'">
+          </label>
+          <label *ngIf="edicionOrden.moneda !== o.unidad.moneda"><span>TC Dólar ($ por US$)</span>
+            <input class="gm-input" name="edTc" inputmode="decimal" [(ngModel)]="edicionOrden.tipo_cambio" [disabled]="o.estado === 'lista' || o.estado === 'anulada'">
+          </label>
+          <label class="ancho2"><span>Motivo / Pedido inicial</span>
+            <input class="gm-input" name="edFalla" [(ngModel)]="edicionOrden.falla_motivo" [disabled]="o.estado === 'lista' || o.estado === 'anulada'">
+          </label>
+          <label class="ancho2"><span>Diagnóstico técnico (qué se encontró al revisar)</span>
+            <textarea class="gm-input" rows="2" name="edDiag" placeholder="Ej: Bujes de parrilla desgastados, batería al 40%, ópticas opacas…" [(ngModel)]="edicionOrden.diagnostico" [disabled]="o.estado === 'lista' || o.estado === 'anulada'"></textarea>
+          </label>
+          <label class="ancho2"><span>Trabajo realizado</span>
+            <textarea class="gm-input" rows="2" name="edTrab" placeholder="Ej: Cambio de aceite 5W40 sintético + 3 filtros, reemplazo de batería Moura 65Ah y alineación…" [(ngModel)]="edicionOrden.trabajo_realizado" [disabled]="o.estado === 'lista' || o.estado === 'anulada'"></textarea>
+          </label>
+        </div>
+        <div class="botones" *ngIf="o.estado !== 'lista' && o.estado !== 'anulada'" style="margin-top: 0.5rem;">
+          <button type="button" class="gm-btn gm-btn--brand gm-btn--sm" [disabled]="ocupado()" (click)="guardarFichaOrden()">Guardar diagnóstico y mano de obra</button>
+        </div>
+      </section>
+
+      <!-- Bloque 2: Checklist multipunto de inspección y QA (12 puntos) -->
+      <section class="bloque-fo">
+        <h4>2. Checklist multipunto de inspección y Control de Calidad ({{ o.checklist_progreso.ok }}/{{ o.checklist_progreso.total }} aprobados)</h4>
+        <ul class="lista-checklist">
+          <li *ngFor="let item of o.checklist" [attr.data-estado]="item.estado">
+            <div class="cl-info">
+              <small class="cl-grupo">{{ item.grupo }}</small>
+              <b>{{ item.nombre }}</b>
+            </div>
+            <div class="cl-controles">
+              <div class="estado-papel" role="group">
+                <button type="button" [class.activa]="item.estado === 'pendiente'" data-e="falta" [disabled]="o.estado === 'lista' || o.estado === 'anulada'" (click)="cambiarItemChecklist(item, 'pendiente')">Sin revisar</button>
+                <button type="button" [class.activa]="item.estado === 'reparar'" data-e="en_tramite" [disabled]="o.estado === 'lista' || o.estado === 'anulada'" (click)="cambiarItemChecklist(item, 'reparar')">Reparar</button>
+                <button type="button" [class.activa]="item.estado === 'ok'" data-e="ok" [disabled]="o.estado === 'lista' || o.estado === 'anulada'" (click)="cambiarItemChecklist(item, 'ok')">✓ OK</button>
+              </div>
+              <input class="gm-input cl-obs" type="text" placeholder="Observación…" [ngModel]="item.observacion ?? ''" [ngModelOptions]="{ standalone: true }"
+                     (change)="guardarObservacionChecklist(item, $any($event.target).value)" [disabled]="o.estado === 'lista' || o.estado === 'anulada'">
+            </div>
+          </li>
+        </ul>
+      </section>
+
+      <!-- Bloque 3: Repuestos e insumos consumidos + Órdenes de Compra (OC) atadas a esta orden -->
+      <section class="bloque-fo">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.6rem;">
+          <h4 style="margin: 0;">3. Repuestos, insumos y compras atadas a esta orden ({{ o.repuestos.length }})</h4>
+          <button type="button" *ngIf="o.estado !== 'lista' && o.estado !== 'anulada'"
+                  class="gm-btn gm-btn--neutral gm-btn--sm" (click)="abrirCompraAtadaAOrden(o)">
+            🛒 Generar Orden de Compra (OC) atada a {{ o.numero }}
+          </button>
+        </div>
+
+        <!-- Banner de alerta si hay repuestos pedidos en la orden que no tenían stock ni OC -->
+        <div class="alerta-faltantes-oc" *ngIf="faltantesSinOc(o).length > 0 && o.estado !== 'lista' && o.estado !== 'anulada'">
+          <div>
+            <b>⚠️ {{ faltantesSinOc(o).length }} repuesto(s) de esta orden están pendientes de compra (sin stock en pañol)</b>
+            <small style="display: block;">Generá una Orden de Compra (OC) atada a {{ o.numero }}: al recibirla del proveedor ingresará al pañol y se descontará al consumirse en esta orden.</small>
+          </div>
+          <button type="button" class="gm-btn gm-btn--brand gm-btn--sm" (click)="abrirCompraAtadaAOrden(o)">
+            🛒 Comprar faltantes para {{ o.numero }}
+          </button>
+        </div>
+
+        <div class="table-container" *ngIf="o.repuestos.length" style="margin-bottom: 0.8rem;">
+          <table class="modern-table">
+            <thead>
+              <tr>
+                <th style="width: 56px;">Foto</th>
+                <th>Código SKU</th>
+                <th>Repuesto / Insumo</th>
+                <th>Estado en Orden / Stock</th>
+                <th class="num">Cant.</th>
+                <th class="num">Costo unit.</th>
+                <th class="num">Subtotal</th>
+                <th *ngIf="o.estado !== 'lista' && o.estado !== 'anulada'">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let r of o.repuestos; trackBy: trackPorId">
+                <td>
+                  <button type="button" class="thumb-repuesto" [class.con-foto]="!!r.portada"
+                          (click)="r.repuesto_id ? abrirGaleriaRepuesto(r.repuesto_id) : null"
+                          [title]="r.repuesto_id ? 'Ver / cargar fotos del repuesto' : r.nombre">
+                    <img *ngIf="r.portada" [src]="foto(r.portada)" [alt]="r.nombre">
+                    <span *ngIf="!r.portada">📷</span>
+                  </button>
+                </td>
+                <td><code>{{ r.codigo || 'LIBRE' }}</code></td>
+                <td>
+                  <b>{{ r.nombre }}</b>
+                  <small *ngIf="r.stock_actual !== null" style="display: block; color: var(--gm-muted);">
+                    Stock actual en pañol: <b>{{ r.stock_actual }}</b>
+                  </small>
+                </td>
+                <td>
+                  <span class="chip-consumo consumido" *ngIf="r.consumido">✓ Consumido (stock descontado)</span>
+                  <span class="chip-consumo en-panol" *ngIf="!r.consumido && r.ingresado">📦 En pañol (listo para consumir)</span>
+                  <span class="chip-consumo pendiente" *ngIf="!r.consumido && !r.ingresado">⏳ Pendiente de compra / ingreso</span>
+                  <small *ngIf="r.compra_numero" style="display: block; margin-top: 0.2rem; font-weight: 600; color: var(--gm-brand);">
+                    🛒 Atado a {{ r.compra_numero }} ({{ r.compra_estado === 'recibida' ? 'Recibida' : 'Pendiente' }})
+                  </small>
+                </td>
+                <td class="num">{{ r.cantidad }}</td>
+                <td class="num">{{ plata(r.costo_unitario, r.moneda) }}</td>
+                <td class="num"><b>{{ plata(r.subtotal, r.moneda) }}</b></td>
+                <td *ngIf="o.estado !== 'lista' && o.estado !== 'anulada'" class="num">
+                  <div style="display: flex; gap: 0.35rem; justify-content: flex-end; flex-wrap: wrap;">
+                    <button type="button" *ngIf="!r.consumido && r.repuesto_id"
+                            class="gm-btn gm-btn--brand gm-btn--sm"
+                            [disabled]="ocupado() || (r.stock_actual !== null && r.stock_actual < r.cantidad)"
+                            (click)="consumirRepuestoDeOrden(r)"
+                            title="Consumir este insumo en la orden y descontar del stock del pañol">
+                      ⚡ Consumir (descontar stock)
+                    </button>
+                    <button type="button" class="quitar" (click)="quitarRepuestoDeOrden(r.id)" [disabled]="ocupado()">
+                      {{ r.consumido && r.repuesto_id ? 'Quitar (devolver stock)' : 'Quitar' }}
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="vacio" *ngIf="!o.repuestos.length" style="margin: 0 0 0.6rem;">Todavía no se asignaron repuestos ni insumos a esta orden.</p>
+
+        <!-- Formulario para agregar repuesto del pañol o libre -->
+        <div class="form-repuesto-orden" *ngIf="o.estado !== 'lista' && o.estado !== 'anulada'">
+          <div style="display: flex; gap: 0.5rem; margin-bottom: 0.55rem; flex-wrap: wrap;">
+            <button type="button" class="gm-btn gm-btn--sm" [ngClass]="repuestoEnOrden.modo === 'panol' ? 'gm-btn--brand' : 'gm-btn--neutral'" (click)="repuestoEnOrden.modo = 'panol'">Elegir repuesto del Pañol</button>
+            <button type="button" class="gm-btn gm-btn--sm" [ngClass]="repuestoEnOrden.modo === 'libre' ? 'gm-btn--brand' : 'gm-btn--neutral'" (click)="repuestoEnOrden.modo = 'libre'">Cargar repuesto / insumo específico</button>
+          </div>
+
+          <div *ngIf="repuestoEnOrden.modo === 'panol'">
+            <div class="campos">
+              <label class="ancho2"><span>Elegir repuesto del pañol *</span>
+                <select class="gm-input" name="roId" [ngModel]="repuestoEnOrden.repuesto_id" (ngModelChange)="alElegirRepuestoPanol($event)">
+                  <option value="">Seleccioná un repuesto…</option>
+                  <option *ngFor="let rp of repuestos(); trackBy: trackPorId" [value]="rp.id">
+                    {{ rp.codigo ? '[' + rp.codigo + '] ' : '' }}{{ rp.nombre }} — Stock: {{ rp.stock }} {{ rp.unidad_medida }} {{ rp.stock <= 0 ? '(SIN STOCK - SE PUEDE PEDIR POR OC)' : '' }} · {{ plata(rp.costo, rp.moneda) }}
+                  </option>
+                </select>
+              </label>
+              <label><span>Cantidad *</span>
+                <input class="gm-input" name="roCant" inputmode="decimal" [(ngModel)]="repuestoEnOrden.cantidad">
+              </label>
+              <div style="display: flex; align-items: flex-end;">
+                <button type="button" class="gm-btn gm-btn--brand gm-btn--sm" [disabled]="ocupado()" (click)="agregarRepuestoAOrden()">
+                  {{ repuestoEnOrden.consumir_ahora ? '+ Asignar y descontar stock' : '+ Dejar pedido en la orden' }}
+                </button>
+              </div>
+            </div>
+
+            <!-- Tarjeta de vista previa del repuesto seleccionado (con su foto) -->
+            <div class="preview-repuesto-panol" *ngIf="repuestoElegidoDelPanol as rp">
+              <button type="button" class="thumb-repuesto grande" [class.con-foto]="!!rp.portada" (click)="abrirGaleriaRepuesto(rp.id)" title="Ver / subir fotos de este repuesto">
+                <img *ngIf="rp.portada" [src]="foto(rp.portada)" [alt]="rp.nombre">
+                <span *ngIf="!rp.portada">📷</span>
+              </button>
+              <div class="prp-info">
+                <div>
+                  <b>{{ rp.nombre }}</b>
+                  <code *ngIf="rp.codigo" style="margin-left: 0.4rem;">{{ rp.codigo }}</code>
+                </div>
+                <small>
+                  <ng-container *ngIf="rp.marca">Marca: <b>{{ rp.marca }}</b> · </ng-container>
+                  <ng-container *ngIf="rp.compatibilidad">Compatibilidad: {{ rp.compatibilidad }} · </ng-container>
+                  <ng-container *ngIf="rp.ubicacion">Ubicación: <b>{{ rp.ubicacion }}</b> · </ng-container>
+                  Stock disponible: <b [class.alerta-txt]="rp.stock <= 0">{{ rp.stock }} {{ rp.unidad_medida }}</b> · Costo: <b>{{ plata(rp.costo, rp.moneda) }}</b>
+                </small>
+                <label style="display: inline-flex; align-items: center; gap: 0.4rem; margin-top: 0.3rem; font-size: 0.82rem; cursor: pointer;">
+                  <input type="checkbox" [(ngModel)]="repuestoEnOrden.consumir_ahora" name="roConsAhora" [disabled]="rp.stock <= 0">
+                  <span *ngIf="rp.stock > 0">Consumir ahora y descontar del stock del pañol inmediatamente</span>
+                  <span *ngIf="rp.stock <= 0" class="alerta-txt">Sin stock en pañol: se cargará como «Pendiente de compra» para generar una Orden de Compra (OC) atada a esta orden.</span>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <div class="campos" *ngIf="repuestoEnOrden.modo === 'libre'">
+            <label class="ancho2"><span>Descripción del repuesto *</span>
+              <input class="gm-input" name="roNom" placeholder="Ej: Óptica delantera derecha Nivus original" [(ngModel)]="repuestoEnOrden.nombre">
+            </label>
+            <label><span>Código (opcional)</span>
+              <input class="gm-input" name="roCod" placeholder="VW-2G5941" [(ngModel)]="repuestoEnOrden.codigo">
+            </label>
+            <label><span>Cantidad *</span>
+              <input class="gm-input" name="roCantL" inputmode="decimal" [(ngModel)]="repuestoEnOrden.cantidad">
+            </label>
+            <label><span>Moneda</span>
+              <select class="gm-input" name="roMonL" [(ngModel)]="repuestoEnOrden.moneda">
+                <option value="ARS">ARS</option>
+                <option value="USD">USD</option>
+              </select>
+            </label>
+            <label><span>Costo unitario *</span>
+              <input class="gm-input" name="roCuL" inputmode="decimal" placeholder="145.000" [(ngModel)]="repuestoEnOrden.costo_unitario">
+            </label>
+            <label style="display: flex; align-items: center; gap: 0.4rem; padding-top: 1.1rem;">
+              <input type="checkbox" [(ngModel)]="repuestoEnOrden.consumir_ahora" name="roConsLibre">
+              <span>Ya comprado / consumido (desmarcar si falta generar OC)</span>
+            </label>
+            <div style="display: flex; align-items: flex-end;">
+              <button type="button" class="gm-btn gm-btn--brand gm-btn--sm" [disabled]="ocupado()" (click)="agregarRepuestoAOrden()">+ Cargar a la orden</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Formulario inline para generar una Orden de Compra (OC) atada a esta Orden de Servicio -->
+        <div class="panel-oc-atada" *ngIf="compraEnOrdenAbierta()">
+          <h5>🛒 Nueva Orden de Compra (OC) atada a {{ o.numero }} ({{ o.unidad.titulo }})</h5>
+          <div class="campos" style="margin-bottom: 0.65rem;">
+            <label><span>Proveedor *</span>
+              <input class="gm-input" name="ocProv" placeholder="Ej: Distribuidora Warnes / Repuestos Bosch" [(ngModel)]="formCompraOrden.proveedor">
+            </label>
+            <label><span>N° Factura / Remito (opcional)</span>
+              <input class="gm-input" name="ocComp" placeholder="Ej: FC-A 0004-0012941" [(ngModel)]="formCompraOrden.comprobante">
+            </label>
+            <label class="ancho2"><span>Notas de la compra</span>
+              <input class="gm-input" name="ocNot" [(ngModel)]="formCompraOrden.notas">
+            </label>
+          </div>
+
+          <div class="table-container" style="margin-bottom: 0.65rem;">
+            <table class="modern-table">
+              <thead>
+                <tr>
+                  <th style="width: 38px;">Inc.</th>
+                  <th style="width: 52px;">Foto</th>
+                  <th>Repuesto del Pañol o Nuevo Insumo</th>
+                  <th>Código SKU</th>
+                  <th class="num" style="width: 95px;">Cant.</th>
+                  <th class="num" style="width: 140px;">Costo unit. ({{ o.moneda }})</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let it of formCompraOrden.items; let idx = index">
+                  <td><input type="checkbox" [(ngModel)]="it.incluir" [ngModelOptions]="{ standalone: true }"></td>
+                  <td>
+                    <div class="thumb-repuesto" [class.con-foto]="!!it.portada">
+                      <img *ngIf="it.portada" [src]="foto(it.portada)" [alt]="it.nombre">
+                      <span *ngIf="!it.portada">📷</span>
+                    </div>
+                  </td>
+                  <td>
+                    <select *ngIf="!it.renglon_orden_id" class="gm-input" style="margin-bottom: 0.25rem;"
+                            [ngModel]="it.repuesto_id ?? ''" [ngModelOptions]="{ standalone: true }"
+                            (ngModelChange)="alElegirRepuestoEnCompraOrden(idx, $event)">
+                      <option value="">— Crear nuevo repuesto en pañol o elegir existente —</option>
+                      <option *ngFor="let rp of repuestos(); trackBy: trackPorId" [value]="rp.id">
+                        {{ rp.codigo ? '[' + rp.codigo + '] ' : '' }}{{ rp.nombre }} (Stock: {{ rp.stock }})
+                      </option>
+                    </select>
+                    <input class="gm-input" placeholder="Nombre del repuesto…" [(ngModel)]="it.nombre" [ngModelOptions]="{ standalone: true }">
+                  </td>
+                  <td>
+                    <input class="gm-input" placeholder="SKU" [(ngModel)]="it.codigo" [ngModelOptions]="{ standalone: true }">
+                  </td>
+                  <td class="num">
+                    <input class="gm-input num" inputmode="decimal" [(ngModel)]="it.cantidad" [ngModelOptions]="{ standalone: true }">
+                  </td>
+                  <td class="num">
+                    <input class="gm-input num" inputmode="decimal" [(ngModel)]="it.costo_unitario" [ngModelOptions]="{ standalone: true }">
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="botones">
+            <button type="button" class="gm-btn gm-btn--neutral gm-btn--sm" (click)="agregarRenglonExtraCompraOrden()">+ Agregar otro ítem a la OC</button>
+            <button type="button" class="gm-btn gm-btn--brand gm-btn--sm" [disabled]="ocupado()" (click)="guardarCompraAtadaAOrden()">✓ Emitir Orden de Compra atada a {{ o.numero }}</button>
+            <button type="button" class="gm-btn gm-btn--neutral gm-btn--sm" (click)="compraEnOrdenAbierta.set(false)">Cancelar</button>
+          </div>
+        </div>
+
+        <!-- Lista de Órdenes de Compra (OC) atadas a esta Orden de Servicio -->
+        <div class="compras-atadas" *ngIf="o.compras.length">
+          <h5>📦 Órdenes de Compra (OC) vinculadas a {{ o.numero }} ({{ o.compras.length }})</h5>
+          <ul class="lista-oc-orden">
+            <li *ngFor="let oc of o.compras; trackBy: trackPorId" [attr.data-estado]="oc.estado">
+              <div class="oc-info">
+                <div>
+                  <b>{{ oc.numero }}</b>
+                  <span class="chip-consumo" [ngClass]="oc.estado === 'recibida' ? 'consumido' : oc.estado === 'pendiente' ? 'pendiente' : ''">{{ oc.estado | uppercase }}</span>
+                  <span> · Proveedor: <b>{{ oc.proveedor }}</b></span>
+                  <span *ngIf="oc.comprobante"> · Comp: <code>{{ oc.comprobante }}</code></span>
+                  <span> · Total: <b>{{ plata(oc.total, oc.moneda) }}</b></span>
+                </div>
+                <div class="oc-items-mini">
+                  <span *ngFor="let it of oc.items" class="oc-item-pill">
+                    <img *ngIf="it.portada" [src]="foto(it.portada)" [alt]="it.nombre">
+                    {{ it.cantidad }}× {{ it.nombre }} ({{ plata(it.costo_unitario, oc.moneda) }})
+                  </span>
+                </div>
+              </div>
+              <div class="botones" *ngIf="oc.estado === 'pendiente'">
+                <button type="button" class="gm-btn gm-btn--brand gm-btn--sm" [disabled]="ocupado()" (click)="recibirOrdenCompra(oc, true)"
+                        title="Ingresa los repuestos al pañol y los descuenta automáticamente consumiéndolos en esta orden">
+                  📦 Recibir y consumir en {{ o.numero }}
+                </button>
+                <button type="button" class="gm-btn gm-btn--neutral gm-btn--sm" [disabled]="ocupado()" (click)="recibirOrdenCompra(oc, false)"
+                        title="Sólo ingresa el stock al pañol y marca el repuesto como «En pañol» para consumirlo después">
+                  Recibir en pañol (sin consumir aún)
+                </button>
+                <button type="button" class="quitar" [disabled]="ocupado()" (click)="cancelarOrdenCompra(oc)">Cancelar OC</button>
+              </div>
+            </li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- Bloque 4: Fotos de la Orden (Recepción, Diagnóstico, Trabajo, QA) -->
+      <section class="bloque-fo">
+        <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+          <h4 style="margin: 0;">4. Fotos del proceso de taller ({{ o.fotos.length }}/20)</h4>
+          <div style="display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center;">
+            <select class="gm-input" style="height: 30px; padding: 2px 8px; font-size: 0.8rem; width: auto;" [(ngModel)]="etapaFotoOrden" name="etFotoOa">
+              <option value="recibida">Ingreso / Estado inicial</option>
+              <option value="diagnostico">Diagnóstico / Falla</option>
+              <option value="en_trabajo">Reparación / Repuesto colocado</option>
+              <option value="control_calidad">Listo / Control QA</option>
+            </select>
+            <input class="gm-input" type="text" maxlength="200" placeholder="Nota de la foto…" style="height: 30px; padding: 2px 8px; font-size: 0.8rem; min-width: 180px;" [(ngModel)]="notaFotoOrden" name="ntFotoOa">
+            <label class="gm-btn gm-btn--brand gm-btn--sm" style="cursor: pointer;">
+              {{ ocupado() ? 'Subiendo…' : '📷 Subir fotos' }}
+              <input type="file" accept="image/*" multiple hidden [disabled]="ocupado()" (change)="subirFotosOrden($event)">
+            </label>
+          </div>
+        </div>
+        <p class="vacio" *ngIf="!o.fotos.length" style="margin: 0;">Sin fotos cargadas en esta orden.</p>
+        <ul class="grilla-fotos-oa" *ngIf="o.fotos.length">
+          <li *ngFor="let f of o.fotos; trackBy: trackPorId">
+            <button type="button" (click)="fotoAmpliada.set(f)" class="mini-btn">
+              <img [src]="foto(f.url_miniatura)" [alt]="f.nota || 'Foto taller'">
+            </button>
+            <div class="meta-foto">
+              <b>{{ f.etapa }}</b>
+              <span *ngIf="f.nota">{{ f.nota }}</span>
+              <small>{{ fecha(f.fecha) }}</small>
+            </div>
+            <button type="button" class="borrar-foto" (click)="borrarFotoOrden(f.id)" [disabled]="ocupado()">×</button>
+          </li>
+        </ul>
+      </section>
+
+      <!-- Bloque 5: Avanzar de etapa / Finalizar e imputar gasto al vehículo -->
+      <section class="bloque-fo acciones-cierre" *ngIf="o.estado !== 'lista' && o.estado !== 'anulada'">
+        <h4>5. Avanzar etapa o finalizar Orden</h4>
+        <label *ngIf="o.unidad.id" style="display: inline-flex; align-items: center; gap: 0.45rem; font-size: 0.85rem; margin-bottom: 0.6rem; cursor: pointer;">
+          <input type="checkbox" [(ngModel)]="pasarADisponibleAlCerrar" name="pasarDisp">
+          <span>Al marcar como «Lista para salón», pasar la unidad <b>{{ o.unidad.numero }}</b> automáticamente a estado <b>Disponible</b> e imputar <b>{{ plata(o.total_orden, o.moneda) }}</b> a sus gastos de alistaje</span>
+        </label>
+        <p *ngIf="!o.unidad.id" class="ayuda" style="margin: 0 0 0.6rem;">
+          Al marcarla como «Lista», la orden del cliente <b>{{ o.cliente?.nombre }}</b> queda cerrada con un total de <b>{{ plata(o.total_orden, o.moneda) }}</b> lista para entregar y cobrar.
+        </p>
+        <div class="botones">
+          <button type="button" *ngIf="o.estado === 'recibida'" class="gm-btn gm-btn--neutral gm-btn--sm" [disabled]="ocupado()" (click)="moverEstadoOrden('diagnostico')">Pasar a En diagnóstico</button>
+          <button type="button" *ngIf="o.estado !== 'en_trabajo'" class="gm-btn gm-btn--neutral gm-btn--sm" [disabled]="ocupado()" (click)="moverEstadoOrden('en_trabajo')">Pasar a En preparación / taller</button>
+          <button type="button" *ngIf="o.estado !== 'control_calidad'" class="gm-btn gm-btn--neutral gm-btn--sm" [disabled]="ocupado()" (click)="moverEstadoOrden('control_calidad')">Pasar a Control de Calidad (QA)</button>
+          <button type="button" class="gm-btn gm-btn--brand gm-btn--sm" [disabled]="ocupado()" (click)="moverEstadoOrden('lista')">
+            ✓ Finalizar Orden (Lista para salón)
+          </button>
+          <button type="button" class="gm-btn gm-btn--neutral gm-btn--sm" [disabled]="ocupado()" (click)="moverEstadoOrden('anulada')">Anular orden</button>
+        </div>
+      </section>
+
+      <!-- Bitácora de la Orden -->
+      <section class="bloque-fo">
+        <h4>Historial de la orden</h4>
+        <ul class="bitacora-oa">
+          <li *ngFor="let b of o.bitacora.slice().reverse()">
+            <small>{{ fecha(b.fecha) }}<ng-container *ngIf="b.autor"> · {{ b.autor }}</ng-container></small>
+            <span>{{ b.texto }}</span>
+          </li>
+        </ul>
+      </section>
+    </article>
+  </div>
+</ng-container>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     SECCIÓN 2: ÓRDENES DE COMPRA (OC-2026-XXXX) ATADAS A ORDEN O PAÑOL
+     ═══════════════════════════════════════════════════════════════════════════ -->
+<ng-container *ngIf="seccion() === 'compras'">
+  <div class="barra-acciones">
+    <div class="vistas" role="tablist">
+      <button type="button" role="tab" [class.activa]="filtroEstadoCompra() === 'todas'" (click)="filtroEstadoCompra.set('todas')">Todas ({{ compras().length }})</button>
+      <button type="button" role="tab" [class.activa]="filtroEstadoCompra() === 'pendiente'" (click)="filtroEstadoCompra.set('pendiente')">Pendientes de recibir ({{ kpis().comprasPendientes }})</button>
+      <button type="button" role="tab" [class.activa]="filtroEstadoCompra() === 'recibida'" (click)="filtroEstadoCompra.set('recibida')">Recibidas</button>
+    </div>
+    <button type="button" class="gm-btn gm-btn--brand gm-btn--sm" (click)="nuevaCompraGeneralAbierta.set(!nuevaCompraGeneralAbierta())">
+      {{ nuevaCompraGeneralAbierta() ? 'Cerrar formulario' : '+ Nueva Orden de Compra (OC)' }}
+    </button>
+  </div>
+
+  <form class="panel-form" *ngIf="nuevaCompraGeneralAbierta()" (ngSubmit)="crearCompraGeneral()">
+    <h4>Emitir Orden de Compra (OC) atada a una Orden de Servicio o para reposición de Pañol</h4>
+    <div class="campos">
+      <label class="ancho2"><span>Atar a Orden de Servicio / Alistaje (opcional)</span>
+        <select class="gm-input" name="cgOrd" [(ngModel)]="formCompraGeneral.orden_id">
+          <option value="">— Reposición general de stock del Pañol (sin atar a orden) —</option>
+          <option *ngFor="let o of ordenes(); trackBy: trackPorId" [value]="o.id">
+            {{ o.numero }} · {{ o.unidad.titulo }} {{ o.unidad.anio }} ({{ dominio(o.unidad.dominio) }}) — {{ o.cliente ? o.cliente.nombre : o.unidad.numero }}
+          </option>
+        </select>
+      </label>
+      <label><span>Proveedor *</span>
+        <input class="gm-input" name="cgProv" placeholder="Distribuidora Warnes / Bosch" [(ngModel)]="formCompraGeneral.proveedor">
+      </label>
+      <label><span>N° Comprobante / Factura</span>
+        <input class="gm-input" name="cgComp" placeholder="FC-A 0003-00081920" [(ngModel)]="formCompraGeneral.comprobante">
+      </label>
+      <label class="ancho2"><span>Elegir repuesto existente del Pañol (o dejar vacío para crear uno nuevo)</span>
+        <select class="gm-input" name="cgRep" [ngModel]="formCompraGeneral.repuesto_id" (ngModelChange)="alElegirRepuestoCompraGeneral($event)">
+          <option value="">— Cargar como repuesto nuevo —</option>
+          <option *ngFor="let rp of repuestos(); trackBy: trackPorId" [value]="rp.id">
+            {{ rp.codigo ? '[' + rp.codigo + '] ' : '' }}{{ rp.nombre }} — Stock actual: {{ rp.stock }} {{ rp.unidad_medida }}
+          </option>
+        </select>
+      </label>
+      <label class="ancho2"><span>Nombre del repuesto / insumo *</span>
+        <input class="gm-input" name="cgNom" placeholder="Ej: Pastillas de freno delanteras Bosch" [(ngModel)]="formCompraGeneral.nombre">
+      </label>
+      <label><span>Código SKU</span>
+        <input class="gm-input" name="cgCod" placeholder="FRE-BOS-01" [(ngModel)]="formCompraGeneral.codigo">
+      </label>
+      <label><span>Cantidad *</span>
+        <input class="gm-input" name="cgCant" inputmode="decimal" [(ngModel)]="formCompraGeneral.cantidad">
+      </label>
+      <label><span>Moneda</span>
+        <select class="gm-input" name="cgMon" [(ngModel)]="formCompraGeneral.moneda">
+          <option value="ARS">ARS</option>
+          <option value="USD">USD</option>
+        </select>
+      </label>
+      <label><span>Costo unitario *</span>
+        <input class="gm-input" name="cgCos" inputmode="decimal" placeholder="65.000" [(ngModel)]="formCompraGeneral.costo_unitario">
+      </label>
+    </div>
+    <p class="ayuda">
+      Si la compra está atada a una Orden de Servicio, al recibirla el sistema suma el stock al pañol y descuenta automáticamente las unidades consumidas en esa orden.
+    </p>
+    <div class="botones">
+      <button type="submit" class="gm-btn gm-btn--brand gm-btn--sm" [disabled]="ocupado()">Emitir Orden de Compra</button>
+      <button type="button" class="gm-btn gm-btn--neutral gm-btn--sm" (click)="nuevaCompraGeneralAbierta.set(false)">Cancelar</button>
+    </div>
+  </form>
+
+  <p class="vacio" *ngIf="!comprasFiltradas().length">No hay Órdenes de Compra registradas en esta vista.</p>
+
+  <div class="table-container" *ngIf="comprasFiltradas().length">
+    <table class="modern-table tabla-tarjetas">
+      <thead>
+        <tr>
+          <th>N° OC</th>
+          <th>Estado</th>
+          <th>Orden de Servicio vinculada</th>
+          <th>Proveedor / Comprobante</th>
+          <th>Repuestos incluidos</th>
+          <th class="num">Total</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let oc of comprasFiltradas(); trackBy: trackPorId">
+          <td data-label="N° OC">
+            <b>{{ oc.numero }}</b>
+            <small style="display: block; color: var(--gm-muted);">{{ fecha(oc.created_at) }}</small>
+          </td>
+          <td data-label="Estado">
+            <span class="chip-consumo" [ngClass]="oc.estado === 'recibida' ? 'consumido' : oc.estado === 'pendiente' ? 'pendiente' : ''">
+              {{ oc.estado === 'recibida' ? '✓ Recibida' : oc.estado === 'pendiente' ? '⏳ Pendiente' : 'Cancelada' }}
+            </span>
+          </td>
+          <td data-label="Orden vinculada">
+            <ng-container *ngIf="oc.orden_numero">
+              <button type="button" class="gm-btn gm-btn--neutral gm-btn--sm" (click)="elegidaId.set(oc.orden_id); seccion.set('ordenes')">
+                🔧 {{ oc.orden_numero }} · {{ oc.orden_vehiculo }}
+              </button>
+            </ng-container>
+            <span *ngIf="!oc.orden_numero" style="color: var(--gm-muted);">Reposición general de Pañol</span>
+          </td>
+          <td data-label="Proveedor">
+            <b>{{ oc.proveedor }}</b>
+            <small *ngIf="oc.comprobante" style="display: block;">Comp: <code>{{ oc.comprobante }}</code></small>
+          </td>
+          <td data-label="Repuestos">
+            <div class="oc-items-mini">
+              <span *ngFor="let it of oc.items" class="oc-item-pill" (click)="it.repuesto_id ? abrirGaleriaRepuesto(it.repuesto_id) : null" style="cursor: pointer;">
+                <img *ngIf="it.portada" [src]="foto(it.portada)" [alt]="it.nombre">
+                <b>{{ it.cantidad }}×</b> {{ it.nombre }} ({{ plata(it.costo_unitario, oc.moneda) }})
+              </span>
+            </div>
+          </td>
+          <td data-label="Total" class="num"><b>{{ plata(oc.total, oc.moneda) }}</b></td>
+          <td data-label="Acciones">
+            <div style="display: flex; gap: 0.35rem; flex-wrap: wrap;" *ngIf="oc.estado === 'pendiente'">
+              <button type="button" class="gm-btn gm-btn--brand gm-btn--sm" [disabled]="ocupado()" (click)="recibirOrdenCompra(oc, true)">
+                {{ oc.orden_numero ? '📦 Recibir y consumir en ' + oc.orden_numero : '📦 Recibir al Pañol' }}
+              </button>
+              <button type="button" *ngIf="oc.orden_numero" class="gm-btn gm-btn--neutral gm-btn--sm" [disabled]="ocupado()" (click)="recibirOrdenCompra(oc, false)">
+                Sólo ingresar al Pañol
+              </button>
+              <button type="button" class="quitar" [disabled]="ocupado()" (click)="cancelarOrdenCompra(oc)">Cancelar</button>
+            </div>
+            <small *ngIf="oc.estado === 'recibida' && oc.recibida_at" style="color: var(--gm-muted);">
+              Recibida el {{ fecha(oc.recibida_at) }}
+            </small>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</ng-container>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     SECCIÓN 3: PAÑOL DE REPUESTOS E INSUMOS AUTOMOTRICES (CON FOTOS)
+     ═══════════════════════════════════════════════════════════════════════════ -->
+<ng-container *ngIf="seccion() === 'repuestos'">
+  <div class="barra-acciones">
+    <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; flex: 1;">
+      <input class="gm-input" type="search" placeholder="Buscar por código SKU, nombre, marca o modelo compatible…" style="max-width: 320px;"
+             [ngModel]="busquedaRepuesto()" (ngModelChange)="busquedaRepuesto.set($event)">
+      <select class="gm-input" style="max-width: 240px;" [ngModel]="filtroCategoria()" (ngModelChange)="filtroCategoria.set($event)">
+        <option value="">Todas las categorías</option>
+        <option *ngFor="let c of categoriasRepuesto" [value]="c[0]">{{ c[1] }}</option>
+      </select>
+      <label style="display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.84rem; cursor: pointer;">
+        <input type="checkbox" [ngModel]="soloBajoStock()" (ngModelChange)="soloBajoStock.set($event)">
+        <span>Sólo stock bajo / a reponer ({{ kpis().bajoStock }})</span>
+      </label>
+    </div>
+    <div class="botones">
+      <button type="button" class="gm-btn gm-btn--neutral gm-btn--sm" *ngIf="repuestosFiltrados().length" (click)="exportarRepuestosExcel()">Exportar Excel</button>
+      <button type="button" class="gm-btn gm-btn--brand gm-btn--sm" (click)="abrirNuevoRepuesto()">+ Nuevo repuesto / insumo</button>
+    </div>
+  </div>
+
+  <form class="panel-form" *ngIf="nuevoRepuestoAbierto()" (ngSubmit)="guardarRepuesto()">
+    <h4>{{ editandoRepuestoId() ? 'Editar repuesto del pañol' : 'Alta de repuesto / insumo en el pañol' }}</h4>
+    <div class="campos">
+      <label><span>Código SKU / N° Parte</span>
+        <input class="gm-input" name="rpCod" maxlength="60" placeholder="Ej: FIL-VW-200TSI" [(ngModel)]="formRepuesto.codigo">
+      </label>
+      <label class="ancho2"><span>Nombre del repuesto o insumo *</span>
+        <input class="gm-input" name="rpNom" maxlength="140" placeholder="Ej: Kit Service Aceite 5W40 Sintético + Filtros" [(ngModel)]="formRepuesto.nombre">
+      </label>
+      <label><span>Categoría</span>
+        <select class="gm-input" name="rpCat" [(ngModel)]="formRepuesto.categoria">
+          <option *ngFor="let c of categoriasRepuesto" [value]="c[0]">{{ c[1] }}</option>
+        </select>
+      </label>
+      <label><span>Marca del repuesto</span>
+        <input class="gm-input" name="rpMar" maxlength="60" placeholder="Bosch, Mann, Moura, Michelin…" [(ngModel)]="formRepuesto.marca">
+      </label>
+      <label class="ancho2"><span>Modelos compatibles</span>
+        <input class="gm-input" name="rpComp" maxlength="160" placeholder="Ej: VW Nivus / T-Cross / Polo 200 TSI" [(ngModel)]="formRepuesto.compatibilidad">
+      </label>
+      <label><span>Ubicación en pañol</span>
+        <input class="gm-input" name="rpUbi" maxlength="60" placeholder="Estante A-2" [(ngModel)]="formRepuesto.ubicacion">
+      </label>
+      <label><span>Stock actual</span>
+        <input class="gm-input" name="rpStk" inputmode="decimal" [(ngModel)]="formRepuesto.stock">
+      </label>
+      <label><span>Stock mínimo (alerta)</span>
+        <input class="gm-input" name="rpMin" inputmode="decimal" [(ngModel)]="formRepuesto.stock_minimo">
+      </label>
+      <label><span>Moneda</span>
+        <select class="gm-input" name="rpMon" [(ngModel)]="formRepuesto.moneda">
+          <option value="ARS">Pesos (ARS)</option>
+          <option value="USD">Dólares (USD)</option>
+        </select>
+      </label>
+      <label><span>Costo unitario</span>
+        <input class="gm-input" name="rpCos" inputmode="decimal" placeholder="85.000" [(ngModel)]="formRepuesto.costo">
+      </label>
+      <label><span>Proveedor habitual</span>
+        <input class="gm-input" name="rpProv" maxlength="120" placeholder="Distribuidora Warnes" [(ngModel)]="formRepuesto.proveedor">
+      </label>
+      <label class="ancho2"><span>📷 Fotos del repuesto (opcional, podés seleccionar varias)</span>
+        <input class="gm-input" type="file" accept="image/*" multiple (change)="alSeleccionarFotosRepuestoForm($event)">
+      </label>
+    </div>
+    <div class="botones">
+      <button type="submit" class="gm-btn gm-btn--brand gm-btn--sm" [disabled]="ocupado()">Guardar en el pañol</button>
+      <button type="button" class="gm-btn gm-btn--neutral gm-btn--sm" (click)="nuevoRepuestoAbierto.set(false)">Cancelar</button>
+    </div>
+  </form>
+
+  <p class="vacio" *ngIf="!repuestosFiltrados().length">No hay repuestos que coincidan con el filtro.</p>
+
+  <div class="table-container" *ngIf="repuestosFiltrados().length">
+    <table class="modern-table tabla-tarjetas">
+      <thead>
+        <tr>
+          <th style="width: 64px;">Foto</th>
+          <th>SKU</th>
+          <th>Repuesto / Insumo</th>
+          <th>Categoría</th>
+          <th>Compatibilidad</th>
+          <th>Ubicación</th>
+          <th class="num">Stock</th>
+          <th class="num">Costo unit.</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let r of repuestosFiltrados(); trackBy: trackPorId">
+          <td data-label="Foto">
+            <button type="button" class="thumb-repuesto grande" [class.con-foto]="!!r.portada" (click)="abrirGaleriaRepuesto(r.id)" title="Ver o subir fotos del repuesto">
+              <img *ngIf="r.portada" [src]="foto(r.portada)" [alt]="r.nombre">
+              <span *ngIf="!r.portada">📷+</span>
+            </button>
+          </td>
+          <td data-label="SKU"><code>{{ r.codigo || '—' }}</code></td>
+          <td data-label="Repuesto">
+            <b>{{ r.nombre }}</b>
+            <small *ngIf="r.marca"> · {{ r.marca }}</small>
+            <small *ngIf="r.proveedor" style="display: block;">Prov: {{ r.proveedor }}</small>
+          </td>
+          <td data-label="Categoría">{{ rotuloCategoria[r.categoria] }}</td>
+          <td data-label="Compatibilidad">{{ r.compatibilidad || 'Universal' }}</td>
+          <td data-label="Ubicación">{{ r.ubicacion || '—' }}</td>
+          <td data-label="Stock" class="num">
+            <b [class.alerta-txt]="r.bajo_stock">{{ r.stock }} {{ r.unidad_medida }}</b>
+            <small style="display: block;">mín: {{ r.stock_minimo }}</small>
+            <span class="chip-reponer" *ngIf="r.bajo_stock">Reponer</span>
+          </td>
+          <td data-label="Costo unit." class="num"><b>{{ plata(r.costo, r.moneda) }}</b></td>
+          <td data-label="Acciones">
+            <div style="display: flex; gap: 0.3rem; flex-wrap: wrap;">
+              <button type="button" class="gm-btn gm-btn--neutral gm-btn--sm" (click)="abrirGaleriaRepuesto(r.id)" title="Ver y subir fotos del repuesto">
+                📷 Fotos ({{ r.fotos.length }})
+              </button>
+              <button type="button" class="gm-btn gm-btn--neutral gm-btn--sm" (click)="ajustarStock(r, 1)" title="Sumar 1 al stock">+1</button>
+              <button type="button" class="gm-btn gm-btn--neutral gm-btn--sm" [disabled]="r.stock <= 0" (click)="ajustarStock(r, -1)" title="Restar 1 del stock">-1</button>
+              <button type="button" class="gm-btn gm-btn--neutral gm-btn--sm" (click)="abrirEdicionRepuesto(r)">Editar</button>
+            </div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</ng-container>
+
+<!-- Modal de Galería y Carga de Fotos de un Repuesto -->
+<div *ngIf="repuestoGaleria() as rg" (click)="repuestoGaleriaId.set(null)"
+     style="position: fixed; inset: 0; background: rgba(0,0,0,0.72); z-index: 1200; display: flex; align-items: center; justify-content: center; padding: 1.2rem;">
+  <div (click)="$event.stopPropagation()" style="background: var(--gm-card, #fff); border: 1px solid var(--gm-border); border-radius: 12px; padding: 1.25rem; max-width: 680px; width: 100%; max-height: 88vh; overflow-y: auto; box-shadow: 0 12px 36px rgba(0,0,0,0.3);">
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 0.75rem; margin-bottom: 0.85rem;">
+      <div>
+        <h3 style="margin: 0; font-size: 1.05rem;">📷 Fotos del Repuesto: {{ rg.nombre }}</h3>
+        <p style="margin: 0.2rem 0 0; font-size: 0.82rem; color: var(--gm-text-2);">
+          <code *ngIf="rg.codigo">{{ rg.codigo }}</code>
+          <ng-container *ngIf="rg.marca"> · Marca: <b>{{ rg.marca }}</b></ng-container>
+          · Stock: <b>{{ rg.stock }} {{ rg.unidad_medida }}</b> · {{ plata(rg.costo, rg.moneda) }}
+        </p>
+      </div>
+      <div style="display: flex; gap: 0.45rem;">
+        <label class="gm-btn gm-btn--brand gm-btn--sm" style="cursor: pointer;">
+          {{ ocupado() ? 'Subiendo…' : '+ Subir fotos' }}
+          <input type="file" accept="image/*" multiple hidden [disabled]="ocupado()" (change)="subirFotosARepuesto(rg, $event)">
+        </label>
+        <button type="button" class="gm-btn gm-btn--neutral gm-btn--sm" (click)="repuestoGaleriaId.set(null)">Cerrar</button>
+      </div>
+    </div>
+
+    <p class="vacio" *ngIf="!rg.fotos.length" style="margin: 1rem 0;">
+      Este repuesto todavía no tiene fotos cargadas. Hacé clic en <b>«+ Subir fotos»</b> para agregar imágenes de la pieza o caja.
+    </p>
+
+    <ul class="grilla-fotos-oa" *ngIf="rg.fotos.length" style="grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));">
+      <li *ngFor="let f of rg.fotos; trackBy: trackPorId">
+        <a [href]="foto(f.url)" target="_blank" rel="noopener noreferrer" class="mini-btn">
+          <img [src]="foto(f.url_miniatura)" [alt]="rg.nombre">
+        </a>
+        <div class="meta-foto">
+          <small>{{ fecha(f.fecha) }}</small>
+        </div>
+        <button type="button" class="borrar-foto" (click)="borrarFotoDeRepuesto(rg, f.id)" [disabled]="ocupado()" title="Eliminar foto">×</button>
+      </li>
+    </ul>
+  </div>
+</div>
+
+<!-- Visor de foto ampliada -->
+<div *ngIf="fotoAmpliada() as fa" (click)="fotoAmpliada.set(null)"
+     style="position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 1200; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 1.5rem;">
+  <div style="margin-bottom: 0.75rem; display: flex; gap: 0.5rem;" (click)="$event.stopPropagation()">
+    <a [href]="foto(fa.url)" target="_blank" rel="noopener noreferrer" class="gm-btn gm-btn--brand gm-btn--sm">Abrir original</a>
+    <button type="button" class="gm-btn gm-btn--neutral gm-btn--sm" (click)="fotoAmpliada.set(null)">Cerrar</button>
+  </div>
+  <img [src]="foto(fa.url)" [alt]="fa.nota || 'Foto taller'" style="max-width: 92vw; max-height: 78vh; border-radius: 8px; object-fit: contain;">
+  <p style="color: #fff; margin-top: 0.5rem; font-size: 0.9rem;">
+    <b>{{ fa.etapa | uppercase }}</b><ng-container *ngIf="fa.nota"> · {{ fa.nota }}</ng-container> · {{ fecha(fa.fecha) }}
+  </p>
+</div>
+
+<!-- Modal de Código QR de la Orden de Alistaje -->
+<div *ngIf="qrModal() as qm" (click)="qrModal.set(null)"
+     style="position: fixed; inset: 0; background: rgba(0,0,0,0.65); z-index: 1200; display: flex; align-items: center; justify-content: center; padding: 1rem;">
+  <div (click)="$event.stopPropagation()" style="background: var(--gm-card, #fff); border: 1px solid var(--gm-border); border-radius: 12px; padding: 1.3rem; max-width: 400px; width: 100%; text-align: center; box-shadow: 0 12px 36px rgba(0,0,0,0.28);">
+    <h3 style="margin: 0 0 0.35rem; font-size: 1.05rem;">{{ qm.titulo }}</h3>
+    <p style="margin: 0 0 0.85rem; font-size: 0.84rem; color: var(--gm-text-2);">{{ qm.subtitulo }}</p>
+    <img [src]="qm.qrDataUrl" alt="Código QR" style="width: 220px; height: 220px; margin: 0 auto 0.75rem; display: block; border: 1px solid var(--gm-border); border-radius: 8px; padding: 6px; background: #fff;">
+    <p style="margin: 0 0 0.85rem; font-size: 0.78rem; color: var(--gm-muted); word-break: break-all;">{{ qm.url }}</p>
+    <div class="botones" style="justify-content: center;">
+      <button type="button" class="gm-btn gm-btn--brand gm-btn--sm" (click)="copiarUrlQr(qm.url)">Copiar enlace</button>
+      <button type="button" class="gm-btn gm-btn--neutral gm-btn--sm" (click)="qrModal.set(null)">Cerrar</button>
+    </div>
+  </div>
+</div>

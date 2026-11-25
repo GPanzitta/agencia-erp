@@ -1,0 +1,185 @@
+<header class="cab">
+  <div class="titulo">
+    <h2>Rentabilidad</h2>
+    <p class="ayuda">{{ periodo() }}</p>
+  </div>
+  <div class="periodo">
+    <div class="vistas" role="tablist" aria-label="Período">
+      <button type="button" role="tab" *ngFor="let a of atajos" [attr.aria-selected]="atajo() === a.valor"
+              [class.activa]="atajo() === a.valor" (click)="elegirAtajo(a.valor)">{{ a.rotulo }}</button>
+    </div>
+    <form class="fechas" (submit)="$event.preventDefault(); aplicar()">
+      <label><span>Desde</span>
+        <input class="gm-input" type="date" name="desde" [ngModel]="desde()" (ngModelChange)="cambiarFecha('desde', $event)">
+      </label>
+      <label><span>Hasta</span>
+        <input class="gm-input" type="date" name="hasta" [ngModel]="hasta()" (ngModelChange)="cambiarFecha('hasta', $event)">
+      </label>
+      <button class="gm-btn" type="submit">Ver</button>
+    </form>
+  </div>
+</header>
+
+<p class="vacio" *ngIf="cargando() && !datos()">Cargando…</p>
+
+<section class="fallo" *ngIf="fallo()">
+  <p>No pudimos traer el tablero.</p>
+  <button class="gm-btn" type="button" (click)="cargar()">Reintentar</button>
+</section>
+
+<section class="primero" *ngIf="vacio()">
+  <h3>Todavía no hay nada que medir</h3>
+  <p>Cargá un auto con su costo y su precio: acá vas a ver cuánto deja y cuánta plata tenés parada.</p>
+  <a routerLink="/home/autos/nueva" class="gm-btn gm-btn--brand">Cargar un auto</a>
+</section>
+
+<ng-container *ngIf="datos() as d">
+  <section class="numeros" *ngIf="!vacio()" aria-label="Los números del período">
+    <div>
+      <span>Plata puesta en stock</span>
+      <b>{{ monto(d.stock.capital) }}</b>
+      <small>{{ d.stock.unidades }} {{ d.stock.unidades === 1 ? 'auto' : 'autos' }} · {{ d.stock.dias_promedio }} días promedio</small>
+      <small *ngIf="otra(d.stock.capital) as mas">{{ mas }}</small>
+    </div>
+    <div>
+      <span>Margen si se vende hoy</span>
+      <b>{{ monto(d.stock.margen) }}</b>
+      <small>{{ pctDe(d.stock.margen_pct, d.stock.venta) }} sobre la venta · {{ d.stock.con_precio }} de {{ d.stock.unidades }} con precio</small>
+      <small *ngIf="otra(d.stock.margen) as mas">{{ mas }}</small>
+    </div>
+    <div [class.alerta]="d.ventas.operaciones > 0 && (d.ventas.margen.USD < 0 || d.ventas.margen.ARS < 0)">
+      <span>Vendido en el período</span>
+      <b>{{ monto(d.ventas.facturado) }}</b>
+      <small>{{ d.ventas.operaciones }} {{ d.ventas.operaciones === 1 ? 'operación' : 'operaciones' }} · ticket {{ monto(d.ventas.ticket) }}</small>
+      <small *ngIf="otra(d.ventas.facturado) as mas">{{ mas }}</small>
+    </div>
+    <div [class.alerta]="d.ventas.operaciones > 0 && (d.ventas.margen.USD < 0 || d.ventas.margen.ARS < 0)">
+      <span>Margen real</span>
+      <b>{{ monto(d.ventas.margen) }}</b>
+      <small>{{ pctDe(d.ventas.margen_pct, d.ventas.facturado) }} · quedan {{ monto(d.ventas.neto) }} tras comisiones</small>
+      <small *ngIf="otra(d.ventas.margen) as mas">{{ mas }}</small>
+    </div>
+    <div [class.alerta]="d.ventas.descuento.USD > 0 || d.ventas.descuento.ARS > 0">
+      <span>Descuento otorgado</span>
+      <b>{{ monto(d.ventas.descuento) }}</b>
+      <small>{{ pctDe(d.ventas.descuento_pct, d.ventas.facturado) }} de lo que se pidió al publicar</small>
+      <small *ngIf="otra(d.ventas.descuento) as mas">{{ mas }}</small>
+    </div>
+  </section>
+
+  <section class="bloque" aria-labelledby="t-riesgos">
+    <header class="bloque-cab">
+      <h3 id="t-riesgos">Lo que hay que mirar</h3>
+      <span class="cuenta" *ngIf="d.riesgos.length">{{ d.riesgos.length }}</span>
+    </header>
+    <p class="ok" *ngIf="!d.riesgos.length">Ninguna unidad está dejando plata sobre la mesa. El stock está sano.</p>
+    <ul class="riesgos" *ngIf="d.riesgos.length">
+      <li *ngFor="let r of d.riesgos; trackBy: trackPorId" [attr.data-sev]="r.severidad">
+        <a class="quien" [routerLink]="['/home/autos/unidad', r.id]">
+          <b>{{ r.titulo }}</b>
+          <small><span class="patente">{{ r.dominio ?? 'Sin dominio' }}</span> · {{ r.numero }} · {{ r.dias }} días</small>
+        </a>
+        <div class="motivos">
+          <span class="motivo" *ngFor="let m of r.motivos">{{ rotuloMotivo[m] }}</span>
+        </div>
+        <p class="detalle">{{ detalle(r) }}</p>
+        <dl class="cifras">
+          <div><dt>Puesto</dt><dd>{{ plata(r.costo, r.moneda) }}</dd></div>
+          <div><dt>Precio</dt><dd>{{ plata(r.precio, r.moneda) }}</dd></div>
+          <div><dt>Deja</dt><dd [class.negativo]="(r.margen ?? 0) < 0">{{ plata(r.margen, r.moneda) }}</dd></div>
+        </dl>
+      </li>
+    </ul>
+  </section>
+
+  <div class="dos">
+    <section class="bloque" aria-labelledby="t-origen">
+      <h3 id="t-origen">De dónde viene el margen</h3>
+      <table class="tabla" *ngIf="d.ventas.operaciones; else sinVentas">
+        <thead>
+          <tr><th>Origen</th><th class="num">Ventas</th><th class="num">Facturado</th><th class="num">Margen</th><th class="num">Margen %</th><th class="num">Descuento</th></tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let o of d.por_origen; trackBy: trackPorOrigen" [class.sin-datos]="!o.operaciones">
+            <td>{{ rotuloOrigen[o.origen] }}</td>
+            <td class="num">{{ o.operaciones }}</td>
+            <td class="num">{{ monto(o.facturado) }}<small *ngIf="otra(o.facturado) as mas">{{ mas }}</small></td>
+            <td class="num" [class.negativo]="o.margen.USD < 0 || o.margen.ARS < 0">{{ monto(o.margen) }}<small *ngIf="otra(o.margen) as mas">{{ mas }}</small></td>
+            <td class="num">{{ pctDe(o.margen_pct, o.facturado) }}</td>
+            <td class="num">{{ monto(o.descuento) }}<small>{{ pctDe(o.descuento_pct, o.facturado) }}</small></td>
+          </tr>
+        </tbody>
+      </table>
+      <ng-template #sinVentas><p class="vacio">No hay ventas cerradas en el período.</p></ng-template>
+    </section>
+
+    <section class="bloque" aria-labelledby="t-vendedores">
+      <h3 id="t-vendedores">Cómo venden</h3>
+      <table class="tabla" *ngIf="d.por_vendedor.length; else sinVendedores">
+        <thead>
+          <tr><th>Vendedor</th><th class="num">Ventas</th><th class="num">Margen</th><th class="num">Descuento</th><th class="num">Queda</th></tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let v of d.por_vendedor; trackBy: trackPorNombre">
+            <td>{{ v.nombre }}</td>
+            <td class="num">{{ v.operaciones }}</td>
+            <td class="num" [class.negativo]="v.margen.USD < 0 || v.margen.ARS < 0">{{ monto(v.margen) }}<small>{{ pctDe(v.margen_pct, v.facturado) }}</small></td>
+            <td class="num">{{ monto(v.descuento) }}<small>{{ pctDe(v.descuento_pct, v.facturado) }}</small></td>
+            <td class="num">{{ monto(v.neto) }}<small *ngIf="otra(v.neto) as mas">{{ mas }}</small></td>
+          </tr>
+        </tbody>
+      </table>
+      <ng-template #sinVendedores><p class="vacio">Todavía nadie cerró una venta en el período.</p></ng-template>
+      <p class="nota">El descuento se mide contra el precio de lista de cada auto, no contra el costo.</p>
+    </section>
+  </div>
+
+  <div class="dos">
+    <section class="bloque" aria-labelledby="t-antiguedad">
+      <h3 id="t-antiguedad">Cuánto hace que están</h3>
+      <div class="tramos" *ngIf="d.stock.unidades; else sinStock">
+        <div class="tramo" *ngFor="let t of d.antiguedad; trackBy: trackPorRotulo">
+          <span class="rotulo">{{ t.rotulo }}</span>
+          <span class="barra"><i [style.width.%]="ancho(t.cuantos)"></i></span>
+          <b>{{ t.cuantos }}</b>
+          <small>{{ monto(t.capital) }}</small>
+        </div>
+      </div>
+      <ng-template #sinStock><p class="vacio">No hay autos en stock.</p></ng-template>
+      <p class="nota">A partir de 60 días el auto ya es plata inmovilizada: paga alistaje, seguro y espacio sin rotar.</p>
+    </section>
+
+    <section class="bloque" aria-labelledby="t-parados">
+      <h3 id="t-parados">Los que más llevan parados</h3>
+      <table class="tabla" *ngIf="d.mas_parados.length; else sinParados">
+        <thead>
+          <tr><th>Auto</th><th class="num">Días</th><th class="num">Puesto</th><th class="num">Deja</th></tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let u of d.mas_parados; trackBy: trackPorId">
+            <td>
+              <a [routerLink]="['/home/autos/unidad', u.id]">{{ u.titulo }}</a>
+              <small>{{ u.numero }} · {{ plata(u.precio, u.moneda) }}</small>
+            </td>
+            <td class="num">{{ u.dias }}</td>
+            <td class="num">{{ plata(u.costo, u.moneda) }}</td>
+            <td class="num" [class.negativo]="(u.margen ?? 0) < 0">
+              {{ plata(u.margen, u.moneda) }}<small>{{ pct(u.margen_pct) }}</small>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <ng-template #sinParados><p class="vacio">Ningún auto lleva más de 30 días en stock.</p></ng-template>
+    </section>
+  </div>
+
+  <section class="bloque" *ngIf="d.stock.unidades" aria-labelledby="t-criterio">
+    <h3 id="t-criterio">Cómo se calcula</h3>
+    <ul class="criterio">
+      <li><b>Costo del auto:</b> lo que se pagó o se reconoció en la toma, más los gastos de alistaje. En consignación, el piso del dueño.</li>
+      <li><b>Margen de una venta:</b> el precio cobrado menos ese costo, menos el piso en consignación y menos la comisión del vendedor.</li>
+      <li><b>Precio esperado en stock:</b> el de la reserva si el auto ya está reservado; si no, el de lista.</li>
+      <li><b>Pesos y dólares:</b> se cuentan por separado. El sistema no convierte: un margen mezclado no existe en ninguna caja.</li>
+    </ul>
+  </section>
+</ng-container>

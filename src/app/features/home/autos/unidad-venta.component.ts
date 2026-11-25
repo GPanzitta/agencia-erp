@@ -1,7 +1,8 @@
-import { Component, EventEmitter, Input, Output } from '@angular/core';
+import { Component, EventEmitter, Input, Output, signal } from '@angular/core';
 
-import { Billetera, MedioPago, Moneda, Operacion, Unidad } from './autos.service';
+import { Billetera, FotoOperacion, MedioPago, Moneda, Operacion, Unidad } from './autos.service';
 import { ROTULO_MEDIO, fecha, plata } from './autos.util';
+import { urlFoto } from '../../../core/utils/foto-url.util';
 
 export interface PagoEnCarga {
   medio: MedioPago; monto: string; moneda: Moneda; tipo_cambio: string; wallet_id: string; detalle: string;
@@ -37,14 +38,33 @@ export class UnidadVentaComponent {
   @Output() quitarPago = new EventEmitter<string>();
   @Output() cerrar = new EventEmitter<void>();
   @Output() anular = new EventEmitter<void>();
-  /** Imprimir el recibo de un pago (lleva su id) o el boleto de compraventa. */
+  /** Imprimir el recibo de un pago (lleva su id), el boleto de compraventa, el acta de entrega o la Orden de Venta (OV) con QR. */
   @Output() recibo = new EventEmitter<string>();
   @Output() boleto = new EventEmitter<void>();
+  @Output() actaEntrega = new EventEmitter<void>();
+  @Output() ordenVenta = new EventEmitter<void>();
+  @Output() verQrOv = new EventEmitter<void>();
+  @Output() subirFotosOv = new EventEmitter<{ archivos: File[]; nota: string; etapa: string }>();
+  @Output() borrarFotoOv = new EventEmitter<string>();
 
   readonly rotuloMedio = ROTULO_MEDIO;
   readonly medios = Object.entries(ROTULO_MEDIO) as [MedioPago, string][];
   readonly plata = plata;
   readonly fecha = fecha;
+  readonly foto = urlFoto;
+
+  notaFotoOv = '';
+  etapaFotoOv = 'reserva';
+  fotoOvAmpliada = signal<FotoOperacion | null>(null);
+
+  alElegirFotosOv(evento: Event): void {
+    const input = evento.target as HTMLInputElement;
+    const archivos = Array.from(input.files ?? []).filter((a) => a.type.startsWith('image/'));
+    input.value = '';
+    if (!archivos.length) return;
+    this.subirFotosOv.emit({ archivos, nota: this.notaFotoOv.trim(), etapa: this.etapaFotoOv });
+    this.notaFotoOv = '';
+  }
 
   /** Cuánto de la cuenta está cubierto, de 0 a 100, para la barra. */
   get cubierto(): number {

@@ -43,7 +43,10 @@
   .precio { font-variant-numeric: tabular-nums; }
   .tendencia { color: var(--gm-text-2); &.baja { color: var(--gm-error); } }
   .dif { font-size: 1.15rem; font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; }
-  .veredicto i { font-style: normal; font-weight: 600; }
+  .veredicto {
+    i { font-style: normal; font-weight: 600; }
+    .btn-alinear { margin-top: 0.35rem; justify-self: start; }
+  }
   @media (max-width: 800px) { grid-template-columns: minmax(0, 1fr) auto; .veredicto { grid-column: 1 / -1; } .dif { grid-row: 1; grid-column: 2; } .precio { grid-column: 1 / -1; } } }
 
 table { width: 100%; border-collapse: collapse; font-size: 0.88rem; background: var(--gm-bg);

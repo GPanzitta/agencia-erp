@@ -54,7 +54,15 @@
             <small *ngIf="c.tendencia as t" class="tendencia" [class.baja]="t.variacion_pct < 0">el modelo {{ t.variacion_pct < 0 ? 'bajó' : t.variacion_pct > 0 ? 'subió' : 'no se movió' }}<ng-container *ngIf="t.variacion_pct !== 0"> {{ t.variacion_pct < 0 ? -t.variacion_pct : t.variacion_pct }} %</ng-container> en {{ t.dias }} días</small></span>
           <span class="dif" *ngIf="c.diferencia_pct !== null">{{ c.diferencia_pct > 0 ? '+' : '' }}{{ c.diferencia_pct }} %</span>
           <span class="dif" *ngIf="c.diferencia_pct === null"></span>
-          <span class="veredicto"><i>{{ rotulo[c.veredicto] }}</i><small>{{ c.motivo }}</small></span>
+          <span class="veredicto">
+            <i>{{ rotulo[c.veredicto] }}</i>
+            <small>{{ c.motivo }}</small>
+            <button *ngIf="(c.veredicto === 'caro' || c.veredicto === 'caro_pero_mejor') && (c.esperado !== null || c.referencia !== null)"
+                    type="button" class="gm-btn gm-btn--brand gm-btn--sm btn-alinear"
+                    (click)="$event.stopPropagation(); aplicarPrecioSugerido(c)">
+              Alinear a {{ plata(c.esperado ?? c.referencia, c.unidad.moneda) }}
+            </button>
+          </span>
         </button>
         <table *ngIf="abierta() === c.unidad.id && c.comparables.length">
           <thead><tr><th>Publicado por</th><th>Auto</th><th>Año</th><th>Kilómetros</th><th class="num">Precio</th></tr></thead>

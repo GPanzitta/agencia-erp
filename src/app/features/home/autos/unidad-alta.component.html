@@ -12,9 +12,11 @@
     <div class="campos">
       <label><span>Condición</span>
         <select class="gm-input" name="condicion" [(ngModel)]="n.condicion"><option value="usado">Usado</option><option value="0km">0 km</option></select></label>
-      <label><span>Dominio (patente){{ n.condicion === 'usado' ? '' : ', si ya tiene' }}</span><input class="gm-input dominio" name="dominio" maxlength="12" placeholder="AB 123 CD" [(ngModel)]="n.dominio"></label>
-      <label><span>Marca</span><input class="gm-input" name="marca" maxlength="60" placeholder="Toyota" [(ngModel)]="n.marca"></label>
-      <label><span>Modelo</span><input class="gm-input" name="modelo" maxlength="80" placeholder="Corolla" [(ngModel)]="n.modelo"></label>
+      <label><span>Dominio (patente){{ n.condicion === 'usado' ? '' : ', si ya tiene' }}</span><input class="gm-input dominio" name="dominio" maxlength="12" placeholder="AE 852 RA" [ngModel]="n.dominio" (ngModelChange)="alCambiarDominio($event)"></label>
+      <label><span>Marca</span><input class="gm-input" name="marca" list="dl-marcas" maxlength="60" placeholder="Volkswagen" [(ngModel)]="n.marca"></label>
+      <label><span>Modelo</span><input class="gm-input" name="modelo" list="dl-modelos" maxlength="80" placeholder="Nivus" [(ngModel)]="n.modelo"></label>
+      <datalist id="dl-marcas"><option *ngFor="let m of marcasSugeridas" [value]="m"></option></datalist>
+      <datalist id="dl-modelos"><option *ngFor="let mod of modelosSugeridos" [value]="mod"></option></datalist>
       <label><span>Versión (opcional)</span><input class="gm-input" name="version" maxlength="120" placeholder="XEI 2.0 CVT" [(ngModel)]="n.version"></label>
       <label><span>Año</span><input class="gm-input" name="anio" inputmode="numeric" maxlength="4" placeholder="2021" [(ngModel)]="n.anio"></label>
       <label><span>Kilómetros</span><input class="gm-input" name="km" inputmode="numeric" placeholder="65.000" [(ngModel)]="n.km"></label>

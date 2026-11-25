@@ -30,7 +30,7 @@ export class InicioComponent implements OnInit {
   readonly foto = urlFoto;
   readonly hoy = new Date().toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' });
 
-  readonly esDuenio = computed(() => [Rol.ADMIN, Rol.SUPERADMIN].includes(this.auth.rol() as Rol));
+  readonly esDuenio = computed(() => [Rol.ADMIN, Rol.SUPERADMIN].includes(this.auth.rol() as Rol) && !this.auth.modoCliente());
   readonly vende = computed(() => this.esDuenio() || this.auth.rol() === Rol.MOSTRADOR);
   readonly nombre = computed(() => (this.auth.currentUser()?.nombre ?? '').trim().split(/\s+/)[0] ?? '');
 

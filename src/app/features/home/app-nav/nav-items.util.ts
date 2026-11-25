@@ -44,6 +44,7 @@ export function armarGruposNav(p: PermisosNav): GrupoNav[] {
       titulo: 'Autos',
       items: [
         { rotulo: 'Stock', link: '/home/autos', icono: 'inventario', prefijos: ['/home/autos/unidad', '/home/autos/nueva'] },
+        { rotulo: 'Taller y Repuestos', link: '/home/taller', icono: 'config' },
         ...(vende ? [{ rotulo: 'Comparar precios', link: '/home/autos/precios', icono: 'tendencia' as IconName }] : []),
       ],
     },
@@ -52,7 +53,7 @@ export function armarGruposNav(p: PermisosNav): GrupoNav[] {
       items: vende
         ? [
             { rotulo: 'Interesados', link: '/home/autos/interesados', icono: 'campana' },
-            { rotulo: 'Ventas y reservas', link: '/home/autos/operaciones', icono: 'nota', insignia: 'reservas_sitio' },
+            { rotulo: 'Órdenes de Venta (OV)', link: '/home/autos/operaciones', icono: 'nota', insignia: 'reservas_sitio' },
           ]
         : [],
     },
@@ -62,6 +63,7 @@ export function armarGruposNav(p: PermisosNav): GrupoNav[] {
         ...(vende ? [{ rotulo: 'Cajas', link: '/home/cajas', icono: 'caja' as IconName }] : []),
         ...(p.esAdmin
           ? [
+              { rotulo: 'Rentabilidad', link: '/home/margen', icono: 'grafico' as IconName },
               { rotulo: 'Gastos', link: '/home/gastos', icono: 'dinero' as IconName },
               { rotulo: 'Proveedores', link: '/home/proveedores', icono: 'proveedor' as IconName },
             ]

@@ -20,6 +20,74 @@ export const CARROCERIAS = [
   ['rural', 'Rural'], ['monovolumen', 'Monovolumen'], ['utilitario', 'Utilitario'], ['moto', 'Moto'], ['otro', 'Otro'],
 ];
 
+/** Catálogo de marcas y modelos más comercializados en Argentina para autocompletar en 1 clic. */
+export const CATALOGO_MARCAS_MODELOS: Record<string, string[]> = {
+  Volkswagen: ['Amarok', 'Gol Trend', 'Golf', 'Nivus', 'Polo', 'Saveiro', 'Suran', 'T-Cross', 'Taos', 'Tiguan', 'Up!', 'Vento', 'Virtus', 'Voyage'],
+  Toyota: ['Corolla', 'Corolla Cross', 'Etios', 'Hilux', 'RAV4', 'SW4', 'Yaris'],
+  Ford: ['Bronco Sport', 'EcoSport', 'Fiesta Kinetic', 'Focus', 'Ka', 'Kuga', 'Maverick', 'Mondeo', 'Ranger', 'Territory'],
+  Chevrolet: ['Cruze', 'Equinox', 'Onix', 'Prisma', 'S10', 'Spin', 'Tracker', 'Trailblazer'],
+  Peugeot: ['208', '2008', '308', '3008', '408', '5008', 'Partner'],
+  Fiat: ['Argo', 'Cronos', 'Fastback', 'Fiorino', 'Mobi', 'Palio', 'Pulse', 'Siena', 'Strada', 'Toro', 'Uno'],
+  Renault: ['Alaskan', 'Captur', 'Clio', 'Duster', 'Kangoo', 'Kardian', 'Kwid', 'Logan', 'Oroch', 'Sandero', 'Stepway'],
+  'Citroën': ['Berlingo', 'C3', 'C3 Aircross', 'C4 Cactus', 'C4 Lounge', 'C5 Aircross'],
+  Jeep: ['Compass', 'Commander', 'Grand Cherokee', 'Renegade', 'Wrangler'],
+  Nissan: ['Frontier', 'Kicks', 'March', 'Note', 'Sentra', 'Versa', 'X-Trail'],
+  Honda: ['City', 'Civic', 'CR-V', 'Fit', 'HR-V', 'WR-V', 'ZR-V'],
+  'Mercedes-Benz': ['Clase A', 'Clase C', 'Clase E', 'GLA', 'GLC', 'Sprinter'],
+  BMW: ['Serie 1', 'Serie 2', 'Serie 3', 'X1', 'X3', 'X5'],
+  Audi: ['A1', 'A3', 'A4', 'Q2', 'Q3', 'Q5'],
+  RAM: ['1500', '2500', 'Rampage'],
+  Hyundai: ['Creta', 'Kona', 'Santa Fe', 'Tucson'],
+  Kia: ['Carnival', 'Cerato', 'K3', 'Seltos', 'Sportage'],
+  Chery: ['QQ', 'Tiggo 2', 'Tiggo 3', 'Tiggo 4', 'Tiggo 7'],
+};
+
+export const MARCAS_SUGERIDAS: string[] = Object.keys(CATALOGO_MARCAS_MODELOS);
+
+export function modelosDeMarca(marca: string | null | undefined): string[] {
+  const limpia = (marca ?? '').trim().toLowerCase();
+  if (!limpia) return [];
+  const entrada = Object.entries(CATALOGO_MARCAS_MODELOS).find(([m]) => m.toLowerCase() === limpia);
+  return entrada ? entrada[1] : [];
+}
+
+/**
+ * Estima el año de patentamiento según la serie de chapa patente argentina (DNRPA):
+ * - Patente Mercosur (AA 123 AA): AA=2016, AB=2017, AC=2018, AD=2019/20, AE=2020/21, AF=2021/23, AG=2023/24, AH=2025/26.
+ * - Patente anterior (AAA 123): A=1995..P=2015.
+ */
+export function estimarAnioPorPatente(patente: string | null | undefined): number | null {
+  const p = (patente ?? '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  if (/^[A-Z]{2}[0-9]{3}[A-Z]{0,2}$/.test(p)) {
+    const pref = p.slice(0, 2);
+    const num = Number(p.slice(2, 5));
+    if (pref === 'AA') return 2016;
+    if (pref === 'AB') return 2017;
+    if (pref === 'AC') return 2018;
+    if (pref === 'AD') return num >= 500 ? 2020 : 2019;
+    if (pref === 'AE') return num >= 350 ? 2021 : 2020;
+    if (pref === 'AF') return num < 200 ? 2021 : num >= 850 ? 2023 : 2022;
+    if (pref === 'AG') return num < 350 ? 2023 : 2024;
+    if (pref === 'AH') return num >= 450 ? 2026 : 2025;
+    if (pref > 'AH' && pref <= 'AZ') return 2026;
+  }
+  if (/^[A-Z]{3}[0-9]{3}$/.test(p)) {
+    const mapa: Record<string, number> = {
+      A: 1996, B: 1998, C: 1999, D: 2001, E: 2004, F: 2006, G: 2007,
+      H: 2008, I: 2010, J: 2011, K: 2011, L: 2012, M: 2013, N: 2014, O: 2015, P: 2015,
+    };
+    return mapa[p[0]] ?? null;
+  }
+  return null;
+}
+
+/** Links oficiales para consultar infracciones y radicación copiando la patente. */
+export const LINKS_MULTAS_DNRPA = [
+  { rotulo: 'Multas CABA', url: 'https://buenosaires.gob.ar/licenciasdeconducir/consulta-de-infracciones' },
+  { rotulo: 'Multas PBA', url: 'https://infraccionesba.gba.gob.ar/consulta-infraccion' },
+  { rotulo: 'Radicación DNRPA', url: 'https://www.dnrpa.gov.ar/portal_dnrpa/radicacion2.php' },
+];
+
 /** «US$ 18.500» o «$ 17.250.000». Sin centavos si son cero. */
 export function plata(monto: number | null | undefined, moneda: Moneda): string {
   if (monto === null || monto === undefined) return '—';

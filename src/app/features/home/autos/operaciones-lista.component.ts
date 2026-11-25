@@ -1,10 +1,16 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 
 import { Rol } from '../../../core/interfaces/auth.interface';
+import { DocumentosService } from '../../../core/services/documentos.service';
+import { VentaAutoDoc } from '../../../core/services/documentos/boleto-auto.doc';
+import { ExcelService } from '../../../core/services/excel.service';
 import { NotificationService } from '../../../core/services/notification.service';
+import { urlFoto } from '../../../core/utils/foto-url.util';
+import { environment } from '../../../../environments/environment';
 import { AuthService } from '../../auth/services/auth.service';
-import { AutosService, Billetera, Comisiones, ComisionesDeVendedor, Operacion, PedidoDeReserva, PorMoneda } from './autos.service';
-import { dominioLegible, fecha, monto, plata } from './autos.util';
+import { AutosService, Billetera, Comisiones, ComisionesDeVendedor, FotoOperacion, Operacion, PedidoDeReserva, PorMoneda } from './autos.service';
+import { dominioLegible, fecha, monto, plata, urlDelSitio } from './autos.util';
+import * as QRCode from 'qrcode';
 
 type Vista = 'reservas' | 'vendidas' | 'anuladas' | 'sitio' | 'comisiones';
 type FilaDeComision = ComisionesDeVendedor['operaciones'][number];
@@ -23,12 +29,15 @@ type FilaDeComision = ComisionesDeVendedor['operaciones'][number];
 export class OperacionesListaComponent implements OnInit {
   private api = inject(AutosService);
   private auth = inject(AuthService);
+  private excel = inject(ExcelService);
   private notification = inject(NotificationService);
+  private documentos = inject(DocumentosService);
 
   readonly plata = plata;
   readonly fecha = fecha;
   readonly dominio = dominioLegible;
-  readonly esDuenio = computed(() => [Rol.ADMIN, Rol.SUPERADMIN].includes(this.auth.rol() as Rol));
+  readonly foto = urlFoto;
+  readonly esDuenio = computed(() => [Rol.ADMIN, Rol.SUPERADMIN].includes(this.auth.rol() as Rol) && !this.auth.modoCliente());
   readonly vistas: { valor: Vista; rotulo: string }[] = [
     { valor: 'reservas', rotulo: 'Reservas' },
     { valor: 'sitio', rotulo: 'Del sitio' },
@@ -45,6 +54,12 @@ export class OperacionesListaComponent implements OnInit {
   escribirA = signal<string | null>(null);
   lista = signal<Operacion[]>([]);
   cargando = signal(false);
+  sitioUrl = signal<string>(environment.portalUrl);
+  ovFotosAbierta = signal<string | null>(null);
+  notaFotoOv = '';
+  etapaFotoOv = 'reserva';
+  fotoAmpliada = signal<FotoOperacion | null>(null);
+  qrModal = signal<{ titulo: string; subtitulo: string; url: string; qrDataUrl: string } | null>(null);
 
   pedidos = signal<PedidoDeReserva[]>([]);
   /** Cuántos pedidos del sitio esperan que alguien mire si llegó la seña. */
@@ -67,6 +82,95 @@ export class OperacionesListaComponent implements OnInit {
     else this.cargar();
     // Para el aviso de la pestaña, aunque no se entre a ella.
     this.api.pedidosDeReserva().subscribe({ next: (l) => this.pedidos.set(l), error: () => undefined });
+    this.api.sitio().subscribe({ next: (s) => this.sitioUrl.set(urlDelSitio(environment.portalUrl, s.slug)), error: () => undefined });
+  }
+
+  imprimirOv(o: Operacion, ev?: Event): void {
+    ev?.stopPropagation();
+    const doc: VentaAutoDoc = {
+      numero: o.numero,
+      cliente_nombre: o.cliente_nombre,
+      cliente_telefono: o.cliente_telefono,
+      cliente_documento: o.cliente_documento,
+      precio: o.precio,
+      moneda: o.moneda,
+      pagado: o.pagado,
+      saldo: o.saldo,
+      reserva_vence: o.reserva_vence,
+      pagos: o.pagos.map((p) => ({
+        medio: p.medio,
+        monto: p.monto,
+        moneda: p.moneda,
+        tipo_cambio: p.tipo_cambio,
+        equivalente: p.equivalente,
+        toma: p.toma,
+        detalle: p.detalle,
+        fecha: p.fecha,
+      })),
+      unidad: {
+        titulo: o.unidad.titulo,
+        anio: o.unidad.anio,
+        km: 0,
+        dominio: o.unidad.dominio,
+        color: null,
+        nro_motor: null,
+        nro_chasis: null,
+        condicion: 'usado',
+      },
+    };
+    const urlSeguimiento = `${this.sitioUrl().replace(/\/+$/, '')}/ov/${o.id}`;
+    void this.documentos.ordenDeVentaAuto(doc, urlSeguimiento);
+  }
+
+  async verQrOv(o: Operacion, ev?: Event): Promise<void> {
+    ev?.stopPropagation();
+    const url = `${this.sitioUrl().replace(/\/+$/, '')}/ov/${o.id}`;
+    const qrDataUrl = await QRCode.toDataURL(url, { margin: 1, width: 240 });
+    this.qrModal.set({
+      titulo: `QR de Orden de Venta ${o.numero}`,
+      subtitulo: `El cliente (${o.cliente_nombre}) escanea este código para seguir en vivo el estado de cuenta, papeles, gestoría y fotos de su ${o.unidad.titulo}.`,
+      url,
+      qrDataUrl,
+    });
+  }
+
+  copiarUrlQr(url: string): void {
+    void navigator.clipboard?.writeText(url);
+    this.notification.success('Enlace de seguimiento de la OV copiado');
+  }
+
+  alternarFotosOv(o: Operacion, ev?: Event): void {
+    ev?.stopPropagation();
+    this.ovFotosAbierta.set(this.ovFotosAbierta() === o.id ? null : o.id);
+  }
+
+  subirFotosEnOv(o: Operacion, evento: Event): void {
+    const input = evento.target as HTMLInputElement;
+    const archivos = Array.from(input.files ?? []).filter((a) => a.type.startsWith('image/'));
+    input.value = '';
+    if (!archivos.length) return;
+    this.ocupado.set(true);
+    this.api.subirFotosOperacion(o.id, archivos, this.notaFotoOv.trim(), this.etapaFotoOv).subscribe({
+      next: (act) => {
+        this.ocupado.set(false);
+        this.notaFotoOv = '';
+        this.lista.update((l) => l.map((x) => (x.id === act.id ? act : x)));
+        this.notification.success(archivos.length === 1 ? 'Foto guardada en la OV' : `${archivos.length} fotos guardadas en la OV`);
+      },
+      error: () => this.ocupado.set(false),
+    });
+  }
+
+  borrarFotoEnOv(o: Operacion, fotoId: string): void {
+    this.ocupado.set(true);
+    this.api.borrarFotoOperacion(o.id, fotoId).subscribe({
+      next: (act) => {
+        this.ocupado.set(false);
+        this.lista.update((l) => l.map((x) => (x.id === act.id ? act : x)));
+        this.notification.success('Foto quitada de la OV');
+      },
+      error: () => this.ocupado.set(false),
+    });
   }
 
   ver(v: Vista): void {
@@ -151,5 +255,85 @@ export class OperacionesListaComponent implements OnInit {
 
   trackPorId(_: number, x: { id: string | null }): string {
     return x.id ?? 'sin';
+  }
+
+  exportarExcel(): void {
+    const v = this.vista();
+    const hoy = new Date().toISOString().slice(0, 10);
+    if (v === 'comisiones') {
+      const c = this.comisiones();
+      if (!c) return;
+      const filas = c.vendedores.flatMap((vend) =>
+        vend.operaciones.map((o) => ({
+          vendedor: vend.nombre,
+          pct: vend.pct ?? '',
+          operacion: o.numero,
+          unidad: o.unidad,
+          cliente: o.cliente,
+          fecha: fecha(o.cerrada_at),
+          moneda: o.moneda,
+          precio: o.precio,
+          comision: o.comision ?? '',
+          estado_pago: o.pagada_at ? `Pagada (${fecha(o.pagada_at)})` : 'Pendiente',
+        })),
+      );
+      if (!filas.length) return;
+      void this.excel.descargar(
+        `comisiones-${c.desde}-a-${c.hasta}.xlsx`,
+        'Comisiones',
+        [
+          { clave: 'vendedor', titulo: 'Vendedor', ancho: 20 },
+          { clave: 'pct', titulo: '% Comisión', ancho: 12 },
+          { clave: 'operacion', titulo: 'Operación', ancho: 14 },
+          { clave: 'unidad', titulo: 'Unidad', ancho: 24 },
+          { clave: 'cliente', titulo: 'Cliente', ancho: 20 },
+          { clave: 'fecha', titulo: 'Fecha cierre', ancho: 14 },
+          { clave: 'moneda', titulo: 'Moneda', ancho: 10 },
+          { clave: 'precio', titulo: 'Precio venta', ancho: 16 },
+          { clave: 'comision', titulo: 'Comisión', ancho: 16 },
+          { clave: 'estado_pago', titulo: 'Pago comisión', ancho: 20 },
+        ],
+        filas,
+      );
+      return;
+    }
+
+    const ops = this.lista();
+    if (!ops.length) return;
+    const filas = ops.map((o) => ({
+      numero: o.numero,
+      estado: o.estado,
+      unidad: `${o.unidad.titulo} ${o.unidad.anio}`,
+      dominio: o.unidad.dominio ?? '—',
+      cliente: o.cliente_nombre,
+      telefono: o.cliente_telefono ?? '',
+      documento: o.cliente_documento ?? '',
+      vendedor: o.vendedor?.nombre ?? '',
+      moneda: o.moneda,
+      precio: o.precio,
+      pagado: o.pagado,
+      saldo: o.saldo,
+      fecha: v === 'reservas' ? fecha(o.reserva_vence) : fecha(o.cerrada_at ?? o.created_at),
+    }));
+    void this.excel.descargar(
+      `operaciones-${v}-${hoy}.xlsx`,
+      'Operaciones',
+      [
+        { clave: 'numero', titulo: 'Operación', ancho: 14 },
+        { clave: 'estado', titulo: 'Estado', ancho: 14 },
+        { clave: 'unidad', titulo: 'Unidad', ancho: 26 },
+        { clave: 'dominio', titulo: 'Dominio', ancho: 14 },
+        { clave: 'cliente', titulo: 'Cliente', ancho: 22 },
+        { clave: 'telefono', titulo: 'Teléfono', ancho: 16 },
+        { clave: 'documento', titulo: 'DNI / CUIT', ancho: 16 },
+        { clave: 'vendedor', titulo: 'Vendedor', ancho: 18 },
+        { clave: 'moneda', titulo: 'Moneda', ancho: 10 },
+        { clave: 'precio', titulo: 'Precio acordado', ancho: 16 },
+        { clave: 'pagado', titulo: 'Cobrado', ancho: 16 },
+        { clave: 'saldo', titulo: 'Saldo', ancho: 16 },
+        { clave: 'fecha', titulo: v === 'reservas' ? 'Vence reserva' : 'Fecha', ancho: 16 },
+      ],
+      filas,
+    );
   }
 }

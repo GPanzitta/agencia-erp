@@ -58,6 +58,15 @@ export class AuthService {
   public rol = computed(() => this._currentUser()?.rol ?? null);
   /** SEG-54: con la clave provisoria del reseteo, el ERP sólo deja la pantalla de cambio. */
   public debeCambiarClave = computed(() => this._currentUser()?.debe_cambiar_clave === true);
+  /**
+   * Modo Cliente (Modo Mostrador): oculta costos, pisos de consignación y
+   * márgenes en todas las pantallas cuando hay un cliente mirando el monitor.
+   */
+  public modoCliente = signal<boolean>(false);
+
+  public alternarModoCliente(): void {
+    this.modoCliente.update((v) => !v);
+  }
 
   constructor() {
     this.checkAuthStatus().subscribe();

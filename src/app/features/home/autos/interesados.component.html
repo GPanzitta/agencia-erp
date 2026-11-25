@@ -1,6 +1,13 @@
 <header class="cab">
   <h2>Interesados</h2>
-  <button type="button" class="gm-btn gm-btn--brand gm-btn--sm" (click)="nuevoAbierto.set(!nuevoAbierto())">Nuevo interesado</button>
+  <div class="botones">
+    <button type="button" class="gm-btn gm-btn--neutral gm-btn--sm" (click)="mostrarQrCotizacion()">
+      📱 QR «Cotizá tu auto»
+    </button>
+    <button type="button" class="gm-btn gm-btn--brand gm-btn--sm" (click)="nuevoAbierto.set(!nuevoAbierto())">
+      {{ nuevoAbierto() ? 'Cerrar formulario' : 'Nuevo interesado' }}
+    </button>
+  </div>
 </header>
 
 <section class="numeros" *ngIf="vista() === 'activos' && lista().length" aria-label="Seguimiento">
@@ -10,32 +17,143 @@
   <div><span>Con autos que les sirven</span><b>{{ cuentas().conAutos }}</b><small>hay stock para ofrecerles hoy</small></div>
 </section>
 
+<datalist id="dl-marcas-int"><option *ngFor="let m of marcasSugeridas" [value]="m"></option></datalist>
+<datalist id="dl-modelos-nuevo"><option *ngFor="let mod of modelosNuevoUsado" [value]="mod"></option></datalist>
+<datalist id="dl-modelos-edit"><option *ngFor="let mod of modelosEditUsado" [value]="mod"></option></datalist>
+
 <form class="nuevo" *ngIf="nuevoAbierto()" (ngSubmit)="crear()">
-  <h4>Nuevo interesado</h4>
+  <h4>Nuevo interesado / Orden de Tasación</h4>
   <div class="campos">
     <label class="ancho2"><span>Nombre *</span><input class="gm-input" name="nombre" maxlength="120" [(ngModel)]="nuevo.nombre"></label>
-    <label><span>Teléfono *</span><input class="gm-input" name="tel" maxlength="40" inputmode="tel" [(ngModel)]="nuevo.telefono"></label>
+    <label><span>Teléfono / WhatsApp *</span><input class="gm-input" name="tel" maxlength="40" inputmode="tel" [(ngModel)]="nuevo.telefono"></label>
     <label><span>Cómo llegó</span>
       <select class="gm-input" name="origen" [(ngModel)]="nuevo.origen"><option *ngFor="let o of origenes" [value]="o[0]">{{ o[1] }}</option></select></label>
     <label><span>Qué tan decidido está</span>
       <select class="gm-input" name="temp" [(ngModel)]="nuevo.temperatura"><option *ngFor="let t of temperaturas" [value]="t[0]">{{ t[1] }}</option></select></label>
     <label><span>Hablarle de nuevo el</span><input class="gm-input" type="date" name="prox" [(ngModel)]="nuevo.proxima_accion"></label>
   </div>
+
   <h5>Qué busca</h5>
   <div class="campos">
-    <label><span>Tipo</span>
+    <label class="ancho2"><span>Unidad puntual por la que consultó (opcional)</span>
+      <select class="gm-input" name="unid" [(ngModel)]="nuevo.unidad_id">
+        <option value="">Ninguna en particular (búsqueda abierta)</option>
+        <option *ngFor="let u of unidadesStock()" [value]="u.id">{{ u.numero }} · {{ u.titulo }} {{ u.anio }} ({{ plata(u.precio_venta, u.moneda) }})</option>
+      </select>
+    </label>
+    <label><span>Tipo de carrocería</span>
       <select class="gm-input" name="carr" [(ngModel)]="nuevo.busca_carroceria"><option value="">Cualquiera</option><option *ngFor="let c of carrocerias" [value]="c[0]">{{ c[1] }}</option></select></label>
-    <label><span>Marca</span><input class="gm-input" name="marca" maxlength="60" placeholder="Cualquiera" [(ngModel)]="nuevo.busca_marca"></label>
+    <label><span>Marca que busca</span><input class="gm-input" name="marca" list="dl-marcas-int" maxlength="60" placeholder="Cualquiera" [(ngModel)]="nuevo.busca_marca"></label>
     <label><span>Hasta cuánto</span><input class="gm-input" name="tope" inputmode="decimal" [(ngModel)]="nuevo.precio_max"></label>
     <label><span>Moneda</span>
       <select class="gm-input" name="mon" [(ngModel)]="nuevo.precio_moneda"><option value="USD">Dólares</option><option value="ARS">Pesos</option></select></label>
-    <label class="ancho2"><span>Con sus palabras</span><input class="gm-input" name="busca" maxlength="2000" placeholder="Automática, pocos kilómetros, para la familia…" [(ngModel)]="nuevo.busca"></label>
-    <label class="ancho2"><span>Entrega un usado</span><input class="gm-input" name="usado" maxlength="200" placeholder="Gol Trend 2016, 90.000 km" [(ngModel)]="nuevo.tiene_usado"></label>
+    <label class="ancho2"><span>Qué busca con sus palabras</span><input class="gm-input" name="busca" maxlength="2000" placeholder="Automática, pocos kilómetros, para la familia…" [(ngModel)]="nuevo.busca"></label>
   </div>
-  <label class="bloque-texto"><span>Primera nota</span><input class="gm-input" name="nota" maxlength="1000" placeholder="Qué dijo, qué se le ofreció" [(ngModel)]="nuevo.nota"></label>
+
+  <h5>Vehículo que entrega en parte de pago o consignación</h5>
+  <div class="campos">
+    <label class="ancho2"><span>Resumen rápido del usado</span><input class="gm-input" name="usado" maxlength="200" placeholder="Ej: Gol Trend 2016, 90.000 km (o abrí la ficha completa acá abajo)" [(ngModel)]="nuevo.tiene_usado"></label>
+  </div>
+  <label style="display: inline-flex; align-items: center; gap: 0.45rem; font-size: 0.85rem; font-weight: 600; margin: 0.4rem 0; cursor: pointer;">
+    <input type="checkbox" name="cargaUsado" [(ngModel)]="nuevo.carga_usado">
+    <span>Cargar ficha técnica completa del auto que entrega (Patente, versión, seguro, estado guiado y fotos)</span>
+  </label>
+
+  <div *ngIf="nuevo.carga_usado" style="background: var(--gm-bg); border: 1px solid var(--gm-border); border-radius: 8px; padding: 0.8rem; margin: 0.4rem 0 0.7rem;">
+    <div class="campos">
+      <label><span>Tipo de vehículo</span>
+        <select class="gm-input" name="uTipo" [(ngModel)]="nuevo.usado.tipo_vehiculo">
+          <option *ngFor="let tv of tiposVehiculo" [value]="tv">{{ tv }}</option>
+        </select>
+      </label>
+      <label><span>Patente (Dominio)</span>
+        <input class="gm-input dominio" name="uDom" maxlength="12" placeholder="AE 852 RA" [ngModel]="nuevo.usado.dominio" (ngModelChange)="alCambiarDominioNuevo($event)">
+      </label>
+      <label><span>Marca *</span>
+        <input class="gm-input" name="uMarca" list="dl-marcas-int" maxlength="40" placeholder="Volkswagen" [(ngModel)]="nuevo.usado.marca">
+      </label>
+      <label><span>Modelo *</span>
+        <input class="gm-input" name="uModelo" list="dl-modelos-nuevo" maxlength="60" placeholder="Nivus" [(ngModel)]="nuevo.usado.modelo">
+      </label>
+      <label><span>Versión</span>
+        <input class="gm-input" name="uVer" maxlength="80" placeholder="200 TSI Highline AT" [(ngModel)]="nuevo.usado.version">
+      </label>
+      <label><span>Año *</span>
+        <input class="gm-input" name="uAnio" inputmode="numeric" maxlength="4" placeholder="2021" [(ngModel)]="nuevo.usado.anio">
+      </label>
+      <label><span>Kilómetros</span>
+        <input class="gm-input" name="uKm" inputmode="numeric" placeholder="65.000" [(ngModel)]="nuevo.usado.km">
+      </label>
+      <label><span>Combustible</span>
+        <select class="gm-input" name="uComb" [(ngModel)]="nuevo.usado.combustible">
+          <option value="">Sin indicar</option>
+          <option *ngFor="let o of combustibles" [value]="o[0]">{{ o[1] }}</option>
+        </select>
+      </label>
+      <label><span>Caja</span>
+        <select class="gm-input" name="uCaja" [(ngModel)]="nuevo.usado.transmision">
+          <option value="">Sin indicar</option>
+          <option *ngFor="let o of cajas" [value]="o[0]">{{ o[1] }}</option>
+        </select>
+      </label>
+      <label><span>Carrocería</span>
+        <select class="gm-input" name="uCarr" [(ngModel)]="nuevo.usado.carroceria">
+          <option value="">Sin indicar</option>
+          <option *ngFor="let o of carrocerias" [value]="o[0]">{{ o[1] }}</option>
+        </select>
+      </label>
+      <label><span>Radicación</span>
+        <select class="gm-input" name="uRad" [(ngModel)]="nuevo.usado.radicacion">
+          <option value="">Sin indicar</option>
+          <option *ngFor="let pr of provincias" [value]="pr">{{ pr }}</option>
+        </select>
+      </label>
+      <label><span>Compañía de seguro</span>
+        <input class="gm-input" name="uSegComp" maxlength="60" placeholder="Federación Patronal, La Caja…" [(ngModel)]="nuevo.usado.seguro_compania">
+      </label>
+      <label><span>Cobertura de seguro</span>
+        <select class="gm-input" name="uSegCob" [(ngModel)]="nuevo.usado.seguro_cobertura">
+          <option value="">Sin indicar</option>
+          <option *ngFor="let cb of coberturasSeguro" [value]="cb">{{ cb }}</option>
+        </select>
+      </label>
+      <label><span>Cuota seguro ($/mes)</span>
+        <input class="gm-input" name="uSegCuota" inputmode="decimal" placeholder="85.000" [(ngModel)]="nuevo.usado.seguro_cuota">
+      </label>
+      <label><span>Costo patente ($/cuota)</span>
+        <input class="gm-input" name="uPatCosto" inputmode="decimal" placeholder="45.000" [(ngModel)]="nuevo.usado.costo_patente">
+      </label>
+    </div>
+
+    <h5>Estado técnico y cuestionario de recepción (Estilo Orden de Taller)</h5>
+    <div class="campos">
+      <label><span>Uso principal</span><input class="gm-input" name="gUso" maxlength="200" placeholder="Ciudad, ruta, familiar…" [(ngModel)]="nuevo.usado.guia.uso"></label>
+      <label><span>Dónde duerme / se guarda</span><input class="gm-input" name="gGua" maxlength="200" placeholder="Cochera techada, calle…" [(ngModel)]="nuevo.usado.guia.guardado"></label>
+      <label><span>Último service</span><input class="gm-input" type="date" name="gSer" [(ngModel)]="nuevo.usado.guia.ultimo_service"></label>
+      <label><span>Vencimiento VTV</span><input class="gm-input" type="date" name="gVtv" [(ngModel)]="nuevo.usado.guia.ultima_vtv"></label>
+      <label><span>Estado de neumáticos</span><input class="gm-input" name="gNeu" maxlength="200" placeholder="Nuevos, a medio uso, cambiar 2…" [(ngModel)]="nuevo.usado.guia.neumaticos"></label>
+      <label><span>Paneles repintados / choques</span><input class="gm-input" name="gCho" maxlength="200" placeholder="Paragolpes trasero, original…" [(ngModel)]="nuevo.usado.guia.paneles_choques"></label>
+      <label><span>Mantenimiento / distribución</span><input class="gm-input" name="gMan" maxlength="200" placeholder="Correa hecha a los 60.000 km…" [(ngModel)]="nuevo.usado.guia.mantenimiento"></label>
+      <label><span>Papeles / listo para transferir</span><input class="gm-input" name="gTra" maxlength="200" placeholder="Titular al día, prenda cancelada…" [(ngModel)]="nuevo.usado.guia.transferencia"></label>
+      <label class="ancho2"><span>Observaciones generales del vehículo</span><input class="gm-input" name="uDesc" maxlength="1000" placeholder="Detalles estéticos, accesorios agregados, fallas a revisar en taller…" [(ngModel)]="nuevo.usado.descripcion"></label>
+    </div>
+  </div>
+
+  <div style="margin: 0.5rem 0;">
+    <label class="gm-btn gm-btn--neutral gm-btn--sm" style="cursor: pointer; display: inline-flex; align-items: center; gap: 0.35rem;">
+      📷 Adjuntar fotos del vehículo ({{ fotosNuevo.length }}/6)
+      <input type="file" accept="image/*" multiple hidden (change)="elegirFotosNuevo($event)">
+    </label>
+    <span *ngFor="let f of fotosNuevo; let idx = index" style="display: inline-flex; align-items: center; gap: 0.25rem; margin-left: 0.4rem; font-size: 0.78rem; background: var(--gm-bg); padding: 0.2rem 0.5rem; border-radius: 999px; border: 1px solid var(--gm-border);">
+      {{ f.name }}
+      <button type="button" style="border: 0; background: none; cursor: pointer; color: var(--gm-error); font-weight: 700;" (click)="quitarFotoNuevo(idx)">×</button>
+    </span>
+  </div>
+
+  <label class="bloque-texto"><span>Primera nota de seguimiento</span><input class="gm-input" name="nota" maxlength="1000" placeholder="Qué dijo, qué se le ofreció" [(ngModel)]="nuevo.nota"></label>
   <p class="ayuda">Con el tipo, la marca o el tope cargados, el sistema te avisa qué autos del stock le sirven, hoy y cuando entre uno nuevo.</p>
   <div class="botones">
-    <button type="submit" class="gm-btn gm-btn--brand gm-btn--sm" [disabled]="ocupado()">Cargar</button>
+    <button type="submit" class="gm-btn gm-btn--brand gm-btn--sm" [disabled]="ocupado()">Cargar interesado</button>
     <button type="button" class="gm-btn gm-btn--neutral gm-btn--sm" (click)="nuevoAbierto.set(false)">Cancelar</button>
   </div>
 </form>
@@ -62,6 +180,7 @@
         <span class="que" *ngIf="i.unidad">Consultó por {{ i.unidad.titulo }}</span>
         <span class="que" *ngIf="!i.unidad && busqueda(i)">Busca {{ busqueda(i) }}</span>
         <span class="que" *ngIf="!i.unidad && !busqueda(i) && i.busca">{{ i.busca }}</span>
+        <span class="que" *ngIf="i.tiene_usado">🚗 Entrega: {{ i.tiene_usado }}</span>
         <span class="pide" *ngIf="i.cotizacion.pendiente">Pide cotización de su auto</span>
         <span class="cuando" [ngClass]="claseProxima(i)">{{ proxima(i) }}</span>
         <span class="sirven" *ngIf="i.sugeridas.length">{{ i.sugeridas.length === 1 ? '1 auto le sirve' : i.sugeridas.length + ' autos le sirven' }}</span>
@@ -90,6 +209,7 @@
     <p class="contacto">
       <ng-container *ngIf="i.telefono">{{ i.telefono }}</ng-container>
       <button type="button" class="escribirle" (click)="escribirA.set(i.id)">Escribirle</button>
+      <button type="button" class="gm-btn gm-btn--neutral gm-btn--sm" (click)="mostrarQrCotizacion(i)">📱 QR para que suba su auto</button>
       <span>{{ rotuloOrigen(i.origen) }}<ng-container *ngIf="i.vendedor"> · lo atiende {{ i.vendedor.nombre }}</ng-container></span>
     </p>
 
@@ -98,14 +218,183 @@
         <dd><a [routerLink]="['/home/autos/unidad', i.unidad.id]">{{ i.unidad.titulo }} {{ i.unidad.anio }}</a> · {{ plata(i.unidad.precio, i.unidad.moneda === 'ARS' ? 'ARS' : 'USD') }}
           <small *ngIf="i.unidad.estado !== 'disponible'"> · ya no está disponible</small></dd></div>
       <div *ngIf="busqueda(i) || i.busca"><dt>Busca</dt><dd>{{ busqueda(i) }}<ng-container *ngIf="busqueda(i) && i.busca"> · </ng-container>{{ i.busca }}</dd></div>
-      <div *ngIf="i.tiene_usado"><dt>Entrega</dt><dd>{{ i.tiene_usado }}</dd></div>
-      <div *ngIf="i.fotos?.length"><dt>Fotos que mandó</dt>
-        <dd><ul class="fotos-usado">
-          <li *ngFor="let f of i.fotos; let n = index">
-            <a [href]="foto(f.url)" target="_blank" rel="noopener noreferrer" [attr.aria-label]="'Abrir la foto ' + (n + 1) + ' en tamaño completo'">
-              <img [src]="foto(f.url_miniatura)" alt="" loading="lazy"></a>
-          </li>
-        </ul></dd></div>
+      <div *ngIf="i.tiene_usado">
+        <dt>Vehículo que entrega / ofrece</dt>
+        <dd style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; flex-wrap: wrap;">
+          <b>{{ i.tiene_usado }}</b>
+          <button type="button" class="gm-btn gm-btn--neutral gm-btn--sm" (click)="abrirEdicionUsado(i)">
+            ✏️ Editar ficha del auto
+          </button>
+        </dd>
+      </div>
+      <div *ngIf="!i.tiene_usado">
+        <dt>Vehículo en parte de pago</dt>
+        <dd>
+          <button type="button" class="gm-btn gm-btn--neutral gm-btn--sm" (click)="abrirEdicionUsado(i)">
+            + Cargar auto en parte de pago / tasación
+          </button>
+        </dd>
+      </div>
+      <ng-container *ngIf="i.usado as u">
+        <div>
+          <dt>Ficha técnica del vehículo</dt>
+          <dd>
+            <span class="patente" *ngIf="u.dominio">{{ u.dominio }}</span>
+            <ng-container *ngIf="u.tipo_vehiculo"> · {{ u.tipo_vehiculo }}</ng-container>
+            <ng-container *ngIf="u.marca || u.modelo"> · <b>{{ u.marca }} {{ u.modelo }} {{ u.version }} ({{ u.anio }})</b></ng-container>
+            <ng-container *ngIf="u.km !== null && u.km !== undefined"> · {{ km(u.km) }}</ng-container>
+            <ng-container *ngIf="u.combustible"> · {{ u.combustible | titlecase }}</ng-container>
+            <ng-container *ngIf="u.transmision"> · Caja {{ u.transmision }}</ng-container>
+            <ng-container *ngIf="u.radicacion"> · Radicado en {{ u.radicacion }}</ng-container>
+            <div class="botones" *ngIf="u.dominio" style="margin-top: 0.35rem;">
+              <button type="button" *ngFor="let lk of linksMultas" class="gm-btn gm-btn--neutral gm-btn--sm" (click)="consultarMultasUsado(u.dominio, lk.url, lk.rotulo)">
+                {{ lk.rotulo }}
+              </button>
+            </div>
+          </dd>
+        </div>
+        <div *ngIf="u.seguro_compania || u.seguro_cobertura || u.seguro_cuota || u.costo_patente">
+          <dt>Seguro y patente</dt>
+          <dd>
+            <ng-container *ngIf="u.seguro_compania || u.seguro_cobertura || u.seguro_cuota">
+              Seguro: {{ u.seguro_compania || '—' }}<ng-container *ngIf="u.seguro_cobertura"> ({{ u.seguro_cobertura }})</ng-container><ng-container *ngIf="u.seguro_cuota"> · {{ plata(u.seguro_cuota, 'ARS') }}/mes</ng-container>
+            </ng-container>
+            <ng-container *ngIf="u.costo_patente">
+              <ng-container *ngIf="u.seguro_compania || u.seguro_cobertura || u.seguro_cuota"> · </ng-container>
+              Patente: {{ plata(u.costo_patente, 'ARS') }}
+            </ng-container>
+          </dd>
+        </div>
+        <div *ngIf="u.descripcion">
+          <dt>Observaciones del vehículo</dt>
+          <dd>{{ u.descripcion }}</dd>
+        </div>
+        <div *ngIf="u.guia as g">
+          <dt>Inspección / Descripción guiada</dt>
+          <dd>
+            <div *ngIf="g.uso"><b>Uso:</b> {{ g.uso }}</div>
+            <div *ngIf="g.guardado"><b>Dónde se guardó:</b> {{ g.guardado }}</div>
+            <div *ngIf="g.motivo_venta"><b>Por qué lo vende:</b> {{ g.motivo_venta }}</div>
+            <div *ngIf="g.ultimo_service"><b>Último service:</b> {{ fecha(g.ultimo_service) }}</div>
+            <div *ngIf="g.ultima_vtv"><b>Última VTV:</b> {{ fecha(g.ultima_vtv) }}</div>
+            <div *ngIf="g.mantenimiento"><b>Mantenimiento:</b> {{ g.mantenimiento }}</div>
+            <div *ngIf="g.neumaticos"><b>Neumáticos:</b> {{ g.neumaticos }}</div>
+            <div *ngIf="g.transferencia"><b>Listo para transferir:</b> {{ g.transferencia }}</div>
+            <div *ngIf="g.agregados"><b>Agregados:</b> {{ g.agregados }}</div>
+            <div *ngIf="g.paneles_choques"><b>Paneles / choques:</b> {{ g.paneles_choques }}</div>
+            <div *ngIf="g.reparaciones"><b>Reparaciones importantes:</b> {{ g.reparaciones }}</div>
+          </dd>
+        </div>
+      </ng-container>
+
+      <!-- Formulario de edición completa del vehículo del interesado -->
+      <div *ngIf="editandoUsado()" style="background: var(--gm-bg); border: 1px solid var(--gm-border); border-radius: 8px; padding: 0.75rem; margin: 0.4rem 0;">
+        <h4 style="margin: 0 0 0.5rem;">Ficha completa del vehículo del interesado</h4>
+        <div class="campos">
+          <label><span>Tipo</span>
+            <select class="gm-input" name="eTipo" [(ngModel)]="usadoEdit.tipo_vehiculo">
+              <option *ngFor="let tv of tiposVehiculo" [value]="tv">{{ tv }}</option>
+            </select>
+          </label>
+          <label><span>Patente (Dominio)</span>
+            <input class="gm-input dominio" name="eDom" maxlength="12" placeholder="AE 852 RA" [ngModel]="usadoEdit.dominio" (ngModelChange)="alCambiarDominioEdit($event)">
+          </label>
+          <label><span>Marca *</span>
+            <input class="gm-input" name="eMarca" list="dl-marcas-int" maxlength="40" [(ngModel)]="usadoEdit.marca">
+          </label>
+          <label><span>Modelo *</span>
+            <input class="gm-input" name="eModelo" list="dl-modelos-edit" maxlength="60" [(ngModel)]="usadoEdit.modelo">
+          </label>
+          <label><span>Versión</span>
+            <input class="gm-input" name="eVer" maxlength="80" [(ngModel)]="usadoEdit.version">
+          </label>
+          <label><span>Año *</span>
+            <input class="gm-input" name="eAnio" inputmode="numeric" maxlength="4" [(ngModel)]="usadoEdit.anio">
+          </label>
+          <label><span>Kilómetros</span>
+            <input class="gm-input" name="eKm" inputmode="numeric" [(ngModel)]="usadoEdit.km">
+          </label>
+          <label><span>Combustible</span>
+            <select class="gm-input" name="eComb" [(ngModel)]="usadoEdit.combustible">
+              <option value="">Sin indicar</option>
+              <option *ngFor="let o of combustibles" [value]="o[0]">{{ o[1] }}</option>
+            </select>
+          </label>
+          <label><span>Caja</span>
+            <select class="gm-input" name="eCaja" [(ngModel)]="usadoEdit.transmision">
+              <option value="">Sin indicar</option>
+              <option *ngFor="let o of cajas" [value]="o[0]">{{ o[1] }}</option>
+            </select>
+          </label>
+          <label><span>Carrocería</span>
+            <select class="gm-input" name="eCarr" [(ngModel)]="usadoEdit.carroceria">
+              <option value="">Sin indicar</option>
+              <option *ngFor="let o of carrocerias" [value]="o[0]">{{ o[1] }}</option>
+            </select>
+          </label>
+          <label><span>Radicación</span>
+            <select class="gm-input" name="eRad" [(ngModel)]="usadoEdit.radicacion">
+              <option value="">Sin indicar</option>
+              <option *ngFor="let pr of provincias" [value]="pr">{{ pr }}</option>
+            </select>
+          </label>
+          <label><span>Seguro (Compañía)</span>
+            <input class="gm-input" name="eSegComp" maxlength="60" [(ngModel)]="usadoEdit.seguro_compania">
+          </label>
+          <label><span>Cobertura</span>
+            <select class="gm-input" name="eSegCob" [(ngModel)]="usadoEdit.seguro_cobertura">
+              <option value="">Sin indicar</option>
+              <option *ngFor="let cb of coberturasSeguro" [value]="cb">{{ cb }}</option>
+            </select>
+          </label>
+          <label><span>Cuota seguro ($/mes)</span>
+            <input class="gm-input" name="eSegCuo" inputmode="decimal" [(ngModel)]="usadoEdit.seguro_cuota">
+          </label>
+          <label><span>Patente ($/cuota)</span>
+            <input class="gm-input" name="ePatCos" inputmode="decimal" [(ngModel)]="usadoEdit.costo_patente">
+          </label>
+        </div>
+        <h5 style="margin: 0.5rem 0 0.3rem; font-size: 0.8rem;">Checklist técnico (recepción / peritaje)</h5>
+        <div class="campos">
+          <label><span>Uso</span><input class="gm-input" name="egUso" [(ngModel)]="usadoEdit.guia.uso"></label>
+          <label><span>Guarda</span><input class="gm-input" name="egGua" [(ngModel)]="usadoEdit.guia.guardado"></label>
+          <label><span>Último service</span><input class="gm-input" type="date" name="egSer" [(ngModel)]="usadoEdit.guia.ultimo_service"></label>
+          <label><span>Vencimiento VTV</span><input class="gm-input" type="date" name="egVtv" [(ngModel)]="usadoEdit.guia.ultima_vtv"></label>
+          <label><span>Neumáticos</span><input class="gm-input" name="egNeu" [(ngModel)]="usadoEdit.guia.neumaticos"></label>
+          <label><span>Paneles / choques</span><input class="gm-input" name="egCho" [(ngModel)]="usadoEdit.guia.paneles_choques"></label>
+          <label><span>Mantenimiento</span><input class="gm-input" name="egMan" [(ngModel)]="usadoEdit.guia.mantenimiento"></label>
+          <label><span>Listo para transferir</span><input class="gm-input" name="egTra" [(ngModel)]="usadoEdit.guia.transferencia"></label>
+          <label class="ancho2"><span>Observaciones generales</span><input class="gm-input" name="eDesc" [(ngModel)]="usadoEdit.descripcion"></label>
+        </div>
+        <div class="botones" style="margin-top: 0.5rem;">
+          <button type="button" class="gm-btn gm-btn--brand gm-btn--sm" [disabled]="ocupado()" (click)="guardarUsadoEditado()">Guardar ficha del auto</button>
+          <button type="button" class="gm-btn gm-btn--neutral gm-btn--sm" (click)="editandoUsado.set(false)">Cancelar</button>
+        </div>
+      </div>
+
+      <!-- Galería de fotos del interesado / tasación (con carga directa desde el ERP como en Taller) -->
+      <div>
+        <dt style="display: flex; justify-content: space-between; align-items: center;">
+          <span>Fotos del vehículo / tasación ({{ i.fotos.length }}/12)</span>
+          <label class="gm-btn gm-btn--neutral gm-btn--sm" style="cursor: pointer; padding: 2px 8px; font-size: 0.76rem;">
+            {{ ocupado() ? 'Subiendo…' : '📷 Subir fotos' }}
+            <input type="file" accept="image/*" multiple hidden [disabled]="ocupado()" (change)="subirFotosEnFicha($event)">
+          </label>
+        </dt>
+        <dd>
+          <p class="vacio" *ngIf="!i.fotos.length" style="margin: 0.25rem 0; font-size: 0.8rem;">Sin fotos cargadas todavía. Podés subirlas desde acá o mostrarle el QR al cliente.</p>
+          <ul class="fotos-usado" *ngIf="i.fotos.length">
+            <li *ngFor="let f of i.fotos; let n = index" style="position: relative;">
+              <a [href]="foto(f.url)" (click)="$event.preventDefault(); fotoAmpliada.set(foto(f.url))" [attr.aria-label]="'Abrir la foto ' + (n + 1) + ' en tamaño completo'">
+                <img [src]="foto(f.url_miniatura)" alt="" loading="lazy">
+              </a>
+              <button type="button" (click)="borrarFotoEnFicha(n)" [disabled]="ocupado()" title="Quitar foto"
+                      style="position: absolute; top: 3px; right: 3px; width: 20px; height: 20px; border-radius: 50%; border: 0; background: rgba(0,0,0,0.68); color: #fff; font-weight: 700; font-size: 12px; line-height: 20px; padding: 0; cursor: pointer;">×</button>
+            </li>
+          </ul>
+        </dd>
+      </div>
+
       <div *ngIf="i.cotizacion.valor != null"><dt>Cotización de su auto</dt>
         <dd><b>{{ plata(i.cotizacion.valor, i.cotizacion.moneda === 'ARS' ? 'ARS' : 'USD') }}</b><small *ngIf="i.cotizacion.fecha"> · cotizado el {{ fecha(i.cotizacion.fecha) }}</small>
           <a class="enviar-cotizacion" *ngIf="whatsappCotizacion(i) as w" [href]="w" target="_blank" rel="noopener noreferrer">Mandársela por WhatsApp</a></dd></div>
@@ -114,16 +403,40 @@
       <div *ngIf="i.motivo_perdida"><dt>Se perdió por</dt><dd>{{ i.motivo_perdida }}</dd></div>
     </dl>
 
-    <form class="cotizar" *ngIf="vista() === 'activos' && i.tiene_usado" (ngSubmit)="cotizar()">
+    <form class="cotizar" *ngIf="vista() === 'activos' && (i.tiene_usado || i.usado)" (ngSubmit)="cotizar()">
       <label><span>{{ i.cotizacion.valor != null ? 'Cambiar la cotización' : 'Cotizar su auto' }}</span>
         <input class="gm-input" name="cotValor" inputmode="decimal" placeholder="9.500" [(ngModel)]="cotiza.valor"></label>
       <label><span>Moneda</span>
         <select class="gm-input" name="cotMoneda" [(ngModel)]="cotiza.moneda"><option value="USD">Dólares</option><option value="ARS">Pesos</option></select></label>
-      <label class="largo"><span>Aclaración (opcional)</span>
+      <label class="largo"><span>Aclaración / desglose (opcional)</span>
         <input class="gm-input" name="cotNota" maxlength="300" placeholder="Sujeto a ver el estado de la chapa" [(ngModel)]="cotiza.nota"></label>
       <button type="submit" class="gm-btn gm-btn--brand gm-btn--sm" [disabled]="ocupado()">Guardar cotización</button>
+      <button type="button" class="gm-btn gm-btn--neutral gm-btn--sm" (click)="peritajeAbierto.set(!peritajeAbierto())">
+        {{ peritajeAbierto() ? 'Cerrar peritaje' : 'Peritaje y descuentos de toma' }}
+      </button>
       <button type="button" class="gm-btn gm-btn--neutral gm-btn--sm" *ngIf="i.usado" (click)="tomarAlStock(i)">Pasar su auto al stock</button>
     </form>
+
+    <div class="peritaje-box" *ngIf="vista() === 'activos' && (i.tiene_usado || i.usado) && peritajeAbierto()" style="padding: 0.75rem; border: 1px solid var(--gm-border); border-radius: var(--gm-radius); background: var(--gm-bg); margin-bottom: 0.8rem;">
+      <h4 style="margin: 0 0 0.5rem 0; font-size: 0.9rem;">Planilla de Peritaje y Descuento de Toma ({{ cotiza.moneda }})</h4>
+      <div class="campos">
+        <label><span>Valor ref. mercado *</span><input class="gm-input" name="pRef" inputmode="decimal" placeholder="12.500" [(ngModel)]="peritaje.referencia"></label>
+        <label><span>- Chapa y pintura</span><input class="gm-input" name="pCha" inputmode="decimal" placeholder="0" [(ngModel)]="peritaje.chapa"></label>
+        <label><span>- Neumáticos</span><input class="gm-input" name="pNeu" inputmode="decimal" placeholder="0" [(ngModel)]="peritaje.neumaticos"></label>
+        <label><span>- Mecánica / Service</span><input class="gm-input" name="pMec" inputmode="decimal" placeholder="0" [(ngModel)]="peritaje.mecanica"></label>
+        <label><span>- Interior / Cristales</span><input class="gm-input" name="pInt" inputmode="decimal" placeholder="0" [(ngModel)]="peritaje.interior"></label>
+        <label><span>- Papeles / Multas</span><input class="gm-input" name="pPap" inputmode="decimal" placeholder="0" [(ngModel)]="peritaje.papeles"></label>
+        <label><span>- Margen agencia (%)</span><input class="gm-input" name="pMar" inputmode="decimal" placeholder="10" [(ngModel)]="peritaje.margen_pct"></label>
+      </div>
+      <p class="ayuda" *ngIf="calculoPeritaje as cp" style="margin: 0.4rem 0 0.6rem;">
+        Alistaje a descontar: <b>-{{ plata(cp.descuentos, cotiza.moneda) }}</b> · Margen ({{ cp.pct }}%): <b>-{{ plata(cp.margen, cotiza.moneda) }}</b> →
+        <b>Valor de toma sugerido: {{ plata(cp.toma, cotiza.moneda) }}</b>
+      </p>
+      <div class="botones">
+        <button type="button" class="gm-btn gm-btn--brand gm-btn--sm" (click)="aplicarPeritaje()">Pasar valor y desglose a la cotización</button>
+        <button type="button" class="gm-btn gm-btn--neutral gm-btn--sm" (click)="imprimirPeritaje(i)">Imprimir Hoja de Peritaje A4</button>
+      </div>
+    </div>
 
     <ng-container *ngIf="vista() === 'activos'">
       <div class="grupo-botones" role="group" aria-label="Qué tan decidido está">
@@ -177,6 +490,32 @@
       </ol>
     </section>
   </aside>
+</div>
+
+<!-- Visor de foto ampliada estilo Taller -->
+<div *ngIf="fotoAmpliada() as url" (click)="fotoAmpliada.set(null)"
+     style="position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 1200; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 1.5rem;">
+  <div style="margin-bottom: 0.75rem; display: flex; gap: 0.5rem;" (click)="$event.stopPropagation()">
+    <a [href]="url" target="_blank" rel="noopener noreferrer" class="gm-btn gm-btn--brand gm-btn--sm">Abrir original</a>
+    <button type="button" class="gm-btn gm-btn--neutral gm-btn--sm" (click)="fotoAmpliada.set(null)">Cerrar</button>
+  </div>
+  <img [src]="url" alt="Foto del vehículo" style="max-width: 92vw; max-height: 82vh; border-radius: 8px; object-fit: contain;">
+</div>
+
+<!-- Modal de Código QR de Tasación -->
+<div *ngIf="qrModal() as qm" (click)="qrModal.set(null)"
+     style="position: fixed; inset: 0; background: rgba(0,0,0,0.65); z-index: 1200; display: flex; align-items: center; justify-content: center; padding: 1rem;">
+  <div (click)="$event.stopPropagation()" style="background: var(--gm-card, #fff); border: 1px solid var(--gm-border); border-radius: 12px; padding: 1.3rem; max-width: 400px; width: 100%; text-align: center; box-shadow: 0 12px 36px rgba(0,0,0,0.28);">
+    <h3 style="margin: 0 0 0.35rem; font-size: 1.05rem;">{{ qm.titulo }}</h3>
+    <p style="margin: 0 0 0.85rem; font-size: 0.84rem; color: var(--gm-text-2);">{{ qm.subtitulo }}</p>
+    <img [src]="qm.qrDataUrl" alt="Código QR" style="width: 220px; height: 220px; margin: 0 auto 0.75rem; display: block; border: 1px solid var(--gm-border); border-radius: 8px; padding: 6px; background: #fff;">
+    <p style="margin: 0 0 0.85rem; font-size: 0.78rem; color: var(--gm-muted); word-break: break-all;">{{ qm.url }}</p>
+    <div class="botones" style="justify-content: center;">
+      <button type="button" class="gm-btn gm-btn--brand gm-btn--sm" (click)="copiarUrlQr(qm.url)">Copiar enlace</button>
+      <a [href]="qm.url" target="_blank" rel="noopener noreferrer" class="gm-btn gm-btn--neutral gm-btn--sm">Abrir página</a>
+      <button type="button" class="gm-btn gm-btn--neutral gm-btn--sm" (click)="qrModal.set(null)">Cerrar</button>
+    </div>
+  </div>
 </div>
 
 <app-escribir *ngIf="escribirA() as id" contexto="interesado" [destino]="id" (cerrar)="escribirA.set(null)" (enviado)="cargar()"></app-escribir>

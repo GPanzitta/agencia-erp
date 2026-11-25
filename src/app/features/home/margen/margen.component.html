@@ -1,0 +1,314 @@
+<header class="cab">
+  <div>
+    <h2>Rentabilidad y márgenes</h2>
+    <p>Números reales del negocio: rentabilidad neta por venta, fugas de margen por descuento y capital inmovilizado en playa.</p>
+  </div>
+
+  <div class="filtros">
+    <div class="presets">
+      <button type="button" [class.activo]="presetActivo() === 'mes_actual'" (click)="aplicarPreset('mes_actual')">Este mes</button>
+      <button type="button" [class.activo]="presetActivo() === 'mes_anterior'" (click)="aplicarPreset('mes_anterior')">Mes anterior</button>
+      <button type="button" [class.activo]="presetActivo() === 'ultimos_90'" (click)="aplicarPreset('ultimos_90')">Últimos 90 días</button>
+      <button type="button" [class.activo]="presetActivo() === 'este_anio'" (click)="aplicarPreset('este_anio')">Este año</button>
+    </div>
+
+    <form class="fechas" (ngSubmit)="consultar()">
+      <label>
+        <span>Desde</span>
+        <input type="date" class="gm-input" [ngModel]="desde()" (ngModelChange)="desde.set($event)" name="desde">
+      </label>
+      <label>
+        <span>Hasta</span>
+        <input type="date" class="gm-input" [ngModel]="hasta()" (ngModelChange)="hasta.set($event)" name="hasta">
+      </label>
+      <button type="submit" class="gm-btn gm-btn--brand gm-btn--sm" [disabled]="cargando()">Filtrar</button>
+      <button type="button" class="gm-btn gm-btn--neutral gm-btn--sm" *ngIf="datos()" (click)="exportarExcel()">Exportar Excel</button>
+    </form>
+  </div>
+</header>
+
+<p class="vacio" *ngIf="cargando()">Calculando rentabilidad…</p>
+
+<ng-container *ngIf="!cargando() && datos() as d">
+
+  <!-- Resumen de Indicadores Clave -->
+  <div class="kpis-grid">
+    <!-- Ventas cerradas del período -->
+    <section class="tarjeta-kpi ventas">
+      <div class="kpi-encabezado">
+        <app-icon name="dinero" [size]="20"></app-icon>
+        <h3>Ventas cerradas ({{ d.desde }} al {{ d.hasta }})</h3>
+      </div>
+      <div class="kpi-metricas">
+        <div class="metrica principal">
+          <span class="etiqueta">Margen Neto (después de comisiones)</span>
+          <b class="valor verde">{{ formatearDobleMoneda(d.ventas.neto) }}</b>
+          <small class="subtexto">Margen bruto: {{ formatearDobleMoneda(d.ventas.margen) }}</small>
+        </div>
+        <div class="metrica">
+          <span class="etiqueta">Facturado total</span>
+          <b class="valor">{{ formatearDobleMoneda(d.ventas.facturado) }}</b>
+          <small class="subtexto">{{ d.ventas.operaciones }} operaciones cerradas</small>
+        </div>
+        <div class="metrica">
+          <span class="etiqueta">Descuentos concedidos</span>
+          <b class="valor" [class.alerta]="d.ventas.descuento.USD > 0 || d.ventas.descuento.ARS > 0">
+            {{ formatearDobleMoneda(d.ventas.descuento) }}
+          </b>
+          <small class="subtexto">Fuga: {{ pct(d.ventas.descuento_pct.USD ?? d.ventas.descuento_pct.ARS) }} sobre lista</small>
+        </div>
+        <div class="metrica">
+          <span class="etiqueta">Rotación promedio</span>
+          <b class="valor">{{ d.ventas.dias_promedio }} días</b>
+          <small class="subtexto">Tiempo medio de venta</small>
+        </div>
+      </div>
+    </section>
+
+    <!-- Capital en playa (Stock) -->
+    <section class="tarjeta-kpi stock">
+      <div class="kpi-encabezado">
+        <app-icon name="inventario" [size]="20"></app-icon>
+        <h3>Capital en playa (Stock activo)</h3>
+      </div>
+      <div class="kpi-metricas">
+        <div class="metrica principal">
+          <span class="etiqueta">Capital inmovilizado (Costo + Alistaje)</span>
+          <b class="valor naranja">{{ formatearDobleMoneda(d.stock.capital) }}</b>
+          <small class="subtexto">En {{ d.stock.unidades }} autos en stock</small>
+        </div>
+        <div class="metrica">
+          <span class="etiqueta">Margen proyectado de lista</span>
+          <b class="valor">{{ formatearDobleMoneda(d.stock.margen) }}</b>
+          <small class="subtexto">Margen est.: {{ pct(d.stock.margen_pct.USD ?? d.stock.margen_pct.ARS) }}</small>
+        </div>
+        <div class="metrica">
+          <span class="etiqueta">Autos parados (> 60 días)</span>
+          <b class="valor" [class.rojo]="d.stock.parados.cuantos > 0">{{ d.stock.parados.cuantos }} autos</b>
+          <small class="subtexto">{{ formatearDobleMoneda(d.stock.parados.capital) }} inmovilizados</small>
+        </div>
+        <div class="metrica">
+          <span class="etiqueta">Papeles en rojo que frenan</span>
+          <b class="valor" [class.rojo]="d.stock.papeles_en_rojo.cuantos > 0">{{ d.stock.papeles_en_rojo.cuantos }} autos</b>
+          <small class="subtexto">{{ formatearDobleMoneda(d.stock.papeles_en_rojo.capital) }} frenados</small>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- Sección de Riesgos Inmediatos -->
+  <section class="bloque-tablero" *ngIf="d.riesgos.length">
+    <div class="bloque-header alerta-header">
+      <div class="titulo-con-icono">
+        <app-icon name="alerta" [size]="20"></app-icon>
+        <div>
+          <h3>Riesgos y plata sobre la mesa ({{ d.riesgos.length }})</h3>
+          <p>Unidades con margen en riesgo, papeles vencidos que traban ventas o capital envejeciendo sin rotar.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="tabla-contenedor">
+      <table class="tabla-datos">
+        <thead>
+          <tr>
+            <th>Unidad</th>
+            <th>Antigüedad</th>
+            <th>Costo puesto</th>
+            <th>Precio esperado</th>
+            <th>Margen potencial</th>
+            <th>Alertas detectadas</th>
+            <th>Acción</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let r of d.riesgos; trackBy: trackPorId" [class]="'severidad-' + severidadClase(r.severidad)">
+            <td>
+              <div class="col-unidad">
+                <span class="patente" *ngIf="r.dominio">{{ dominio(r.dominio) }}</span>
+                <b>{{ r.titulo }}</b>
+                <small class="cod">{{ r.numero }}</small>
+              </div>
+            </td>
+            <td>
+              <b [class.rojo]="r.dias >= 60">{{ r.dias }} días</b>
+            </td>
+            <td>{{ plata(r.costo, r.moneda) }}</td>
+            <td>
+              <span *ngIf="r.precio !== null">{{ plata(r.precio, r.moneda) }}</span>
+              <i *ngIf="r.precio === null" class="rojo">Sin precio</i>
+            </td>
+            <td>
+              <div *ngIf="r.margen !== null">
+                <b [class.rojo]="r.margen <= 0" [class.verde]="r.margen > 0">{{ plata(r.margen, r.moneda) }}</b>
+                <small *ngIf="r.margen_pct !== null">({{ r.margen_pct }}%)</small>
+              </div>
+              <span *ngIf="r.margen === null">—</span>
+            </td>
+            <td>
+              <div class="chips-alertas">
+                <span *ngFor="let m of r.motivos" class="chip-motivo" [attr.data-motivo]="m" [title]="motivosTexto[m].desc">
+                  {{ motivosTexto[m].rotulo }}
+                </span>
+              </div>
+            </td>
+            <td>
+              <a [routerLink]="['/home/autos/unidad', r.id]" class="gm-btn gm-btn--neutral gm-btn--sm">Ver ficha</a>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Grilla: Antigüedad de Stock y Ventas por Origen -->
+  <div class="dos-columnas">
+    <!-- Antigüedad de stock -->
+    <section class="bloque-tablero">
+      <div class="bloque-header">
+        <h3>Antigüedad del stock en playa</h3>
+        <p>Distribución de autos y capital según el tiempo en exposición.</p>
+      </div>
+
+      <div class="tramos-lista">
+        <div *ngFor="let t of d.antiguedad; trackBy: trackTramo" class="tramo-item">
+          <div class="tramo-info">
+            <span class="tramo-nombre"><b>{{ t.rotulo }}</b> ({{ t.cuantos }} {{ t.cuantos === 1 ? 'auto' : 'autos' }})</span>
+            <span class="tramo-capital">{{ formatearDobleMoneda(t.capital) }}</span>
+          </div>
+          <div class="tramo-barra-fondo">
+            <div class="tramo-barra-progreso"
+                 [style.width.%]="d.stock.unidades > 0 ? (t.cuantos / d.stock.unidades) * 100 : 0"
+                 [class.peligro]="t.desde >= 61"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Ventas por origen -->
+    <section class="bloque-tablero">
+      <div class="bloque-header">
+        <h3>Rentabilidad por origen de unidad</h3>
+        <p>Comparativo entre compra directa, toma en parte de pago y consignación.</p>
+      </div>
+
+      <table class="tabla-datos compacta">
+        <thead>
+          <tr>
+            <th>Origen</th>
+            <th class="num">Ventas</th>
+            <th class="num">Facturado</th>
+            <th class="num">Margen Neto</th>
+            <th class="num">Margen %</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let o of d.por_origen">
+            <td><b>{{ rotuloOrigen[o.origen] || o.origen }}</b></td>
+            <td class="num">{{ o.operaciones }}</td>
+            <td class="num">{{ formatearDobleMoneda(o.facturado) }}</td>
+            <td class="num">
+              <b [class.verde]="o.neto.USD > 0 || o.neto.ARS > 0">{{ formatearDobleMoneda(o.neto) }}</b>
+            </td>
+            <td class="num">{{ pct(o.margen_pct.USD ?? o.margen_pct.ARS) }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+  </div>
+
+  <!-- Desempeño y Descuentos por Vendedor -->
+  <section class="bloque-tablero" *ngIf="d.por_vendedor.length">
+    <div class="bloque-header">
+      <h3>Desempeño y fuga de margen por vendedor</h3>
+      <p>Operaciones, comisiones liquidadas y descuentos otorgados para cerrar.</p>
+    </div>
+
+    <div class="tabla-contenedor">
+      <table class="tabla-datos">
+        <thead>
+          <tr>
+            <th>Vendedor</th>
+            <th class="num">Ventas</th>
+            <th class="num">Total facturado</th>
+            <th class="num">Descuentos concedidos</th>
+            <th class="num">% Descuento</th>
+            <th class="num">Comisión cobrada</th>
+            <th class="num">Margen neto agencia</th>
+            <th class="num">Días prom. venta</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let v of d.por_vendedor; trackBy: trackPorId">
+            <td><b>{{ v.nombre }}</b></td>
+            <td class="num">{{ v.operaciones }}</td>
+            <td class="num">{{ formatearDobleMoneda(v.facturado) }}</td>
+            <td class="num" [class.rojo]="v.descuento.USD > 0 || v.descuento.ARS > 0">
+              {{ formatearDobleMoneda(v.descuento) }}
+            </td>
+            <td class="num">{{ pct(v.descuento_pct.USD ?? v.descuento_pct.ARS) }}</td>
+            <td class="num">{{ formatearDobleMoneda(v.comisiones) }}</td>
+            <td class="num">
+              <b class="verde">{{ formatearDobleMoneda(v.neto) }}</b>
+            </td>
+            <td class="num">{{ v.dias_promedio }} d</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Autos más parados en la playa -->
+  <section class="bloque-tablero" *ngIf="d.mas_parados.length">
+    <div class="bloque-header">
+      <h3>Capital estancado: los más parados en la playa</h3>
+      <p>Unidades que llevan más de 30 días sin rotar. Analizar rebaja de precio o activación comercial.</p>
+    </div>
+
+    <div class="tabla-contenedor">
+      <table class="tabla-datos compacta">
+        <thead>
+          <tr>
+            <th>Unidad</th>
+            <th>Días en stock</th>
+            <th>Costo acumulado</th>
+            <th>Precio lista / esperado</th>
+            <th>Margen potencial</th>
+            <th>Acción</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let p of d.mas_parados; trackBy: trackPorId">
+            <td>
+              <div class="col-unidad">
+                <span class="patente" *ngIf="p.dominio">{{ dominio(p.dominio) }}</span>
+                <b>{{ p.titulo }}</b>
+                <small class="cod">{{ p.numero }}</small>
+              </div>
+            </td>
+            <td>
+              <b [class.rojo]="p.dias >= 90" [class.alerta]="p.dias >= 60">{{ p.dias }} días</b>
+            </td>
+            <td>{{ plata(p.costo, p.moneda) }}</td>
+            <td>{{ plata(p.precio, p.moneda) }}</td>
+            <td>
+              <span *ngIf="p.margen !== null" [class.verde]="p.margen > 0" [class.rojo]="p.margen <= 0">
+                {{ plata(p.margen, p.moneda) }} ({{ p.margen_pct }}%)
+              </span>
+              <span *ngIf="p.margen === null">—</span>
+            </td>
+            <td>
+              <div class="botones">
+                <a [routerLink]="['/home/autos/unidad', p.id]" class="gm-btn gm-btn--neutral gm-btn--sm">Ver auto</a>
+                <button *ngIf="precioSugerido(p) as sug" type="button" class="gm-btn gm-btn--brand gm-btn--sm" (click)="aplicarRebaja(p)">
+                  Rebajar a {{ plata(sug, p.moneda) }}
+                </button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+</ng-container>

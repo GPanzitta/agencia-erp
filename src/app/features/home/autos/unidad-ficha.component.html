@@ -56,8 +56,18 @@
         <button type="button" *ngIf="u.acciones.publicar && !u.publicada" class="gm-btn gm-btn--neutral gm-btn--sm" (click)="publicar(true)" [disabled]="ocupado()">Publicar en el sitio</button>
         <button type="button" *ngIf="u.publicada && u.acciones.editar" class="gm-btn gm-btn--neutral gm-btn--sm" (click)="publicar(false)" [disabled]="ocupado()">Quitar del sitio</button>
         <button type="button" *ngIf="u.acciones.reservar" class="gm-btn gm-btn--brand gm-btn--sm" (click)="abrir('reservar')">Reservar</button>
+        <button type="button" class="gm-btn gm-btn--brand gm-btn--sm" (click)="abrir('propuesta')">Armar propuesta</button>
+        <button type="button" class="gm-btn gm-btn--neutral gm-btn--sm" (click)="abrir('redes')">Placa Instagram / WhatsApp</button>
         <button type="button" *ngIf="u.acciones.editar" class="gm-btn gm-btn--neutral gm-btn--sm" (click)="abrir('precio')">Precio y descripción</button>
         <a *ngIf="u.acciones.editar" class="gm-btn gm-btn--neutral gm-btn--sm" [routerLink]="['/home/autos/unidad', u.id, 'publicacion']">Armar la publicación</a>
+        <a class="gm-btn gm-btn--neutral gm-btn--sm" [routerLink]="['/home/taller']" [queryParams]="{ unidad: u.id }">🔧 Abrir Orden de Taller</a>
+        <button type="button" class="gm-btn gm-btn--neutral gm-btn--sm" (click)="verQrUnidad()">📱 Ver QR</button>
+        <button type="button" class="gm-btn gm-btn--neutral gm-btn--sm" (click)="cartelVidriera()">Cartel con QR</button>
+        <button type="button" class="gm-btn gm-btn--neutral gm-btn--sm" (click)="etiquetaLlave()">Etiqueta para llave</button>
+        <button type="button" *ngIf="u.origen === 'consignacion'" class="gm-btn gm-btn--neutral gm-btn--sm" (click)="contratoConsignacion()">Contrato consignación</button>
+        <button type="button" *ngIf="u.origen === 'consignacion' && esDuenio()" class="gm-btn gm-btn--neutral gm-btn--sm" (click)="liquidacionConsignacion()">Liquidación al dueño</button>
+        <button type="button" *ngIf="u.origen === 'consignacion'" class="gm-btn gm-btn--neutral gm-btn--sm" (click)="copiarLinkConsignante()">Copiar link del dueño</button>
+        <a *ngIf="u.origen === 'consignacion' && whatsappConsignante() as waCons" class="gm-btn gm-btn--neutral gm-btn--sm" [href]="waCons" target="_blank" rel="noopener noreferrer">Mandar seguimiento al dueño</a>
         <button type="button" *ngIf="u.acciones.mover" class="gm-btn gm-btn--neutral gm-btn--sm" (click)="abrir('salida')">Sacar del stock</button>
       </div>
       <p class="ayuda" *ngIf="u.acciones.mover && u.precio_venta === null">Cargale el precio de venta para poder publicarla o reservarla.</p>
@@ -104,12 +114,66 @@
         <div class="botones"><button type="submit" class="gm-btn gm-btn--brand gm-btn--sm" [disabled]="ocupado()">Reservar</button>
           <button type="button" class="gm-btn gm-btn--neutral gm-btn--sm" (click)="panel.set('')">Cancelar</button></div>
       </form>
+
+      <div class="panel" *ngIf="panel() === 'propuesta'">
+        <h4>Propuesta comercial (Llave por llave + Efectivo + Cuotas)</h4>
+        <div class="campos">
+          <label><span>Cliente</span><input class="gm-input" name="pcn" maxlength="120" placeholder="Nombre del interesado" [(ngModel)]="propuesta.cliente_nombre"></label>
+          <label><span>Teléfono / WhatsApp</span><input class="gm-input" name="pct" maxlength="40" inputmode="tel" placeholder="11 5555 0100" [(ngModel)]="propuesta.cliente_telefono"></label>
+          <label><span>Precio unidad ({{ u.moneda }})</span><input class="gm-input" name="ppu" inputmode="decimal" [(ngModel)]="propuesta.precio_unidad"></label>
+          <label><span>Su usado (marca, modelo y año)</span><input class="gm-input" name="put" maxlength="120" placeholder="Ej: VW Gol Trend 2017" [(ngModel)]="propuesta.usado_titulo"></label>
+          <label><span>Valor toma de su usado ({{ u.moneda }})</span><input class="gm-input" name="puv" inputmode="decimal" placeholder="0" [(ngModel)]="propuesta.usado_valor"></label>
+          <label><span>Efectivo / transf. que entrega ({{ u.moneda }})</span><input class="gm-input" name="pea" inputmode="decimal" placeholder="0" [(ngModel)]="propuesta.efectivo_anticipo"></label>
+          <label><span>Plazo a financiar (meses)</span>
+            <select class="gm-input" name="pcm" [(ngModel)]="propuesta.cuotas_meses">
+              <option [ngValue]="12">12 cuotas</option>
+              <option [ngValue]="18">18 cuotas</option>
+              <option [ngValue]="24">24 cuotas</option>
+              <option [ngValue]="36">36 cuotas</option>
+              <option [ngValue]="48">48 cuotas</option>
+            </select>
+          </label>
+          <label><span>TNA estimada (%)</span><input class="gm-input" name="ptna" inputmode="decimal" [(ngModel)]="propuesta.tna"></label>
+          <label><span>Gastos transf. estimados ({{ u.moneda }})</span><input class="gm-input" name="pgt" inputmode="decimal" placeholder="Opcional" [(ngModel)]="propuesta.gastos_transferencia"></label>
+        </div>
+        <p class="ayuda">
+          <b>Saldo restante a cubrir: {{ plata(saldoPropuesta, u.moneda) }}</b>
+          <ng-container *ngIf="saldoPropuesta > 0 && cuotaPropuesta as c"> · Plan estimado: <b>{{ propuesta.cuotas_meses }} cuotas fijas de {{ plata(c, u.moneda) }}</b></ng-container>
+        </p>
+        <div class="botones">
+          <button type="button" class="gm-btn gm-btn--brand gm-btn--sm" (click)="imprimirPropuesta()">Imprimir / PDF con membrete y QR</button>
+          <a *ngIf="whatsappPropuesta() as wa" class="gm-btn gm-btn--neutral gm-btn--sm" [href]="wa" target="_blank" rel="noopener noreferrer">Mandar por WhatsApp</a>
+          <button type="button" class="gm-btn gm-btn--neutral gm-btn--sm" (click)="panel.set('')">Cerrar</button>
+        </div>
+      </div>
+
+      <div class="panel" *ngIf="panel() === 'redes'">
+        <h4>Descargar placa para Instagram y Estados de WhatsApp</h4>
+        <div class="campos">
+          <label class="ancho2"><span>Sello destacado en la imagen</span>
+            <select class="gm-input" name="sello" [(ngModel)]="selloRedes">
+              <option value="ingreso">Recién ingresado</option>
+              <option value="oportunidad">¡Oportunidad / Bajó de precio!</option>
+              <option value="financiacion">Tomamos tu usado · Cuotas fijas</option>
+              <option value="vendido">¡Vendido! Gracias por confiar</option>
+            </select>
+          </label>
+        </div>
+        <p class="ayuda">Genera la imagen lista para subir con la foto del auto, el nombre de la agencia, año, km, precio y tu sitio web.</p>
+        <div class="botones">
+          <button type="button" class="gm-btn gm-btn--brand gm-btn--sm" (click)="descargarPlaca('historia')">Descargar Historia / Estado (9:16)</button>
+          <button type="button" class="gm-btn gm-btn--neutral gm-btn--sm" (click)="descargarPlaca('post')">Descargar Post cuadrado (1:1)</button>
+          <button type="button" class="gm-btn gm-btn--neutral gm-btn--sm" (click)="panel.set('')">Cerrar</button>
+        </div>
+      </div>
     </div>
   </div>
 
   <app-unidad-venta *ngIf="op() as o" [o]="o" [u]="u" [billeteras]="billeteras()" [ocupado]="ocupado()" [esDuenio]="esDuenio()"
                     [panel]="panel()" [pago]="pago" [cierre]="cierre" [anulacion]="anulacion"
-                    (abrirPanel)="abrir($event)" (pagar)="pagar()" (quitarPago)="quitarPago($event)" (cerrar)="cerrar()" (anular)="anular()" (recibo)="recibo($event)" (boleto)="boleto()"></app-unidad-venta>
+                    (abrirPanel)="abrir($event)" (pagar)="pagar()" (quitarPago)="quitarPago($event)" (cerrar)="cerrar()" (anular)="anular()"
+                    (recibo)="recibo($event)" (boleto)="boleto()" (actaEntrega)="actaEntrega()"
+                    (ordenVenta)="ordenVenta()" (verQrOv)="verQrOv()" (subirFotosOv)="subirFotosOv($event)" (borrarFotoOv)="borrarFotoOv($event)"></app-unidad-venta>
 
   <section class="bloque interesados" *ngIf="interesados() as it" aria-label="Interesados">
     <h4>Interesados <small>{{ it.consultaron.length }} consultaron por este auto · a {{ it.coinciden.length }} más les sirve</small></h4>
@@ -119,11 +183,13 @@
         <a [routerLink]="['/home/autos/interesados']" [queryParams]="{ abrir: i.id }">{{ i.nombre }}</a>
         <span>Consultó por este auto<ng-container *ngIf="i.telefono"> · {{ i.telefono }}</ng-container></span>
         <small [class.vencido]="i.atrasado">{{ proxima(i) }}</small>
+        <button type="button" class="gm-btn gm-btn--neutral gm-btn--sm" (click)="escribirA.set(i.id)">Escribirle</button>
       </li>
       <li *ngFor="let i of it.coinciden; trackBy: trackPorId">
         <a [routerLink]="['/home/autos/interesados']" [queryParams]="{ abrir: i.id }">{{ i.nombre }}</a>
         <span>Busca {{ busqueda(i) }}<ng-container *ngIf="i.telefono"> · {{ i.telefono }}</ng-container></span>
         <small [class.vencido]="i.atrasado">{{ proxima(i) }}</small>
+        <button type="button" class="gm-btn gm-btn--brand gm-btn--sm" (click)="escribirA.set(i.id)">Avisar que entró</button>
       </li>
     </ul>
   </section>
@@ -131,6 +197,11 @@
   <div class="dos">
     <section class="bloque" aria-label="Papeles">
       <h4><i class="luz" [attr.data-color]="u.semaforo" aria-hidden="true"></i> Papeles <small>{{ textoSemaforo[u.semaforo] }}</small></h4>
+      <div class="botones" *ngIf="u.dominio" style="margin-bottom: 0.65rem;">
+        <button type="button" *ngFor="let lk of linksMultas" class="gm-btn gm-btn--neutral gm-btn--sm" (click)="consultarMultas(lk.url, lk.rotulo)">
+          {{ lk.rotulo }} ({{ u.dominio }})
+        </button>
+      </div>
       <ul class="papeles">
         <li *ngFor="let p of u.papeles; trackBy: trackPorTipo" [class.falta]="p.bloquea && (p.estado !== 'ok' || p.vencido)">
           <div class="nombre">
@@ -145,6 +216,10 @@
           <label class="vence" *ngIf="p.estado === 'ok' && (p.tipo === 'vtv' || p.tipo === 'informe_dominio' || p.tipo === 'verificacion_policial')">
             <span>Vence</span>
             <input class="gm-input" type="date" [ngModel]="p.vence" [ngModelOptions]="{ standalone: true }" (change)="papel(p, 'ok', $any($event.target).value || null)" [disabled]="ocupado() || !u.acciones.editar">
+          </label>
+          <label class="vence" *ngIf="p.tipo === 'transferencia_registro'" style="flex: 1 1 200px;">
+            <span>Detalle de gestoría / Registro</span>
+            <input class="gm-input" type="text" maxlength="200" placeholder="Ej: Ingresado en Registro N° 4 · Cédula lista" [ngModel]="p.nota" [ngModelOptions]="{ standalone: true }" (change)="p.nota = $any($event.target).value || null; papel(p, p.estado)" [disabled]="ocupado()">
           </label>
         </li>
       </ul>
@@ -180,7 +255,16 @@
       <div *ngIf="u.fecha_venta"><dt>Se vendió</dt><dd>{{ fecha(u.fecha_venta) }}</dd></div>
       <div *ngIf="u.nro_motor"><dt>Motor</dt><dd>{{ u.nro_motor }}</dd></div>
       <div *ngIf="u.nro_chasis"><dt>Chasis</dt><dd>{{ u.nro_chasis }}</dd></div>
-      <div *ngIf="u.ubicacion"><dt>Dónde está</dt><dd>{{ u.ubicacion }}</dd></div>
+      <div>
+        <dt>Dónde está la unidad</dt>
+        <dd>
+          <select *ngIf="u.acciones.editar" class="gm-input" style="max-width: 280px; padding: 2px 8px; height: 30px; font-size: 0.84rem;" [ngModel]="u.ubicacion ?? ''" (ngModelChange)="cambiarUbicacion($event)">
+            <option value="">Sin especificar</option>
+            <option *ngFor="let ub of ubicacionesOperativas" [value]="ub">{{ ub }}</option>
+          </select>
+          <span *ngIf="!u.acciones.editar">{{ u.ubicacion || 'En salón' }}</span>
+        </dd>
+      </div>
     </dl>
     <p class="notas" *ngIf="u.descripcion"><b>Descripción en el sitio:</b> {{ u.descripcion }}
       <button type="button" class="enlace" *ngIf="u.acciones.editar" (click)="abrir('precio')">Cambiarla</button></p>
@@ -189,3 +273,20 @@
     <p class="notas" *ngIf="u.notas">{{ u.notas }}</p>
   </section>
 </ng-container>
+
+<div *ngIf="qrModal() as qm" (click)="qrModal.set(null)"
+     style="position: fixed; inset: 0; background: rgba(0,0,0,0.65); z-index: 1200; display: flex; align-items: center; justify-content: center; padding: 1rem;">
+  <div (click)="$event.stopPropagation()" style="background: var(--gm-card, #fff); border: 1px solid var(--gm-border); border-radius: 12px; padding: 1.3rem; max-width: 400px; width: 100%; text-align: center; box-shadow: 0 12px 36px rgba(0,0,0,0.28);">
+    <h3 style="margin: 0 0 0.35rem; font-size: 1.05rem;">{{ qm.titulo }}</h3>
+    <p style="margin: 0 0 0.85rem; font-size: 0.84rem; color: var(--gm-text-2);">{{ qm.subtitulo }}</p>
+    <img [src]="qm.qrDataUrl" alt="Código QR" style="width: 220px; height: 220px; margin: 0 auto 0.75rem; display: block; border: 1px solid var(--gm-border); border-radius: 8px; padding: 6px; background: #fff;">
+    <p style="margin: 0 0 0.85rem; font-size: 0.78rem; color: var(--gm-muted); word-break: break-all;">{{ qm.url }}</p>
+    <div class="botones" style="justify-content: center;">
+      <button type="button" class="gm-btn gm-btn--brand gm-btn--sm" (click)="copiarUrlQr(qm.url)">Copiar enlace</button>
+      <a [href]="qm.url" target="_blank" rel="noopener noreferrer" class="gm-btn gm-btn--neutral gm-btn--sm">Abrir página</a>
+      <button type="button" class="gm-btn gm-btn--neutral gm-btn--sm" (click)="qrModal.set(null)">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<app-escribir *ngIf="escribirA() as id" contexto="interesado" [destino]="id" (cerrar)="escribirA.set(null)" (enviado)="escribirA.set(null); cargarInteresados()"></app-escribir>

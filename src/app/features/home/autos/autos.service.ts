@@ -43,13 +43,23 @@ export interface PagoOperacion {
   billetera: string | null; toma: { id: string; numero: string; titulo: string } | null; detalle: string | null; fecha: string;
 }
 
+export interface FotoOperacion {
+  id: string;
+  url: string;
+  url_miniatura: string;
+  nota: string | null;
+  etapa: string;
+  autor: string | null;
+  fecha: string;
+}
+
 export interface Operacion {
   id: string; numero: string; estado: 'reservada' | 'vendida' | 'anulada';
   unidad: { id: string; numero: string; titulo: string; dominio: string | null; anio: number };
   cliente_nombre: string; cliente_telefono: string | null; cliente_documento: string | null;
   precio: number; moneda: Moneda; pagos: PagoOperacion[]; pagado: number; saldo: number; saldada: boolean;
   reserva_vence: string | null; vencida: boolean; vendedor: { id: string; nombre: string } | null; comision: number | null; comision_sugerida: number | null; comision_pagada_at: string | null;
-  bloqueantes: string[]; notas: string | null; anulada_motivo: string | null; created_at: string; cerrada_at: string | null;
+  bloqueantes: string[]; fotos: FotoOperacion[]; notas: string | null; anulada_motivo: string | null; created_at: string; cerrada_at: string | null;
   acciones: { pagar: boolean; cerrar: boolean; anular: boolean };
 }
 
@@ -94,8 +104,39 @@ export interface ComisionesDeVendedor {
   operaciones: { id: string; numero: string; unidad_id: string; unidad: string; cliente: string; cerrada_at: string | null; precio: number; moneda: Moneda; comision: number | null; pagada_at: string | null }[];
 }
 export interface Comisiones { desde: string; hasta: string; vendedores: ComisionesDeVendedor[] }
+export interface GuiaDelUsado {
+  uso: string | null;
+  guardado: string | null;
+  motivo_venta: string | null;
+  ultimo_service: string | null;
+  ultima_vtv: string | null;
+  mantenimiento: string | null;
+  neumaticos: string | null;
+  transferencia: string | null;
+  agregados: string | null;
+  paneles_choques: string | null;
+  reparaciones: string | null;
+}
 /** El auto del interesado en datos sueltos, como lo cargó en «Cotizá tu auto». */
-export interface UsadoDelInteresado { marca: string; modelo: string; version: string | null; anio: number; km: number | null; combustible: string | null; transmision: string | null }
+export interface UsadoDelInteresado {
+  tipo_vehiculo?: string | null;
+  carroceria?: string | null;
+  dominio?: string | null;
+  marca: string;
+  modelo: string;
+  version: string | null;
+  anio: number;
+  km: number | null;
+  combustible: string | null;
+  transmision: string | null;
+  seguro_cuota?: number | null;
+  seguro_cobertura?: string | null;
+  seguro_compania?: string | null;
+  costo_patente?: number | null;
+  radicacion?: string | null;
+  descripcion?: string | null;
+  guia?: GuiaDelUsado | null;
+}
 export interface AutoAjeno { titulo: string; marca: string | null; anio: number | null; km: number | null; precio: number; moneda: Moneda; url: string | null; fuente: string; detalle?: string | null }
 export type Veredicto = 'sin_precio' | 'sin_comparables' | 'falta_dolar' | 'buen_precio' | 'en_precio' | 'caro_pero_mejor' | 'caro';
 export interface ComparacionDeUnidad {
@@ -135,6 +176,27 @@ export class AutosService {
   resumen(): Observable<ResumenStock> { return this.http.get<ResumenStock>(`${this.u}/resumen`); }
   obtener(id: string): Observable<Unidad> { return this.http.get<Unidad>(`${this.u}/${id}`); }
   crear(datos: Cuerpo): Observable<Unidad> { return this.http.post<Unidad>(this.u, datos); }
+  leerSitioParaImportar(url: string): Observable<{
+    dominio: string;
+    marca: string;
+    modelo: string;
+    version: string | null;
+    anio: number;
+    km: number;
+    moneda: Moneda;
+    precio_venta: number;
+  }[]> {
+    return this.http.post<{
+      dominio: string;
+      marca: string;
+      modelo: string;
+      version: string | null;
+      anio: number;
+      km: number;
+      moneda: Moneda;
+      precio_venta: number;
+    }[]>(`${this.u}/leer-sitio`, { url });
+  }
   editar(id: string, datos: Cuerpo): Observable<Unidad> { return this.http.patch<Unidad>(`${this.u}/${id}`, datos); }
   cambiarEstado(id: string, estado: EstadoUnidad, motivo?: string): Observable<Unidad> {
     return this.http.post<Unidad>(`${this.u}/${id}/estado`, { estado, ...(motivo ? { motivo } : {}) });
@@ -163,6 +225,16 @@ export class AutosService {
     return this.http.post<Operacion>(`${this.o}/${id}/cerrar`, comision === null ? {} : { comision });
   }
   anular(id: string, motivo: string): Observable<Operacion> { return this.http.post<Operacion>(`${this.o}/${id}/anular`, { motivo }); }
+  subirFotosOperacion(id: string, archivos: File[], nota?: string, etapa?: string): Observable<Operacion> {
+    const fd = new FormData();
+    archivos.forEach((a) => fd.append('fotos', a));
+    if (nota) fd.append('nota', nota);
+    if (etapa) fd.append('etapa', etapa);
+    return this.http.post<Operacion>(`${this.o}/${id}/fotos`, fd);
+  }
+  borrarFotoOperacion(id: string, fotoId: string): Observable<Operacion> {
+    return this.http.delete<Operacion>(`${this.o}/${id}/fotos/${fotoId}`);
+  }
   private r = `${environment.apiUrl}/reservas-web`;
   pedidosDeReserva(): Observable<PedidoDeReserva[]> { return this.http.get<PedidoDeReserva[]>(this.r); }
   confirmarReserva(id: string, datos: Cuerpo): Observable<PedidoDeReserva> { return this.http.post<PedidoDeReserva>(`${this.r}/${id}/confirmar`, datos); }
@@ -186,6 +258,14 @@ export class AutosService {
   }
   cotizarInteresado(id: string, datos: Cuerpo): Observable<Interesado> { return this.http.post<Interesado>(`${this.i}/${id}/cotizacion`, datos); }
   anotarInteresado(id: string, datos: Cuerpo): Observable<Interesado> { return this.http.post<Interesado>(`${this.i}/${id}/notas`, datos); }
+  subirFotosInteresado(id: string, archivos: File[]): Observable<Interesado> {
+    const fd = new FormData();
+    archivos.forEach((a) => fd.append('fotos', a));
+    return this.http.post<Interesado>(`${this.i}/${id}/fotos`, fd);
+  }
+  borrarFotoInteresado(id: string, indice: number): Observable<Interesado> {
+    return this.http.delete<Interesado>(`${this.i}/${id}/fotos/${indice}`);
+  }
 
   private c = `${environment.apiUrl}/competencia`;
   /** El dólar lo guarda el servidor por agencia: no hace falta mandarlo. */

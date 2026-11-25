@@ -3,7 +3,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 
 import { AutosService, Unidad } from './autos.service';
-import { CAJAS, CARROCERIAS, COMBUSTIBLES, monto } from './autos.util';
+import { CAJAS, CARROCERIAS, COMBUSTIBLES, MARCAS_SUGERIDAS, estimarAnioPorPatente, modelosDeMarca, monto } from './autos.util';
 import { NotificationService } from '../../../core/services/notification.service';
 
 interface FotoElegida { archivo: File; vista: string }
@@ -30,12 +30,25 @@ export class UnidadAltaComponent implements OnInit, OnDestroy {
   readonly combustibles = COMBUSTIBLES;
   readonly cajas = CAJAS;
   readonly carrocerias = CARROCERIAS;
+  readonly marcasSugeridas = MARCAS_SUGERIDAS;
   readonly maximoFotos = MAXIMO_FOTOS;
+
+  get modelosSugeridos(): string[] {
+    return modelosDeMarca(this.n.marca);
+  }
+
+  alCambiarDominio(valor: string): void {
+    this.n.dominio = valor;
+    if (!this.n.anio.trim()) {
+      const estimado = estimarAnioPorPatente(valor);
+      if (estimado) this.n.anio = String(estimado);
+    }
+  }
 
   n = {
     origen: 'compra' as 'compra' | 'consignacion', condicion: 'usado' as 'usado' | '0km', moneda: 'USD' as 'USD' | 'ARS',
     dominio: '', marca: '', modelo: '', version: '', anio: '', km: '', color: '', combustible: '', transmision: '', carroceria: '',
-    costo: '', piso: '', precio: '', titular_nombre: '', titular_telefono: '', descripcion: '', publicar: false,
+    costo: '', piso: '', precio: '', titular_nombre: '', titular_telefono: '', descripcion: '', publicar: true,
   };
   fotos = signal<FotoElegida[]>([]);
   guardando = signal(false);
@@ -50,10 +63,21 @@ export class UnidadAltaComponent implements OnInit, OnDestroy {
       const d = JSON.parse(crudo) as Record<string, string | number | null>;
       const texto = (v: unknown) => (v === null || v === undefined ? '' : String(v));
       this.n = {
-        ...this.n, marca: texto(d['marca']), modelo: texto(d['modelo']), version: texto(d['version']), anio: texto(d['anio']), km: texto(d['km']),
-        combustible: texto(d['combustible']), transmision: texto(d['transmision']),
-        titular_nombre: texto(d['titular_nombre']), titular_telefono: texto(d['titular_telefono']),
-        costo: texto(d['costo']), moneda: d['moneda'] === 'ARS' ? 'ARS' : 'USD',
+        ...this.n,
+        dominio: texto(d['dominio']),
+        marca: texto(d['marca']),
+        modelo: texto(d['modelo']),
+        version: texto(d['version']),
+        anio: texto(d['anio']),
+        km: texto(d['km']),
+        combustible: texto(d['combustible']),
+        transmision: texto(d['transmision']),
+        carroceria: texto(d['carroceria']),
+        descripcion: texto(d['descripcion']),
+        titular_nombre: texto(d['titular_nombre']),
+        titular_telefono: texto(d['titular_telefono']),
+        costo: texto(d['costo']),
+        moneda: d['moneda'] === 'ARS' ? 'ARS' : 'USD',
       };
     } catch { /* un enlace roto no completa nada */ }
   }

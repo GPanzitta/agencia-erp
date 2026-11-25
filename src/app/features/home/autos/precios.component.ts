@@ -113,4 +113,18 @@ export class PreciosComponent implements OnInit, OnDestroy {
   dia(f: string): string { return new Date(f).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' }); }
   trackPorId(_: number, x: { id: string }): string { return x.id; }
   trackUnidad(_: number, c: ComparacionDeUnidad): string { return c.unidad.id; }
+
+  aplicarPrecioSugerido(c: ComparacionDeUnidad): void {
+    const nuevo = c.esperado ?? c.referencia;
+    if (nuevo === null) return;
+    const texto = `¿Querés actualizar el precio de lista de ${this.titulo(c)} a ${this.plata(nuevo, c.unidad.moneda)}?`;
+    if (!window.confirm(texto)) return;
+    this.api.editar(c.unidad.id, { precio_venta: nuevo }).subscribe({
+      next: () => {
+        this.notification.success(`Precio actualizado a ${this.plata(nuevo, c.unidad.moneda)}`);
+        this.cargar();
+      },
+      error: () => this.notification.error('No se pudo actualizar el precio.'),
+    });
+  }
 }

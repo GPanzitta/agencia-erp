@@ -20,8 +20,10 @@ const routes: Routes = [
     children: [
       { path: '', pathMatch: 'full', component: InicioComponent },
       { path: 'autos', loadChildren: () => import('./autos/autos.module').then((m) => m.AutosModule) },
+      { path: 'taller', loadChildren: () => import('./taller/taller.module').then((m) => m.TallerModule) },
       { path: 'cajas', component: CajasComponent, canActivate: [rolGuard(Rol.ADMIN, Rol.MOSTRADOR)] },
       { path: 'gastos', loadChildren: () => import('./gastos/gastos.module').then((m) => m.GastosModule) },
+      { path: 'margen', canActivate: [rolGuard(Rol.ADMIN)], loadChildren: () => import('./margen/margen.module').then((m) => m.MargenModule) },
       { path: 'proveedores', canActivate: [rolGuard(Rol.ADMIN)], loadChildren: () => import('./proveedores/proveedores.module').then((m) => m.ProveedoresModule) },
       { path: 'configuracion', canActivate: [rolGuard(Rol.ADMIN)], loadChildren: () => import('./configuracion/configuracion.module').then((m) => m.ConfiguracionModule) },
       // Registro de acciones sensibles: sólo el dueño.

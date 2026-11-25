@@ -1,6 +1,100 @@
 <header class="cab">
   <h2>Stock</h2>
+  <div class="botones">
+    <button type="button" class="gm-btn gm-btn--brand gm-btn--sm" *ngIf="puedeCargar()" (click)="importadorAbierto.set(!importadorAbierto())">
+      {{ importadorAbierto() ? 'Cerrar importador' : 'Importar stock en 30 seg' }}
+    </button>
+    <button type="button" class="gm-btn gm-btn--neutral gm-btn--sm" *ngIf="lista().length" (click)="gremioAbierto.set(!gremioAbierto())">
+      {{ gremioAbierto() ? 'Cerrar lista colegas' : 'Lista gremio (WhatsApp)' }}
+    </button>
+    <button type="button" class="gm-btn gm-btn--neutral gm-btn--sm" *ngIf="lista().length" (click)="exportarExcel()">Exportar Excel</button>
+  </div>
 </header>
+
+<section *ngIf="gremioAbierto()" style="background: var(--gm-card); border: 1px solid var(--gm-border); border-radius: var(--gm-radius-lg); padding: 1.1rem 1.2rem; margin-bottom: 1rem;">
+  <h3 style="margin: 0 0 0.25rem; font-size: 1.02rem;">Armar lista mayorista / gremio para grupos de WhatsApp de colegas</h3>
+  <p class="ayuda" style="margin: 0 0 0.75rem;">Genera el listado con las unidades disponibles de esta vista aplicando un descuento opcional sobre el precio de lista (nunca expone tu costo de adquisición).</p>
+  <div style="display: flex; gap: 0.8rem; align-items: flex-end; flex-wrap: wrap; margin-bottom: 0.75rem;">
+    <label style="display: flex; flex-direction: column; gap: 0.2rem;">
+      <span style="font-size: 0.78rem; color: var(--gm-muted);">Descuento gremio sobre precio de lista (%)</span>
+      <input class="gm-input" type="number" min="0" max="30" style="width: 110px;" [(ngModel)]="descuentoGremioPct" name="descGremio">
+    </label>
+    <button type="button" class="gm-btn gm-btn--brand gm-btn--sm" (click)="copiarListaGremio()">Copiar lista para WhatsApp</button>
+  </div>
+  <textarea class="gm-input" rows="6" readonly [value]="textoListaGremio()" style="width: 100%; font-family: monospace; font-size: 0.83rem;"></textarea>
+</section>
+
+<section *ngIf="importadorAbierto()" style="background: var(--gm-card); border: 1px solid var(--gm-border); border-radius: var(--gm-radius-lg); padding: 1.1rem 1.2rem; margin-bottom: 1rem;">
+  <h3 style="margin: 0 0 0.25rem; font-size: 1.05rem;">Traé tu stock actual en 30 segundos (desde Excel/CSV o desde tu web actual)</h3>
+  <p class="ayuda" style="margin: 0 0 0.9rem;">Subí tu planilla de precios o pegá la dirección de tu página actual: leemos los autos, te mostramos la vista previa y los publicamos en tu sitio nuevo.</p>
+
+  <div style="display: flex; gap: 0.7rem; flex-wrap: wrap; align-items: flex-end; margin-bottom: 0.9rem;">
+    <label class="gm-btn gm-btn--brand gm-btn--sm" style="cursor: pointer;">
+      Subir archivo Excel (.xlsx) o CSV
+      <input type="file" accept=".xlsx,.csv" hidden (change)="cargarArchivoImportacion($event)" [disabled]="importando() || leyendoSitio()">
+    </label>
+    <button type="button" class="gm-btn gm-btn--neutral gm-btn--sm" (click)="descargarPlantillaImportacion()">
+      Descargar plantilla Excel de ejemplo
+    </button>
+
+    <form (ngSubmit)="leerDesdeUrl()" style="display: flex; gap: 0.5rem; flex: 1 1 340px; align-items: flex-end;">
+      <label style="display: flex; flex-direction: column; gap: 0.2rem; flex: 1;">
+        <span style="font-size: 0.78rem; color: var(--gm-muted);">O pegá el link de tu listado web actual</span>
+        <input class="gm-input" type="url" name="urlImp" placeholder="https://miagencia.com.ar/usados" [(ngModel)]="urlImportar" [disabled]="importando() || leyendoSitio()">
+      </label>
+      <button type="submit" class="gm-btn gm-btn--neutral gm-btn--sm" [disabled]="importando() || leyendoSitio()">
+        {{ leyendoSitio() ? 'Leyendo web…' : 'Leer autos de la web' }}
+      </button>
+    </form>
+  </div>
+
+  <div *ngIf="filasParaImportar().length" style="overflow-x: auto;">
+    <table class="modern-table" style="width: 100%; font-size: 0.84rem; margin-bottom: 0.8rem;">
+      <thead>
+        <tr>
+          <th>Importar</th>
+          <th>Dominio (Patente)</th>
+          <th>Marca</th>
+          <th>Modelo</th>
+          <th>Versión</th>
+          <th>Año</th>
+          <th>Km</th>
+          <th>Moneda</th>
+          <th>Precio venta</th>
+          <th>Publicar ya</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let f of filasParaImportar(); let idx = index">
+          <td><input type="checkbox" [(ngModel)]="f.incluir" [name]="'inc' + idx"></td>
+          <td><input class="gm-input dominio" style="width: 105px; padding: 3px 6px;" [(ngModel)]="f.dominio" [name]="'dom' + idx" maxlength="10"></td>
+          <td><input class="gm-input" style="width: 120px; padding: 3px 6px;" [(ngModel)]="f.marca" [name]="'mar' + idx"></td>
+          <td><input class="gm-input" style="width: 130px; padding: 3px 6px;" [(ngModel)]="f.modelo" [name]="'mod' + idx"></td>
+          <td><input class="gm-input" style="width: 160px; padding: 3px 6px;" [(ngModel)]="f.version" [name]="'ver' + idx"></td>
+          <td><input class="gm-input" type="number" style="width: 78px; padding: 3px 6px;" [(ngModel)]="f.anio" [name]="'ani' + idx"></td>
+          <td><input class="gm-input" type="number" style="width: 95px; padding: 3px 6px;" [(ngModel)]="f.km" [name]="'km' + idx"></td>
+          <td>
+            <select class="gm-input" style="width: 78px; padding: 3px 6px;" [(ngModel)]="f.moneda" [name]="'mon' + idx">
+              <option value="USD">USD</option>
+              <option value="ARS">ARS</option>
+            </select>
+          </td>
+          <td><input class="gm-input" type="number" style="width: 110px; padding: 3px 6px;" [(ngModel)]="f.precio_venta" [name]="'pre' + idx"></td>
+          <td><input type="checkbox" [(ngModel)]="f.publicar" [name]="'pub' + idx"></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="botones" style="align-items: center;">
+      <button type="button" class="gm-btn gm-btn--brand gm-btn--sm" [disabled]="importando()" (click)="confirmarImportacion()">
+        {{ importando() ? progresoImportacion() : 'Confirmar e importar seleccionados al stock' }}
+      </button>
+      <button type="button" class="gm-btn gm-btn--neutral gm-btn--sm" [disabled]="importando()" (click)="filasParaImportar.set([])">
+        Limpiar lista
+      </button>
+    </div>
+  </div>
+</section>
 
 
 <section class="numeros" *ngIf="resumen() as r" aria-label="Números del stock">
@@ -36,9 +130,15 @@
       <span>{{ renglon(u) }}</span>
       <small><span class="patente">{{ dominio(u.dominio) }}</span> · {{ u.numero }} · {{ rotuloOrigen[u.origen] }}</small>
     </div>
-    <div class="estado">
+    <div class="estado" (click)="$event.stopPropagation()">
       <span class="chip" [attr.data-estado]="u.estado">{{ rotuloEstado[u.estado] }}</span>
-      <small *ngIf="u.publicada">En el sitio</small>
+      <small *ngIf="u.publicada" style="color: var(--gm-success); font-weight: 600;">✓ Publicada en la web</small>
+      <button type="button" *ngIf="!u.publicada && u.precio_venta !== null && (u.estado === 'disponible' || u.estado === 'ingreso' || u.estado === 'alistaje')"
+              class="gm-btn gm-btn--brand gm-btn--sm" style="padding: 2px 7px; font-size: 0.72rem; margin-top: 2px;"
+              (click)="publicarDirecto(u, $event)">
+        Publicar en la web
+      </button>
+      <small *ngIf="!u.publicada && u.precio_venta === null" style="color: var(--gm-muted);">Falta precio para publicar</small>
       <small *ngIf="u.operacion">{{ u.operacion.cliente_nombre }}</small>
     </div>
     <div class="dias" [ngClass]="claseDias(u.dias_en_stock)">{{ textoDias(u.dias_en_stock) }}</div>
@@ -48,9 +148,29 @@
     <div class="plata">
       <b>{{ plata(u.precio_venta, u.moneda) }}</b>
       <small *ngIf="esDuenio()">lleva {{ plata(u.costo_total, u.moneda) }}<ng-container *ngIf="u.margen !== null"> · deja <span [class.negativo]="u.margen < 0">{{ plata(u.margen, u.moneda) }}</span></ng-container></small>
+      <div style="display: flex; gap: 0.3rem; margin-top: 0.25rem; justify-content: flex-end;" (click)="$event.stopPropagation()">
+        <button type="button" class="gm-btn gm-btn--neutral gm-btn--sm" style="padding: 2px 7px; font-size: 0.74rem;" (click)="verQrEnStock(u, $event)">📱 QR</button>
+        <button type="button" class="gm-btn gm-btn--neutral gm-btn--sm" style="padding: 2px 7px; font-size: 0.74rem;" (click)="imprimirCartelDesdeStock(u, $event)">Cartel QR</button>
+      </div>
     </div>
   </li>
 </ul>
+
+<div *ngIf="qrModal() as qm" (click)="qrModal.set(null)"
+     style="position: fixed; inset: 0; background: rgba(0,0,0,0.65); z-index: 1200; display: flex; align-items: center; justify-content: center; padding: 1rem;">
+  <div (click)="$event.stopPropagation()" style="background: var(--gm-card, #fff); border: 1px solid var(--gm-border); border-radius: 12px; padding: 1.3rem; max-width: 420px; width: 100%; text-align: center; box-shadow: 0 12px 36px rgba(0,0,0,0.28);">
+    <h3 style="margin: 0 0 0.35rem; font-size: 1.05rem;">{{ qm.titulo }}</h3>
+    <p style="margin: 0 0 0.85rem; font-size: 0.84rem; color: var(--gm-text-2);">{{ qm.subtitulo }}</p>
+    <img [src]="qm.qrDataUrl" alt="Código QR" style="width: 220px; height: 220px; margin: 0 auto 0.75rem; display: block; border: 1px solid var(--gm-border); border-radius: 8px; padding: 6px; background: #fff;">
+    <p style="margin: 0 0 0.85rem; font-size: 0.78rem; color: var(--gm-muted); word-break: break-all;">{{ qm.url }}</p>
+    <div class="botones" style="justify-content: center; flex-wrap: wrap;">
+      <button type="button" class="gm-btn gm-btn--brand gm-btn--sm" (click)="imprimirCartelDesdeStock(qm.unidad)">🖨️ Cartel parabrisas A4</button>
+      <button type="button" class="gm-btn gm-btn--neutral gm-btn--sm" (click)="imprimirLlaveDesdeStock(qm.unidad)">🔑 Etiqueta de llave QR</button>
+      <button type="button" class="gm-btn gm-btn--neutral gm-btn--sm" (click)="copiarUrlQr(qm.url)">Copiar link</button>
+      <button type="button" class="gm-btn gm-btn--neutral gm-btn--sm" (click)="qrModal.set(null)">Cerrar</button>
+    </div>
+  </div>
+</div>
 
 <details class="sitio-caja" *ngIf="sitio()">
 <summary>Tu sitio y lo que muestra</summary>
