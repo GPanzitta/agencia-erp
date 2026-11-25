@@ -81,7 +81,7 @@
         <button type="button" *ngFor="let v of variables" class="var-chip"
                 [title]="v.descripcion + ' (Ej: ' + v.ejemplo + ')'"
                 (click)="insertarVariable(v.clave, areaClausulas)">
-          + &#123;{{ v.clave }}&#125;
+          + {{ '{' + v.clave + '}' }}
         </button>
       </div>
 
